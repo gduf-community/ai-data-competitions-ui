@@ -1,0 +1,344 @@
+@import "tailwindcss";
+@import "../styles/launch-ui-utils.css";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono-custom, ui-monospace, "JetBrains Mono", monospace);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-primary-hover: var(--primary-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  /* Launch UI animations */
+  --animate-appear: appear 0.6s forwards ease-out;
+  --animate-appear-zoom: appear-zoom 0.6s forwards ease-out;
+
+  @keyframes appear {
+    0% {
+      opacity: 0;
+      transform: translateY(1rem);
+      filter: blur(0.5rem);
+    }
+    50% {
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+  @keyframes appear-zoom {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: #fcfcfd;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #3e63dd;
+  --primary-hover: #3358d4;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f4ff;
+  --secondary-foreground: #2f4eb2;
+  --muted: #f1f3f5;
+  --muted-foreground: #6b7280;
+  --accent: #e6f4fe;
+  --accent-foreground: #0b5cad;
+  --destructive: #e5484d;
+  --success: #30a46c;
+  --warning: #f5a524;
+  --danger: #e5484d;
+  --border: #d9dee3;
+  --input: #d9dee3;
+  --ring: #3e63dd;
+  --chart-1: #3e63dd;
+  --chart-2: #30a46c;
+  --chart-3: #f5a524;
+  --chart-4: #0b5cad;
+  --chart-5: #e5484d;
+  --sidebar: #f8f9fa;
+  --sidebar-foreground: #1f2937;
+  --sidebar-primary: #3e63dd;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f4fe;
+  --sidebar-accent-foreground: #0b5cad;
+  --sidebar-border: #d9dee3;
+  --sidebar-ring: #3e63dd;
+}
+
+.dark {
+  --background: #111113;
+  --foreground: #f8fafc;
+  --card: #18191b;
+  --card-foreground: #f8fafc;
+  --popover: #18191b;
+  --popover-foreground: #f8fafc;
+  --primary: #3e63dd;
+  --primary-hover: #5472e4;
+  --primary-foreground: #ffffff;
+  --secondary: #1b2240;
+  --secondary-foreground: #d6e1ff;
+  --muted: #222427;
+  --muted-foreground: #a1a1aa;
+  --accent: #102a43;
+  --accent-foreground: #b7dcff;
+  --destructive: #e5484d;
+  --success: #30a46c;
+  --warning: #f5a524;
+  --danger: #e5484d;
+  --border: #33363b;
+  --input: #33363b;
+  --ring: #3e63dd;
+  --chart-1: #5472e4;
+  --chart-2: #3cb179;
+  --chart-3: #f5a524;
+  --chart-4: #4a90d9;
+  --chart-5: #e5484d;
+  --sidebar: #141416;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #3e63dd;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #102a43;
+  --sidebar-accent-foreground: #b7dcff;
+  --sidebar-border: #33363b;
+  --sidebar-ring: #3e63dd;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Ensure consistent font rendering across different DPI levels */
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}
+
+/* Fix for sidebar "none" mode height issue */
+.sidebar-none-mode [data-slot="sidebar"] {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+}
+
+/* Fix for right-side inset variant support */
+@media (min-width: 768px) {
+  /* Right sidebar inset variant - margin adjustments */
+  [data-side="right"][data-variant="inset"] ~ [data-slot="sidebar-inset"] {
+    margin-right: 0 !important;
+  }
+
+  /* Right sidebar inset variant - collapsed state margin */
+  [data-side="right"][data-variant="inset"][data-state="collapsed"] ~ [data-slot="sidebar-inset"] {
+    margin-right: 0.5rem !important;
+  }
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Logo carousel animation */
+@keyframes logo-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-144rem); /* 12 items * 12rem = 144rem */
+  }
+}
+
+.animate-logo-scroll {
+  animation: logo-scroll 30s linear infinite;
+}
+
+.animate-logo-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* Marquee infinite scroll */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% - 1rem));
+  }
+}
+
+.animate-marquee {
+  animation: marquee linear infinite;
+}
+
+/* Floating gradient orb */
+@keyframes float-orb {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 15px) scale(0.95);
+  }
+}
+
+.animate-float-orb {
+  animation: float-orb 8s ease-in-out infinite;
+}
+
+/* Dot grid background pattern */
+.dot-grid-bg {
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Homepage hero interaction surface */
+.hero-gradient-surface {
+  background-color: #070d23;
+  background-image:
+    radial-gradient(140% 110% at 8% -10%, rgba(91, 129, 255, 0.28), transparent 55%),
+    radial-gradient(120% 120% at 90% 105%, rgba(79, 70, 229, 0.33), transparent 58%),
+    linear-gradient(180deg, #060b1f 0%, #0a1130 48%, #0d1840 100%);
+}
+
+.hero-dot-matrix {
+  background-image: radial-gradient(circle at center, rgba(137, 172, 255, 0.38) 0.9px, transparent 1.2px);
+  background-size: 22px 22px;
+  animation: hero-grid-pan 18s linear infinite;
+}
+
+.hero-scanline {
+  background-image: repeating-linear-gradient(
+    175deg,
+    rgba(255, 255, 255, 0.11) 0px,
+    rgba(255, 255, 255, 0.11) 1px,
+    transparent 1px,
+    transparent 16px
+  );
+}
+
+.hero-band-drift {
+  background:
+    radial-gradient(60% 46% at 22% 100%, rgba(56, 189, 248, 0.24), transparent 72%),
+    radial-gradient(55% 42% at 84% 94%, rgba(129, 140, 248, 0.24), transparent 75%);
+  animation: hero-band-shift 14s ease-in-out infinite alternate;
+}
+
+.hero-pointer-glow {
+  background: radial-gradient(
+    520px circle at var(--hero-mx) var(--hero-my),
+    rgba(110, 190, 255, 0.34),
+    rgba(110, 190, 255, 0.08) 52%,
+    transparent 72%
+  );
+}
+
+.hero-orb-float {
+  animation: hero-orb-float 10s ease-in-out infinite;
+}
+
+.hero-orb-float-delayed {
+  animation: hero-orb-float 12s ease-in-out infinite reverse;
+}
+
+@keyframes hero-grid-pan {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(22px, 22px, 0);
+  }
+}
+
+@keyframes hero-band-shift {
+  0% {
+    transform: translate3d(-3%, -1%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.04);
+  }
+}
+
+@keyframes hero-orb-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(18px, -12px, 0) scale(1.03);
+  }
+  66% {
+    transform: translate3d(-14px, 10px, 0) scale(0.98);
+  }
+}
+
+@layer utilities {
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono, ui-monospace, monospace);
+  }
+}
