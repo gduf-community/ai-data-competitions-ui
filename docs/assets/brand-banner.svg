@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="广东金融学院竞赛综合服务中心 UI 仓库">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="55%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="38%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#020617" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="420" rx="34" fill="url(#bg)"/>
+  <rect width="1280" height="420" rx="34" fill="url(#halo)"/>
+  <g opacity="0.16" stroke="#93c5fd" stroke-width="1">
+    <path d="M0 82H1280"/><path d="M0 134H1280"/><path d="M0 186H1280"/><path d="M0 238H1280"/><path d="M0 290H1280"/><path d="M0 342H1280"/>
+    <path d="M110 0V420"/><path d="M220 0V420"/><path d="M330 0V420"/><path d="M440 0V420"/><path d="M550 0V420"/><path d="M660 0V420"/><path d="M770 0V420"/><path d="M880 0V420"/><path d="M990 0V420"/><path d="M1100 0V420"/><path d="M1210 0V420"/>
+  </g>
+  <g transform="translate(82 78)">
+    <rect width="86" height="86" rx="26" fill="#ffffff" opacity="0.13"/>
+    <circle cx="43" cy="43" r="28" fill="#3b82f6"/>
+    <path d="M31 31h24v12c0 9-6 17-12 20-6-3-12-11-12-20V31z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M34 39h18M39 63h8M35 70h16" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text x="82" y="213" fill="#bfdbfe" font-size="18" font-family="Inter, Arial, sans-serif" letter-spacing="5">AI DATA COMPETITIONS UI</text>
+  <text x="82" y="270" fill="#ffffff" font-size="52" font-weight="900" font-family="Inter, Arial, sans-serif">学院竞赛综合服务中心</text>
+  <text x="82" y="318" fill="#dbeafe" font-size="26" font-weight="700" font-family="Inter, Arial, sans-serif">公开前端 UI · 通用组件 · Mock 数据 · 社区协作</text>
+  <g filter="url(#shadow)" transform="translate(805 66)">
+    <rect width="360" height="250" rx="30" fill="#0f172a" opacity="0.72" stroke="#93c5fd" stroke-opacity="0.26"/>
+    <rect x="28" y="28" width="304" height="38" rx="19" fill="#ffffff" opacity="0.1"/>
+    <circle cx="52" cy="47" r="6" fill="#93c5fd" opacity="0.75"/><circle cx="73" cy="47" r="6" fill="#93c5fd" opacity="0.45"/><circle cx="94" cy="47" r="6" fill="#93c5fd" opacity="0.28"/>
+    <text x="30" y="104" fill="#c7d2fe" font-size="16" font-weight="700" font-family="Inter, Arial, sans-serif">Featured Competition</text>
+    <text x="30" y="142" fill="#ffffff" font-size="25" font-weight="900" font-family="Inter, Arial, sans-serif">“中国软件杯”大学生软件设计大赛</text>
+    <rect x="30" y="166" width="130" height="34" rx="17" fill="#10b981" opacity="0.18"/><text x="52" y="189" fill="#34d399" font-size="15" font-weight="700" font-family="Inter, Arial, sans-serif">报名中</text>
+    <rect x="30" y="214" width="304" height="1" fill="#93c5fd" opacity="0.25"/>
+    <text x="30" y="238" fill="#dbeafe" font-size="15" font-family="Inter, Arial, sans-serif">比赛列表 / 荣誉展示 / 通用组件</text>
+  </g>
+</svg>

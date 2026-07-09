@@ -1,0 +1,49 @@
+name: Bug 反馈
+description: 反馈公开 UI 仓库中的页面、组件、样式或交互问题
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 简要说明你遇到的问题。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 按步骤描述如何复现问题。
+      placeholder: |
+        1. 打开 ...
+        2. 点击 ...
+        3. 出现 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望表现
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际表现
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 运行环境
+      placeholder: |
+        OS:
+        Browser:
+        Node:
+        Package manager:
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏
+      description: 请避免上传包含真实学生信息、内部接口地址或 Token 的内容。
