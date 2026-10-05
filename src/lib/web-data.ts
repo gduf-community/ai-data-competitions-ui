@@ -44,3 +44,10 @@ function clubDates<T extends ClubContentSummaryRow>(row: Wire<T>): T {
 }
 export async function listPublishedClubContents(slug: string, type: ClubContentType, limit: number) { return (await readAPI<{data: Wire<ClubContentSummaryRow>[]}>("/api/clubs/" + id(slug) + "/contents?type=" + type + "&limit=" + limit)).data.map(clubDates); }
 export async function getPublishedClubContentById(contentId: string, slug: string) { const payload = await readOptionalAPI<{data: Wire<PublicClubContent>}>("/api/clubs/" + id(slug) + "/contents/" + id(contentId)); return payload ? clubDates<PublicClubContent>(payload.data) : null; }
+
+export async function listQuestionPage(competitionId: string, page: number) {
+  return readAPI<import("@/lib/contracts/questions").QuestionListResponse>("/api/questions?competitionId=" + id(competitionId) + "&page=" + page + "&pageSize=20");
+}
+export async function getQuestionDetail(competitionId: string, questionId: string) {
+  return readOptionalAPI<import("@/lib/contracts/questions").QuestionDetailResponse>("/api/questions/" + id(questionId) + "?competitionId=" + id(competitionId));
+}

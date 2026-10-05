@@ -44,3 +44,8 @@ export async function requestJSON<T>(input: RequestInfo | URL, options: RequestO
   if (payload === undefined) throw new HttpRequestError("服务器返回了空响应", response.status);
   return payload as T;
 }
+
+// Every command is authorized and validated again by the API.
+export async function submitQuestionCommand(command: import("@/lib/contracts/questions").QuestionCommand) {
+  return requestJSON<{result: unknown}>("/api/questions/commands", {method: "POST", json: command});
+}
