@@ -13,7 +13,9 @@ import {
 import { CompetitionStatusBadge } from "@/components/competitions/competition-status-badge";
 import { Button } from "@/components/ui/button";
 import Glow from "@/components/ui/glow";
-import type { Competition, UserRole } from "@/lib/mock-data";
+import type { UserRole } from "@/lib/types";
+import type { PublicCompetitionSummary as Competition } from "@/lib/contracts/public-portal";
+import { formatRegistrationWindow } from "@/lib/competition-date";
 
 interface NewHeroProps {
   featuredCompetitions: Competition[];
@@ -179,7 +181,7 @@ export function NewHero({ featuredCompetitions, currentUser }: NewHeroProps) {
                     <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                       <CalendarRange className="size-3.5 text-blue-300" />
                       <span className="text-xs text-white/75">
-                        {primaryCompetition.registrationWindow}
+                        {formatRegistrationWindow(primaryCompetition)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
@@ -219,7 +221,7 @@ export function NewHero({ featuredCompetitions, currentUser }: NewHeroProps) {
                           {competition.title}
                         </p>
                         <p className="text-xs text-white/60">
-                          {competition.registrationWindow}
+                          {formatRegistrationWindow(competition)}
                         </p>
                       </div>
                       <ArrowRight className="size-3.5 text-white/60 transition group-hover:translate-x-1 group-hover:text-white" />

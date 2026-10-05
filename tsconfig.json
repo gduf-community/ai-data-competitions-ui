@@ -54,6 +54,7 @@
     "dnd-kit-main",
     "next_discussion_platform-main",
     "mainline-nextjs-template-master",
-    "tests"
+    "tests",
+    "build"
   ]
 }

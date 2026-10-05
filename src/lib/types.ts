@@ -31,7 +31,8 @@ export type UserRole =
   | "temporary_admin"
   | "content_editor"
   | "supervisor"
-  | "student_user";
+  | "student_user"
+  | "club_admin";
 
 export interface Competition {
   id: string;
@@ -44,8 +45,16 @@ export interface Competition {
   department: string;
   registrationMode: RegistrationMode;
   maxTeamSize?: number;
-  registrationWindow: string;
-  eventWindow: string;
+  maxAdvisors?: number;
+  advisorsRequired?: boolean;
+  registrationStartAt?: string | null;
+  registrationEndAt?: string | null;
+  eventStartAt?: string | null;
+  eventEndAt?: string | null;
+  /** 仅供旧 Mock 数据兼容；API 与仓储不再生成该展示字段。 */
+  registrationWindow?: string;
+  /** 仅供旧 Mock 数据兼容；API 与仓储不再生成该展示字段。 */
+  eventWindow?: string;
   location: string;
   coverLabel: string;
   description: string;
@@ -110,4 +119,94 @@ export interface NoticeRecord {
   publishedAt: string;
   expiresAt: string | null;
   updatedAt: string;
+}
+
+export type ClubContentType =
+  | "recruitment"
+  | "activity"
+  | "announcement"
+  | "event_summary";
+
+export type ClubContentStatus =
+  | "draft"
+  | "pending_review"
+  | "published"
+  | "rejected"
+  | "archived"
+  | "offline";
+
+export type ClubContactType =
+  | "advisor"
+  | "student_lead"
+  | "email"
+  | "wechat"
+  | "qq_group";
+
+export interface HallOfFameEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  userImage: string | null;
+  college: string;
+  tag: string;
+  bio: string;
+  adminBio: string | null;
+  status: "active" | "hidden" | "invited" | "candidate";
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ExperiencePost {
+  id: string;
+  userId: string;
+  userName: string;
+  competitionId: string | null;
+  competitionTitle: string;
+  title: string;
+  content: string;
+  awardLevel: string;
+  coverImage: string | null;
+  isPublished: boolean;
+  publishedAt: string;
+}
+
+export type QuestionStatus = "open" | "closed" | "hidden";
+
+export interface QuestionRecord {
+  id: string;
+  competitionId: string;
+  authorId: string;
+  authorName: string;
+  authorImage?: string | null;
+  title: string;
+  body: string;
+  status: QuestionStatus;
+  isPinned: boolean;
+  answerCount: number;
+  createdAt: string;
+}
+
+export interface AnswerRecord {
+  id: string;
+  questionId: string;
+  authorId: string;
+  authorName: string;
+  authorImage?: string | null;
+  body: string;
+  isAccepted: boolean;
+  createdAt: string;
+}
+
+export interface QuestionCommentRecord {
+  id: string;
+  questionId: string;
+  answerId: string | null;
+  parentId: string | null;
+  depth: number;
+  authorId: string;
+  authorName: string;
+  authorImage?: string | null;
+  body: string;
+  createdAt: string;
 }

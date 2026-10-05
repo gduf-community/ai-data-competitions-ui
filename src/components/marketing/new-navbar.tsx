@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, ScrollText, Trophy } from "lucide-react";
+import { LogOut, Menu, ScrollText, Trophy } from "lucide-react";
+import { signOut } from "next-auth/react";
 
+import { fetchClientSessionUser } from "@/lib/auth/client-session";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 const navLinks = [
   { href: "/competitions", label: "比赛列表" },
+  { href: "/awards", label: "荣誉展示" },
   { href: "/clubs", label: "五大社团" },
   { href: "/hall-of-fame", label: "名人堂" },
   { href: "/team", label: "网站团队" },
@@ -68,11 +72,36 @@ function NavLink({
 
 export function NewNavbar({ currentUser }: NewNavbarProps) {
   const pathname = usePathname();
+  const [clientUser, setClientUser] = useState<PortalCurrentUser | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
 
-  const resolvedUser = currentUser ?? null;
+  const resolvedUser = currentUser === undefined ? clientUser : currentUser;
   const isCompact = pathname !== "/" || hasScrolled;
   const showAdminEntry = resolvedUser ? canAccessAdmin(resolvedUser.role) : false;
+
+  useEffect(() => {
+    let active = true;
+    if (currentUser !== undefined) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void fetchClientSessionUser().then((sessionUser) => {
+      if (!active) return;
+      if (!sessionUser?.name || !sessionUser.role) {
+        setClientUser(null);
+        return;
+      }
+      setClientUser({ name: sessionUser.name, role: sessionUser.role });
+    }).catch((error: unknown) => {
+      if (active) console.error("[navbar] session unavailable", error);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser]);
 
   useEffect(() => {
     if (pathname !== "/") return;
@@ -86,6 +115,10 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
       window.removeEventListener("scroll", handleScroll);
     };
   }, [pathname]);
+
+  async function handleSignOut() {
+    await signOut({ callbackUrl: "/" });
+  }
 
   return (
     <header
@@ -141,6 +174,7 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <NotificationBell />
           {resolvedUser ? (
             <>
               <div
@@ -180,6 +214,14 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
                 </Button>
               )}
 
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn("rounded-full text-muted-foreground", isCompact ? "text-[11px]" : "text-xs")}
+                onClick={() => void handleSignOut()}
+              >
+                <LogOut className="size-3" />
+              </Button>
             </>
           ) : (
             <>
@@ -232,8 +274,8 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
               )}
               <div className="mt-4 flex flex-col gap-3">
                 {resolvedUser ? (
-                  <Button variant="outline" asChild className="w-full">
-                    <Link href="/competitions">继续浏览比赛</Link>
+                  <Button variant="outline" className="w-full" onClick={() => void handleSignOut()}>
+                    退出登录
                   </Button>
                 ) : (
                   <>
