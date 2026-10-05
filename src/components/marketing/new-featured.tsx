@@ -6,7 +6,7 @@ import { FadeInOnScroll } from "@/components/motion/fade-in-on-scroll";
 import { StaggerChildren } from "@/components/motion/stagger-children";
 import { Button } from "@/components/ui/button";
 import { DashedLine } from "@/components/ui/dashed-line";
-import type { Competition } from "@/lib/mock-data";
+import type { PublicCompetitionSummary as Competition } from "@/lib/contracts/public-portal";
 
 interface NewFeaturedProps {
   competitions: Competition[];

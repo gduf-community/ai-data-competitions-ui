@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRef } from "react";
 import {
@@ -12,30 +11,22 @@ import {
 } from "framer-motion";
 import { Award } from "lucide-react";
 
-import type { AwardShowcaseEntry } from "@/lib/mock-data";
+import { LazyFillImage } from "@/components/shared/lazy-fill-image";
+import type { AwardShowcaseRow } from "@/lib/contracts/profiles";
 
 interface AwardWallProps {
-  awards: AwardShowcaseEntry[];
+  awards: AwardShowcaseRow[];
 }
 
 function AwardWallImage({ src, alt }: { src: string; alt: string }) {
-  if (!src) {
-    return (
-      <div className="flex size-full items-center justify-center bg-muted/40 px-4 text-center text-xs text-muted-foreground">
-        奖状图片暂不可用
-      </div>
-    );
-  }
-
   return (
-    <Image
+    <LazyFillImage
       src={src}
       alt={alt}
-      fill
-      loading="lazy"
-      quality={70}
       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-      className="object-cover transition-transform duration-500 group-hover:scale-105"
+      className="transition-transform duration-500 group-hover:scale-105"
+      fallbackText="奖状图片暂不可用"
+      fallbackClassName="px-4 text-center"
     />
   );
 }
@@ -44,7 +35,7 @@ function AwardCard({
   award,
   index,
 }: {
-  award: AwardShowcaseEntry;
+  award: AwardShowcaseRow;
   index: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);

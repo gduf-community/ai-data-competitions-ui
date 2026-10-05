@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { CompetitionStatus } from "@/lib/mock-data";
+import type { CompetitionStatus } from "@/lib/types";
 
 const statusMap: Record<
   CompetitionStatus,

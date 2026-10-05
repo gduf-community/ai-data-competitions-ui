@@ -2,14 +2,15 @@ import { Award } from "lucide-react";
 
 import { FadeInOnScroll } from "@/components/motion/fade-in-on-scroll";
 import { DashedLine } from "@/components/ui/dashed-line";
-import type { AwardShowcaseEntry, HallOfFameEntry } from "@/lib/mock-data";
+import type { AwardShowcaseRow } from "@/lib/contracts/profiles";
+import type { PublicHallOfFameEntry } from "@/lib/contracts/profiles";
 
 import { AwardWall } from "./award-wall";
 import { HallOfFameCompact } from "./hall-of-fame-compact";
 
 interface HonorShowcaseProps {
-  awards: AwardShowcaseEntry[];
-  hallOfFameEntries: HallOfFameEntry[];
+  awards: AwardShowcaseRow[];
+  hallOfFameEntries: PublicHallOfFameEntry[];
 }
 
 export function HonorShowcase({
@@ -17,8 +18,6 @@ export function HonorShowcase({
   hallOfFameEntries,
 }: HonorShowcaseProps) {
   const hasContent = awards.length > 0 || hallOfFameEntries.length > 0;
-
-  if (!hasContent) return null;
 
   return (
     <section id="honor-showcase" className="py-16 sm:py-20">
@@ -41,20 +40,32 @@ export function HonorShowcase({
 
         <DashedLine className="mb-10" />
 
-        <div className="space-y-12">
-          {awards.length > 0 ? (
-            <FadeInOnScroll direction="up" delay={0.1}>
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-foreground">
-                  奖状作品墙
-                </h3>
-                <AwardWall awards={awards} />
-              </div>
-            </FadeInOnScroll>
-          ) : null}
+        {hasContent ? (
+          <div className="space-y-12">
+            {awards.length > 0 ? (
+              <FadeInOnScroll direction="up" delay={0.1}>
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    奖状作品墙
+                  </h3>
+                  <AwardWall awards={awards} />
+                </div>
+              </FadeInOnScroll>
+            ) : null}
 
-          <HallOfFameCompact entries={hallOfFameEntries} />
-        </div>
+            <HallOfFameCompact entries={hallOfFameEntries} />
+          </div>
+        ) : (
+          <FadeInOnScroll direction="up" delay={0.1}>
+            <div className="rounded-xl border border-dashed border-border p-8 text-center">
+              <Award className="mx-auto size-8 text-muted-foreground/50" />
+              <p className="mt-3 text-sm font-medium text-foreground">荣誉展示准备中</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                竞赛获奖数据将在审核通过后展示在这里
+              </p>
+            </div>
+          </FadeInOnScroll>
+        )}
       </div>
     </section>
   );

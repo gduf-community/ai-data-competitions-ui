@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, CalendarRange, ExternalLink, Users } from "lucide-react";
 
-import type { Competition } from "@/lib/mock-data";
+import type { PublicCompetitionSummary as Competition } from "@/lib/contracts/public-portal";
+import { formatRegistrationWindow } from "@/lib/competition-date";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -67,7 +68,7 @@ export function CompetitionCard({
             <CalendarRange className="mt-0.5 size-4 text-primary" />
             <div>
               <p className="font-medium text-foreground">报名时间</p>
-              <p>{competition.registrationWindow}</p>
+              <p>{formatRegistrationWindow(competition)}</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
@@ -109,7 +110,7 @@ export function CompetitionCard({
           ) : isExternalCta ? (
             <Button asChild size="sm" className="bg-primary text-white hover:bg-primary-hover">
               <a
-                href={competition.officialUrl ?? "#"}
+                href={`/api/competitions/${competition.id}/official-link`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

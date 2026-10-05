@@ -4,13 +4,13 @@ import { ArrowRight } from "lucide-react";
 import { Marquee } from "@/components/motion/marquee";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { HallOfFameEntry } from "@/lib/mock-data";
+import type { PublicHallOfFameEntry } from "@/lib/contracts/profiles";
 
 interface HallOfFameCompactProps {
-  entries: HallOfFameEntry[];
+  entries: PublicHallOfFameEntry[];
 }
 
-function PersonCardCompact({ entry }: { entry: HallOfFameEntry }) {
+function PersonCardCompact({ entry }: { entry: PublicHallOfFameEntry }) {
   return (
     <Link href={`/profile/${entry.userId}`} className="block">
       <div className="flex w-[180px] flex-col items-center gap-2 rounded-xl border border-border/40 bg-background/60 p-4 text-center backdrop-blur-sm transition hover:scale-[1.02] hover:border-border">
