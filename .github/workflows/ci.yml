@@ -4,13 +4,23 @@ on:
   push:
     branches: [main, 'codex/**']
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Checks then manually promote current main; provider setup belongs to #106"
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: web-checks-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   check:
+    name: Web quality and runtime artifact
+    outputs:
+      artifact_id: ${{ steps.runtime.outputs.artifact-id }}
+      artifact_digest: ${{ steps.runtime.outputs.artifact-digest }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -26,7 +36,77 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: git diff --exit-code -- package.json pnpm-lock.yaml
       - run: pnpm run ci
+      - name: Package web standalone runtime with source and lock digests
+        run: node scripts/package-runtime.mjs web
+      - name: Upload immutable runtime and manifest
+        id: runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-runtime-${{ github.sha }}
+          path: |
+            build/release/runtime.tar.gz
+            build/release/runtime-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  promote:
+    name: Promote verified source and record runtime artifact
+    needs: [check]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.deploy == true &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'gduf-community/ai-data-competitions-ui' &&
+      needs.check.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: production-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      # No checkout, repository script, artifact download or dependency cache in this write-enabled job.
+      - name: Verify this run's immutable artifact and fast-forward production
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          ARTIFACT_ID: ${{ needs.check.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.check.outputs.artifact_digest }}
+          EXPECTED_REPOSITORY: gduf-community/ai-data-competitions-ui
+          RUNTIME_UNIT: web
+          VALIDATION_JOB: Web quality and runtime artifact
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const candidate = process.env.CANDIDATE_SHA;
+            const artifactId = Number(process.env.ARTIFACT_ID);
+            const digest = process.env.ARTIFACT_DIGEST;
+            const expectedRepository = process.env.EXPECTED_REPOSITORY;
+            const unit = process.env.RUNTIME_UNIT;
+            if (context.eventName !== 'workflow_dispatch' || context.ref !== 'refs/heads/main' || `${owner}/${repo}` !== expectedRepository || !/^[a-f0-9]{40}$/.test(candidate) || candidate !== context.sha || !Number.isSafeInteger(artifactId) || artifactId <= 0 || !/^[a-f0-9]{64}$/.test(digest)) throw new Error('Invalid manual release identity');
+            const run = (await github.rest.actions.getWorkflowRun({owner,repo,run_id:context.runId})).data;
+            if (run.id !== context.runId || run.repository.full_name !== expectedRepository || run.head_sha !== candidate || run.head_branch !== 'main' || run.event !== 'workflow_dispatch') throw new Error('Run does not own this exact main SHA');
+            const jobs = (await github.rest.actions.listJobsForWorkflowRun({owner,repo,run_id:context.runId,filter:'latest',per_page:100})).data;
+            const validation = jobs.jobs.filter(job => job.name === process.env.VALIDATION_JOB);
+            if (jobs.total_count > 100 || validation.length !== 1 || validation[0].status !== 'completed' || validation[0].conclusion !== 'success') throw new Error('Required validation did not succeed');
+            const artifact = (await github.rest.actions.getArtifact({owner,repo,artifact_id:artifactId})).data;
+            if (artifact.id !== artifactId || artifact.name !== `${unit}-runtime-${candidate}` || artifact.expired || Date.parse(artifact.expires_at) <= Date.now() || !Number.isFinite(Date.parse(artifact.expires_at)) || artifact.workflow_run?.id !== context.runId || artifact.workflow_run?.head_sha !== candidate || artifact.workflow_run?.repository_id !== run.repository.id || artifact.digest !== `sha256:${digest}`) throw new Error('Artifact ownership, lifetime or digest mismatch');
+            const main = async () => (await github.rest.git.getRef({owner,repo,ref:'heads/main'})).data.object.sha;
+            if (await main() !== candidate) throw new Error('Main advanced; refuse stale release');
+            // production is provisioned by the maintainer; this job never creates it or force-pushes it.
+            const production = (await github.rest.git.getRef({owner,repo,ref:'heads/production'})).data.object.sha;
+            if (!/^[a-f0-9]{40}$/.test(production)) throw new Error('Invalid production ref');
+            if (production !== candidate) {
+              const comparison = (await github.rest.repos.compareCommitsWithBasehead({owner,repo,basehead:`${production}...${candidate}`})).data;
+              if (comparison.status !== 'ahead') throw new Error('Refusing non-fast-forward release');
+              if (await main() !== candidate) throw new Error('Main advanced during verification');
+              await github.rest.git.updateRef({owner,repo,ref:'heads/production',sha:candidate,force:false});
+            }
+            const actual = (await github.rest.git.getRef({owner,repo,ref:'heads/production'})).data.object.sha;
+            if (actual !== candidate) throw new Error('Production readback differs; inspect concurrent manual writes');
+            await core.summary.addRaw(`Verified source promotion: ${expectedRepository}@${candidate}\nRun: ${context.runId}; artifact: ${artifactId}; digest: sha256:${digest}\nThis receipt does not confirm provider deployment or that Zeabur consumes this artifact. #106 must verify the actual source/artifact and smoke tests.\n`).write();

@@ -37,3 +37,13 @@ Zeabur 按负责人决策使用同服务器两个独立 project。#84 验证双�
 ## #102 图片消费
 
 公开DTO的上传素材由API返回当前授权版本URL；Web通过同源`/api/portal/assets`读取源字节，合法历史公开uploads地址保留。预览不转发Cookie，私有图片仍由API做对象授权。LazyFillImage失败显示占位，地址更新重新尝试，保留fill/object-cover/sizes；上传素材不进入Next优化缓存，避免优化缓存绕过源站撤回核验。普通静态图片保留优化。富文本只展示API已清洗并替换地址的HTML。生产CDN和真实撤回时限交#106。
+
+## #104 检查、产物与手动晋级
+
+`pnpm run ci`检查src/SSR、tsconfig别名、本地依赖闭包、静态import/require/dynamic import/re-export、根配置/构建脚本和安装后的生产/开发依赖图。计算模块路径、后端实现/凭据、Server Action及直接/间接后端依赖会拒绝；合法管理台`security/actions`展示路由保留。规则正反例使用隔离临时夹具；静态检查帮助评审，不能把任意未审核代码变成可信代码。
+
+PR/fork、push和默认手动CI只有read权限，使用public模式与合成数据，不接生产密钥、真实身份或API发布权限。Next tracing固定在本仓；runtime包拒绝环境文件和指向包外的依赖链接。使用固定Next自带tar保留pnpm相对链接；打包后在临时目录解包启动，public身份页和私有写入须拒绝，避免源码安装掩盖依赖缺失。构建后`runtime-manifest.json`记录仓库、exact SHA、Node/平台/架构、锁文件与runtime.tar.gz的SHA256；Actions记录不可变artifact ID/digest（14天有效），仅上传runtime和manifest。不复用其他信任级别的依赖缓存。
+
+维护者在main手动运行CI并明确`deploy=true`才会晋级：同次运行全部检查成功，artifact仓库/run/SHA/名字/有效期/digest正确，当前main仍等于candidate且已有production可快进。高权限job不checkout、不运行仓库代码、不下载执行产物；只调用固定GitHub API门禁并记录SHA/run/artifact/digest。旧运行、污染或过期产物、失败/取消/跳过检查、非快进均拒绝。API仓库有独立检查、runtime和production ref，不随Web晋级。
+
+回滚只处理对应仓库：对main提交revert PR，经同一检查产生新的exact SHA/产物后手动晋级；不强推production，不让Web回滚修改数据库或存储。平台也可使用保存的已验证旧产物独立回部署，实际产物校验、Zeabur source配置和演练归#106。源码晋级回执不能证明平台已经部署或消费该artifact。本轮只改开发/CI与未来发布门禁，未触发生产发布。
