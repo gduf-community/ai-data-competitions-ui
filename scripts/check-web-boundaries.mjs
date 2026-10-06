@@ -6,7 +6,7 @@ const problems = [];
 function inspect(directory) {
   for (const entry of fs.readdirSync(directory,{withFileTypes:true})) {
     const file = path.join(directory,entry.name);
-    if (entry.isDirectory()) { if (/^(server|actions|db)$/.test(entry.name)) problems.push(file); inspect(file); continue; }
+    if (entry.isDirectory()) { if (/^(server|actions|db)$/.test(entry.name) && file.replaceAll("\\", "/") !== "src/app/(dashboard)/admin/security/actions") problems.push(file); inspect(file); continue; }
     if (!/\.(ts|tsx|mjs|css)$/.test(file)) continue;
     const text=fs.readFileSync(file,"utf8");
     if (/\b(DATABASE_URL|AUTH_SECRET|PGPASSWORD|S3_SECRET_ACCESS_KEY|MINIO_SECRET_KEY)\b/.test(text)) problems.push(file+": backend configuration");

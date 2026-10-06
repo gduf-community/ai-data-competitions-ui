@@ -43,7 +43,16 @@
     "server-only": "0.0.1",
     "react-dom": "19.2.3",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "@radix-ui/react-tooltip": "1.2.8",
+    "@radix-ui/react-separator": "1.1.8",
+    "@radix-ui/react-dropdown-menu": "2.1.16",
+    "@radix-ui/react-collapsible": "1.1.12",
+    "@tanstack/react-table": "8.21.3",
+    "recharts": "3.6.0",
+    "echarts": "6.1.0",
+    "xlsx": "0.18.5",
+    "@radix-ui/react-scroll-area": "1.2.10"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.3",

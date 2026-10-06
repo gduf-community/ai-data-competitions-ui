@@ -30,7 +30,7 @@ export default async function RootLayout({
   const locale = normalizeLocale(requestHeaders.get("accept-language"));
 
   return (
-    <html lang={locale} className={`${inter.variable} ${mono.variable} antialiased`}>
+    <html suppressHydrationWarning lang={locale} className={`${inter.variable} ${mono.variable} antialiased`}>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="system" storageKey="nextjs-ui-theme">
           <SidebarConfigProvider>
