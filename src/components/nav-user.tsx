@@ -8,8 +8,12 @@ import {
   Shield,
 } from "lucide-react"
 import Link from "next/link"
+import { useRef, useState } from "react"
+import { signOut } from "next-auth/react"
 
 import { Logo } from "@/components/logo"
+import { fetchClientSessionUser } from "@/lib/auth/client-session"
+import { toast } from "@/lib/i18n/toast"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +40,26 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const signingOut = useRef(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  async function handleSignOut() {
+    if (signingOut.current) return
+    signingOut.current = true
+    setIsSigningOut(true)
+    try {
+      await signOut({ redirect: false, callbackUrl: "/sign-in" })
+      if (await fetchClientSessionUser()) {
+        throw new Error("会话仍然有效")
+      }
+      window.location.assign("/sign-in")
+    } catch {
+      toast.error("退出登录失败，请稍后重试。")
+    } finally {
+      signingOut.current = false
+      setIsSigningOut(false)
+    }
+  }
 
   return (
     <SidebarMenu>
@@ -99,11 +123,13 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link href="/sign-in">
-                <LogOut />
-                退出登录
-              </Link>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              disabled={isSigningOut}
+              onSelect={() => void handleSignOut()}
+            >
+              <LogOut />
+              {isSigningOut ? "退出中..." : "退出登录"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

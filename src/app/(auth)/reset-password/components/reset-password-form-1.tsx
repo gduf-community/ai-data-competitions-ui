@@ -27,10 +27,13 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 
-const resetPasswordFormSchema = z
+const resetPasswordFormSchema = (usesLegacyLink: boolean) => z
   .object({
     email: z.string().trim().toLowerCase().email("请输入有效邮箱"),
-    verificationCode: z.string().trim().regex(/^\d{6}$/, "请输入 6 位邮箱验证码"),
+    verificationCode: z.string().trim().refine(
+      (code) => usesLegacyLink || /^\d{6}$/.test(code),
+      "请输入 6 位邮箱验证码",
+    ),
     password: z
       .string()
       .min(8, "密码至少需要 8 位")
@@ -43,7 +46,7 @@ const resetPasswordFormSchema = z
     path: ["confirmPassword"],
   });
 
-type ResetPasswordFormValues = z.infer<typeof resetPasswordFormSchema>;
+type ResetPasswordFormValues = z.infer<ReturnType<typeof resetPasswordFormSchema>>;
 
 export function ResetPasswordForm1({
   className,
@@ -60,7 +63,7 @@ export function ResetPasswordForm1({
   const usesLegacyLink = initialEmail.length > 0 && legacyToken.length > 0;
 
   const form = useForm<ResetPasswordFormValues>({
-    resolver: zodResolver(resetPasswordFormSchema),
+    resolver: zodResolver(resetPasswordFormSchema(usesLegacyLink)),
     defaultValues: {
       email: initialEmail,
       verificationCode: "",
