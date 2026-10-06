@@ -12,15 +12,17 @@ export function getTransportConfig() {
 }
 export type TransportConfig = ReturnType<typeof getTransportConfig>;
 export function isPublicRead(pathname: string) {
-  const path = new URL(pathname, "http://web.invalid").pathname;
+  const url = new URL(pathname, "http://web.invalid");
+  const path = url.pathname;
+  if (path === "/api/portal/assets") return true; // API checks canonical key, live references and version.
+  if (path === "/api/uploads") return url.searchParams.size === 1 && /^uploads\/(?:public\/)?(?:award|club|competition|notice)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(url.searchParams.get("key") ?? "");
   return path === "/api/competitions" || path === "/api/homepage" || path === "/api/hall-of-fame" || path === "/api/awards" || path === "/api/notices/published" ||
     /^\/api\/portal\/competitions\/[^/]+$/.test(path) ||
     /^\/api\/competitions\/[^/]+\/(showcase|official-link)$/.test(path) ||
     /^\/api\/awards\/[^/]+$/.test(path) ||
     /^\/api\/profiles\/[^/]+(?:\/experiences\/[^/]+)?$/.test(path) ||
     /^\/api\/clubs\/[^/]+(?:\/contents(?:\/[^/]+)?)?$/.test(path) ||
-    /^\/api\/questions(?:\/[^/]+)?$/.test(path) ||
-    /^\/api\/uploads\/public\//.test(path);
+    /^\/api\/questions(?:\/[^/]+)?$/.test(path);
 }
 const forwarded = ["accept", "accept-language", "content-type", "origin", "referer", "user-agent", "range", "if-range", "last-event-id", "x-csrf-token", "x-auth-return-redirect"];
 export function forwardedHeaders(incoming: Headers, config: TransportConfig) {
@@ -37,7 +39,8 @@ export function forwardedHeaders(incoming: Headers, config: TransportConfig) {
   return outgoing;
 }
 export function permittedBrowserRequest(request: Request, config: TransportConfig) {
-  const path = new URL(request.url).pathname;
+  const url = new URL(request.url);
+  const path = url.pathname + url.search;
   if (!config.business) return ["GET", "HEAD"].includes(request.method) && isPublicRead(path);
   // Host is checked against the canonical release. Proxy header spoofing cannot select a different origin.
   if (request.headers.get("host") !== config.web.host) return false;
