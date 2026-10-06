@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint . && node scripts/check-web-boundaries.mjs",
     "typecheck": "next typegen && tsc --noEmit --incremental false",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts tests/*.test.mjs",
     "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
