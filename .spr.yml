@@ -1,0 +1,8 @@
+githubRepoOwner: gduf-community
+githubRepoName: ai-data-competitions-ui
+githubRemote: origin
+githubBranch: main
+requireChecks: true
+requireApproval: true
+mergeMethod: merge
+mergeCheck: pnpm run ci

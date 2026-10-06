@@ -51,3 +51,13 @@ export async function listQuestionPage(competitionId: string, page: number) {
 export async function getQuestionDetail(competitionId: string, questionId: string) {
   return readOptionalAPI<import("@/lib/contracts/questions").QuestionDetailResponse>("/api/questions/" + id(questionId) + "?competitionId=" + id(competitionId));
 }
+
+export const getManagedClubs = cache(async () => (await readAPI<{data: {slug: string; name: string; shortName: string}[]}>("/api/me/clubs")).data);
+function managedContent(row: Wire<import("@/lib/contracts/clubs").ClubContentRow>) {
+  return {...clubDates(row), reviewedAt: row.reviewedAt ? new Date(row.reviewedAt) : null, archivedAt: row.archivedAt ? new Date(row.archivedAt) : null};
+}
+export async function listManagedClubContents(slug: string) { return (await readAPI<{data: Wire<import("@/lib/contracts/clubs").ClubContentRow>[]}>("/api/me/clubs/" + id(slug) + "/contents")).data.map(managedContent); }
+export async function getManagedClubContent(slug: string, contentId: string) { const result = await readOptionalAPI<{data: Wire<import("@/lib/contracts/clubs").ClubContentRow>; canEdit: boolean}>("/api/me/clubs/" + id(slug) + "/contents/" + id(contentId)); return result ? {...result, data: managedContent(result.data)} : null; }
+export async function getAdminClubContacts(slug: string) { return (await readAPI<{data: ClubContactRow[]}>("/api/admin/clubs/" + id(slug) + "/contacts")).data; }
+export async function listClubAdmins(slug: string) { return (await readAPI<{data: Wire<import("@/lib/contracts/clubs").ClubAdminRow>[]}>("/api/admin/clubs/" + id(slug) + "/admins")).data.map(row => ({...row, createdAt: new Date(row.createdAt)})); }
+export async function listCompetitions() { return (await readAPI<{competitions: Competition[]}>("/api/admin/competitions")).competitions; }
