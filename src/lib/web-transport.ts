@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 // Transport policy only. Identity, authorization and transactions remain in the API.
 export function getTransportConfig() {
   const api = new URL(process.env.API_ORIGIN || "http://127.0.0.1:3001");
@@ -29,7 +31,9 @@ export function forwardedHeaders(incoming: Headers, config: TransportConfig) {
   const outgoing = new Headers();
   for (const name of forwarded) { const value = incoming.get(name); if (value) outgoing.set(name, value); }
   if (config.clientIpHeader) {
-    const raw = incoming.get(config.clientIpHeader)?.split(",")[0]?.trim();
+    const raw = incoming.get(config.clientIpHeader)?.trim();
+    if (raw && !isIP(raw)) throw new Error("Ingress must overwrite the selected header with one valid IP");
+    if (!raw && config.business && process.env.NODE_ENV === "production") throw new Error("Verified ingress client IP is missing");
     if (raw) outgoing.set("x-forwarded-for", raw);
   }
   // Authority comes from deployment configuration, never browser-controlled forwarded headers.

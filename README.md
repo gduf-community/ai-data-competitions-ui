@@ -28,6 +28,12 @@ Zeabur 按负责人决策使用同服务器两个独立 project。#84 验证双�
 
 配套 API 基线为 #98 main@0264c6c，#99 companion 按精确 SHA 和 PR 关联。开发/CI新增管理界面及原展示依赖；生产环境/Zeabur不改，Web启动不执行迁移。spr 管理新提交与堆叠 PR，维护者手动检查/晋级保留。
 
+## #103 唯一入口
+
+生产入口须覆盖Host为WEB_TRUSTED_ORIGIN authority，并将WEB_CLIENT_IP_HEADER覆盖为单一IPv4/IPv6；Web拒绝非法/多跳IP，只向API发送固定host/proto和规范x-forwarded-for，丢弃其他Forwarded、provider IP及地域头。trusted生产缺少IP拒绝请求，API继续核对Origin/CSRF、会话、当前角色和归属。API的AUTH_URL/NEXT_PUBLIC_APP_URL必须与规范Web一致。
+
+平台须限制API业务源站只允许受控Web或ingress网络访问，规范头校验不能认证公网源站调用者。默认Browser→Web BFF→API；平台`/api/*→API`方式须保持同一头、Cookie、CSRF、下载与SSE契约。实际入口覆盖、网络隔离、Zeabur配置和生产回滚由#106核验。配置模板见.env.example和API仓库现行公共边界文档。
+
 ## #102 图片消费
 
 公开DTO的上传素材由API返回当前授权版本URL；Web通过同源`/api/portal/assets`读取源字节，合法历史公开uploads地址保留。预览不转发Cookie，私有图片仍由API做对象授权。LazyFillImage失败显示占位，地址更新重新尝试，保留fill/object-cover/sizes；上传素材不进入Next优化缓存，避免优化缓存绕过源站撤回核验。普通静态图片保留优化。富文本只展示API已清洗并替换地址的HTML。生产CDN和真实撤回时限交#106。

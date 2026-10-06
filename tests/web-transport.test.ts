@@ -18,10 +18,15 @@ test("public preview cannot forward cookies or access private reads and writes",
   assert.equal(permittedBrowserRequest(new Request(config.web.origin+"/api/homepage"),preview),true);
 });
 test("only the explicitly selected ingress IP header is relayed",()=>{
-  const headers=forwardedHeaders(new Headers({"cf-connecting-ip":"spoofed","x-forwarded-for":"192.0.2.25, 10.0.0.1","forwarded":"host=spoofed;proto=http"}),{...config,clientIpHeader:"x-forwarded-for"});
+  const headers=forwardedHeaders(new Headers({"cf-connecting-ip":"spoofed","x-forwarded-for":"192.0.2.25","forwarded":"host=spoofed;proto=http"}),{...config,clientIpHeader:"x-forwarded-for"});
   assert.equal(headers.get("x-forwarded-for"),"192.0.2.25");
   assert.equal(headers.get("cf-connecting-ip"),null);
   assert.equal(headers.get("forwarded"),null);
+});
+
+test("malformed and multi-hop client IPs cannot select a trusted identity",()=>{
+  for(const ip of ["127.0.0.1, 203.0.113.42","unknown","999.2.3.4","[::1]:443"]) assert.throws(()=>forwardedHeaders(new Headers({"x-real-ip":ip}),{...config,clientIpHeader:"x-real-ip"}),/one valid IP/);
+  assert.equal(forwardedHeaders(new Headers({"x-real-ip":"2001:db8::1","x-forwarded-for":"127.0.0.1","x-geo-province":"GD"}),{...config,clientIpHeader:"x-real-ip"}).get("x-forwarded-for"),"2001:db8::1");
 });
 
 test("preview relays versioned assets and public legacy references without admitting private file routes",()=>{
