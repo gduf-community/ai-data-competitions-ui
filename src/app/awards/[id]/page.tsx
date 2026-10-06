@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Award, Calendar, Trophy } from "lucide-react";
@@ -32,10 +32,6 @@ export default async function AwardDetailPage({
       }
     : null;
 
-  const isDynamicUploadRoute =
-    award.imageUrl.startsWith("/api/uploads?") ||
-    award.imageUrl.includes("/api/uploads?");
-
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f6ef_0%,#fcfbf8_45%,#f3efe5_100%)]">
       <NewNavbar currentUser={currentUser} />
@@ -53,11 +49,9 @@ export default async function AwardDetailPage({
             <Card className="overflow-hidden border-slate-200/70 bg-white/92 shadow-sm">
               <CardContent className="p-0">
                 <div className="relative aspect-[4/3] w-full bg-slate-100">
-                  <Image
+                  <LazyFillImage
                     src={award.imageUrl}
                     alt={`${award.competitionTitle} 奖状`}
-                    fill
-                    unoptimized={isDynamicUploadRoute}
                     sizes="(max-width: 1024px) 100vw, 60vw"
                     className="object-contain"
                     priority

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { forwardedHeaders, permittedBrowserRequest, type TransportConfig } from "../src/lib/web-transport";
+import { forwardedHeaders, isPublicRead, permittedBrowserRequest, type TransportConfig } from "../src/lib/web-transport";
 
 const config: TransportConfig = {api:new URL("http://127.0.0.1:3001"),web:new URL("https://business.example.invalid"),business:true,clientIpHeader:undefined};
 test("foreign authority cannot be promoted by browser forwarding headers",()=>{
@@ -22,4 +22,13 @@ test("only the explicitly selected ingress IP header is relayed",()=>{
   assert.equal(headers.get("x-forwarded-for"),"192.0.2.25");
   assert.equal(headers.get("cf-connecting-ip"),null);
   assert.equal(headers.get("forwarded"),null);
+});
+
+test("preview relays versioned assets and public legacy references without admitting private file routes",()=>{
+  const preview={...config,business:false};
+  for (const path of ["/api/portal/assets?key=uploads/public/award/test/file.png&version="+"a".repeat(64),"/api/uploads?key=uploads%2Fpublic%2Fclub%2Ftest%2Ffile.png"]) {
+    assert.equal(isPublicRead(path),true);
+    assert.equal(permittedBrowserRequest(new Request(config.web.origin+path),preview),true);
+  }
+  for (const path of ["/api/uploads","/api/uploads/public/file.png","/api/uploads?key=uploads/private/avatar/user-test/file.png","/api/uploads?key=uploads/public/club/test/../file.png","/api/uploads?key=uploads/public/club/test/file.png&key=other"]) assert.equal(isPublicRead(path),false);
 });

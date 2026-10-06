@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -9,13 +12,14 @@ interface LazyFillImageProps {
   sizes?: string;
   fallbackText?: string;
   fallbackClassName?: string;
+  priority?: boolean;
 }
 
 function isExternalUrl(src: string) {
   return src.startsWith("http://") || src.startsWith("https://");
 }
 
-/** 通用懒加载填充图，兼容站内上传路由与外部 https 链接，空图显示占位文案。 */
+/** 失败按地址记录；新地址自动重试。动态授权素材不进入 Next 优化缓存。 */
 export function LazyFillImage({
   src,
   alt,
@@ -23,8 +27,11 @@ export function LazyFillImage({
   sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
   fallbackText = "暂无图片",
   fallbackClassName,
+  priority = false,
 }: LazyFillImageProps) {
-  if (!src) {
+  const [loadState, setLoadState] = useState({src, failed: false});
+  if (loadState.src !== src) setLoadState({src, failed: false});
+  if (!src || (loadState.src === src && loadState.failed)) {
     return (
       <div
         className={cn(
@@ -38,19 +45,22 @@ export function LazyFillImage({
   }
 
   const isDynamicUploadRoute =
-    src.startsWith("/api/uploads?") || src.includes("/api/uploads?");
+    src.includes("/api/uploads?") || src.includes("/api/portal/assets?");
   const isExternal = isExternalUrl(src);
 
   return (
     <Image
+      key={src}
       src={src}
       alt={alt}
       fill
       unoptimized={isDynamicUploadRoute || isExternal}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      priority={priority}
       quality={70}
       sizes={sizes}
       className={cn("object-cover", className)}
+      onError={() => setLoadState({src, failed: true})}
     />
   );
 }
