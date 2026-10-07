@@ -27,7 +27,7 @@
   </g>
   <text x="82" y="213" fill="#bfdbfe" font-size="18" font-family="Inter, Arial, sans-serif" letter-spacing="5">AI DATA COMPETITIONS UI</text>
   <text x="82" y="270" fill="#ffffff" font-size="52" font-weight="900" font-family="Inter, Arial, sans-serif">学院竞赛综合服务中心</text>
-  <text x="82" y="318" fill="#dbeafe" font-size="26" font-weight="700" font-family="Inter, Arial, sans-serif">公开前端 UI · 通用组件 · Mock 数据 · 社区协作</text>
+  <text x="82" y="318" fill="#dbeafe" font-size="26" font-weight="700" font-family="Inter, Arial, sans-serif">完整 Web · SSR 与 BFF · HTTP 契约 · 社区协作</text>
   <g filter="url(#shadow)" transform="translate(805 66)">
     <rect width="360" height="250" rx="30" fill="#0f172a" opacity="0.72" stroke="#93c5fd" stroke-opacity="0.26"/>
     <rect x="28" y="28" width="304" height="38" rx="19" fill="#ffffff" opacity="0.1"/>
