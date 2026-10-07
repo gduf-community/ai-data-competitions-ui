@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 
 import { fetchClientSessionUser } from "@/lib/auth/client-session";
+import { usePublishedNotices } from "@/components/notifications/notice-popup";
 import {
   getReadNoticeIds,
   markNoticeRead,
@@ -19,14 +20,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface PublishedNoticeItem {
-  id: string;
-  title: string;
-  content: string;
-  priority: "normal" | "important" | "critical";
-  publishedAt: string;
-}
-
 function toPlainText(content: string) {
   return content
     .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
@@ -40,17 +33,14 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [readNoticeIds, setReadNoticeIds] = useState<string[]>([]);
-  const [notices, setNotices] = useState<PublishedNoticeItem[]>([]);
+  const notices = usePublishedNotices();
 
   useEffect(() => {
     let active = true;
     const bootstrap = async () => {
       try {
-        const [sessionUser, noticesResponse, readResponse] = await Promise.all([
+        const [sessionUser, readResponse] = await Promise.all([
           fetchClientSessionUser(),
-          fetch("/api/notices/published?limit=20", { cache: "no-store" }).catch(
-            () => null,
-          ),
           fetch("/api/me/notices/read", { cache: "no-store" }).catch(() => null),
         ]);
         if (!active) return;
@@ -64,16 +54,7 @@ export function NotificationBell() {
           );
         }
 
-        if (!noticesResponse?.ok) {
-          setNotices([]);
-          return;
-        }
-        const payload = (await noticesResponse.json()) as {
-          notices?: PublishedNoticeItem[];
-        };
-        setNotices(payload.notices ?? []);
       } catch {
-        setNotices([]);
         if (active) {
           setUserId(null);
         }

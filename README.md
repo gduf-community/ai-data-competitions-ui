@@ -6,9 +6,9 @@
 
 Node.js 22.23.3、pnpm 10.34.5，使用唯一 pnpm-lock.yaml。运行 pnpm install --frozen-lockfile、pnpm dev；质量检查为 pnpm run ci。
 
-复制 .env.example 并配置 API_ORIGIN。默认 WEB_RELEASE_MODE=public 仅接公开读取，网关不转发 Cookie，也不接受写入；登录、报名、本人资料和后台路由被阻断。受控业务版本须设置 WEB_RELEASE_MODE=trusted、精确 WEB_TRUSTED_ORIGIN，并使用已审核产物和隔离的预览源。环境标志不能使未审核代码成为可信代码。
+复制 .env.example 并配置 API_ORIGIN、API_SERVICE_TOKEN。默认 WEB_RELEASE_MODE=public 仅允许 Server Component 私网公开读取，以及受限素材/跳转 BFF；网关不转发 Cookie，也不接受写入；登录、报名、本人资料和后台路由被阻断。受控业务版本须设置 WEB_RELEASE_MODE=trusted、精确 WEB_TRUSTED_ORIGIN，并使用已审核产物和隔离的预览源。环境标志不能使未审核代码成为可信代码。
 
-Web 的 /api/** 仅作 HTTP 传输：固定 API origin 和浏览器 authority，不信任客户端 forwarded host/proto。保留状态、重定向、多个 Set-Cookie、上传流、下载和 SSE，并传播取消。浏览器使用原 URL、Cookie 和 CSRF；API 的 AUTH_URL 与 WEB_TRUSTED_ORIGIN 须指向可信 Web origin。后端凭据禁止放入 Web。生产还须设置已在入口验证覆盖的 WEB_CLIENT_IP_HEADER；未经验证的客户端自报 IP 不可作为地域或限流依据。
+Web 的 /api/** 仅作 HTTP 传输：固定 API origin 和浏览器 authority，不信任客户端 forwarded host/proto。保留状态、重定向、多个 Set-Cookie、上传流、下载和 SSE，并传播取消。浏览器使用原 URL、Cookie 和 CSRF；API 的 AUTH_URL 与 WEB_TRUSTED_ORIGIN 须指向可信 Web origin。Web 仅持有独立服务凭据 API_SERVICE_TOKEN；数据库、认证签名、S3/MinIO 管理凭据禁止放入 Web。生产还须设置已在入口验证覆盖的 WEB_CLIENT_IP_HEADER；未经验证的客户端自报 IP 不可作为地域或限流依据。
 
 SSR 每次 cache:no-store 读取当前 API，只有 401 视为匿名、404 视为不可见；API 故障显示错误并允许重试。客户端写后刷新当前读取，不使用数据库检查或 Mock fallback。
 
@@ -24,7 +24,7 @@ Zeabur 按负责人决策使用同服务器两个独立 project。#84 验证双�
 
 ## #99 管理端迁移
 
-管理台、比赛/报名、用户/通知/审核、社团、分析/SQL、安全中心与社团工作台在本仓只消费 HTTP。保留 API main 的组件拆分与既有 UI 行为，授权、状态机、SQL、事务、PII、文件引用与存储留 API。管理壳/导航使用当前 API 会话，具体接口继续服务端对象授权；社团内容可编辑能力由 API 返回。#53 社团产品改版不在本次迁移范围。
+管理台、比赛/报名、用户/通知/审核、社团、固定分析、安全中心与社团工作台在本仓只消费 HTTP。保留 API main 的组件拆分与既有 UI 行为，授权、状态机、事务、PII、文件引用与存储留 API。管理壳/导航使用当前 API 会话，具体接口继续服务端对象授权；社团内容可编辑能力由 API 返回。#53 社团产品改版不在本次迁移范围。
 
 配套 API 基线为 #98 main@0264c6c，#99 companion 按精确 SHA 和 PR 关联。开发/CI新增管理界面及原展示依赖；生产环境/Zeabur不改，Web启动不执行迁移。spr 管理新提交与堆叠 PR，维护者手动检查/晋级保留。
 
@@ -32,7 +32,7 @@ Zeabur 按负责人决策使用同服务器两个独立 project。#84 验证双�
 
 生产入口须覆盖Host为WEB_TRUSTED_ORIGIN authority，并将WEB_CLIENT_IP_HEADER覆盖为单一IPv4/IPv6；Web拒绝非法/多跳IP，只向API发送固定host/proto和规范x-forwarded-for，丢弃其他Forwarded、provider IP及地域头。trusted生产缺少IP拒绝请求，API继续核对Origin/CSRF、会话、当前角色和归属。API的AUTH_URL/NEXT_PUBLIC_APP_URL必须与规范Web一致。
 
-平台须限制API业务源站只允许受控Web或ingress网络访问，规范头校验不能认证公网源站调用者。默认Browser→Web BFF→API；平台`/api/*→API`方式须保持同一头、Cookie、CSRF、下载与SSE契约。实际入口覆盖、网络隔离、Zeabur配置和生产回滚由#106核验。配置模板见.env.example和API仓库现行公共边界文档。
+平台须限制API业务源站只允许受控Web或ingress网络访问，规范头校验不能认证公网源站调用者。默认Browser→Web BFF→API；平台不得绕过 Web BFF 将公网 `/api/*` 直接映射到 API。实际入口覆盖、网络隔离、Zeabur配置和生产回滚由#106核验。配置模板见.env.example和API仓库现行公共边界文档。
 
 ## #102 图片消费
 
@@ -50,6 +50,20 @@ PR/fork、push和默认手动CI只有read权限，使用public模式与合成数
 
 ## 物理拆分后的测试归属
 
-前端列表、比赛编辑、报名表单、浏览器 HTTP 客户端、SQL 导出和安全态势 presenter 测试从 API 迁入本仓 tests。报名回归执行本仓实际源码声明与提交 handler，不引入另一套表单实现；API 保留 DB、权限、事务、HTTP、存储和运行时回归。
+前端列表、比赛编辑、报名表单、浏览器 HTTP 客户端和安全态势 presenter 测试从 API 迁入本仓 tests。报名回归执行本仓实际源码声明与提交 handler，不引入另一套表单实现；API 保留 DB、权限、事务、HTTP、存储和运行时回归。
 
 环境影响为开发/CI 与后续构建；本次未部署、未修改数据库或存储。API 默认 build/start 仅运行 API，迁移为显式 release runner 步骤。build:api/start:api 保留一个发布周期后再移除。
+
+## 私有 API 与最小 BFF
+
+BFF 仅属于本仓 Web 传输层：`src/app/api/[...path]/route.ts`执行代理，`src/lib/web-transport.ts`逐路径/方法允许；未命中在 fetch 前返回 404。Host、Origin/Referer、Cookie、CSRF 契约继续保持。授权与业务判断仍归 API。公开 DTO 只由`src/lib/web-api.ts`的 server-only 私网读取，浏览器不能访问 competitions/homepage/notices/published/awards/profiles/clubs/questions 等公开 JSON。素材字节、官方链接/通知打开跳转是明确例外；这些例外不返回公开业务 DTO。
+
+所有 Web→API 请求由服务端创建 Authorization Bearer，浏览器 Authorization 不透传。两仓运行环境需配置相同 `API_SERVICE_TOKEN`（32 随机字节，64 位小写十六进制）；仅在运行时注入，禁止 NEXT_PUBLIC_、提交到仓库或提供给公开预览真实凭据。PR/CI 仅用合成值及合成 API。Web 不持有 DB/PG、AUTH_SECRET、S3/MinIO 管理凭据。边界检查拒绝服务凭据传输模块进入 client graph。
+
+比赛列表按 URL 的 keyword/status/year/page 在 Server Component 查询，每页 30 条；年份导航只传聚合计数。Filter Bar 只更新 URL，不请求 API，也不下载全表；Flight 只含当前页记录。通知铃铛与弹窗读取服务端提供的最多 20 条通知。成果上传的比赛选择器仅使用需登录、限流、最多 20 个 id/title 的查询入口 `/api/me/competition-options`。
+
+SQL 页面、组件、草稿类型和专属测试已删除，API companion 同时删除 schema/run/validate 与执行服务。固定 `/api/admin/analytics`保留。Web 边界检查与 API 构建门禁阻止查询台恢复。
+
+环境影响：开发、CI 与未来生产均需服务认证配置；本次没有部署、网络或数据库变更。正式启用需在维护窗口配对发布或原子切换：两端先配置同一新凭据；旧 Web 不携带凭据，新 Web 依赖比赛年份聚合响应，因此不能混配旧版本。API 无公网 domain/port forwarding，仅私网地址；Web→DB/MinIO 必须由 service/container egress policy 约束。Zeabur Server Firewall 的 ingress 设置不能替代 egress 隔离；跨 Project 私网可达性与禁连必须在真实容器实测。
+
+2026-10-07 本地验证（Node 22.23.3 / pnpm 10.34.5）：lint/边界、typecheck、47 项 Web 回归和生产构建通过；配套 API 的 PostgreSQL 18 合成数据库 50 项、API+trusted Web+public preview HTTP 29 项均通过且无跳过。SSR 第二页仅出现该页 30 条记录，BFF 公共 JSON/SQL 404，登录退出、报名撤回、上传下载、问答与 SSE 回归通过。源代码及本地 HTTP 不替代浏览器 DevTools、远程 CI 或真实 Zeabur 网络/egress 验收。

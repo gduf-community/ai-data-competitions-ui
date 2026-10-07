@@ -23,7 +23,6 @@ import { toast } from "@/lib/i18n/toast";
 import { competitionStatusLabelMap } from "@/lib/competition-status";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatsCard } from "@/components/shared/stats-card";
-import { AnalyticsSqlConsoleView } from "@/components/admin/analytics-sql-console-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +66,6 @@ const analyticsTabs: Array<{
   { key: "users", label: "用户分析", href: "/admin/analytics/users" },
   { key: "notifications", label: "通知分析", href: "/admin/analytics/notifications" },
   { key: "risk", label: "风险预警", href: "/admin/analytics/risk" },
-  { key: "sql", label: "SQL 查询台", href: "/admin/analytics/sql" },
 ];
 
 const statusLabelMap: Record<string, string> = {
@@ -106,10 +104,6 @@ const sectionMeta: Record<
   risk: {
     title: "风险预警",
     description: "识别快截止低报名、低转化或审核积压的重点比赛。",
-  },
-  sql: {
-    title: "SQL 查询台",
-    description: "面向后台角色的白名单结构化查询台，支持按角色范围执行安全只读查询。",
   },
 };
 
@@ -887,9 +881,8 @@ export function AdminAnalyticsDashboardView({
 }: {
   activeTab: AdminAnalyticsTabKey;
 }) {
-  const isSqlTab = activeTab === "sql";
   const [payload, setPayload] = useState<AdminAnalyticsPayload | null>(null);
-  const [loading, setLoading] = useState(!isSqlTab);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAnalyticsPayload = async () => {
@@ -906,10 +899,6 @@ export function AdminAnalyticsDashboardView({
   };
 
   useEffect(() => {
-    if (isSqlTab) {
-      return;
-    }
-
     let cancelled = false;
 
     const run = async () => {
@@ -943,12 +932,9 @@ export function AdminAnalyticsDashboardView({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, isSqlTab]);
+  }, [activeTab]);
 
   const refreshAnalytics = async () => {
-    if (isSqlTab) {
-      return;
-    }
     setRefreshing(true);
     try {
       const data = await fetchAnalyticsPayload();
@@ -985,7 +971,7 @@ export function AdminAnalyticsDashboardView({
                 variant="outline"
                 size="sm"
                 onClick={() => void refreshAnalytics()}
-                disabled={isSqlTab || loading || refreshing}
+                disabled={loading || refreshing}
               >
                 {refreshing ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -994,32 +980,21 @@ export function AdminAnalyticsDashboardView({
                 )}
                 刷新
               </Button>
-              {isSqlTab ? (
-                <>
-                  <Badge variant="outline">白名单只读查询</Badge>
-                  <Badge variant="secondary">结构化条件执行</Badge>
-                </>
-              ) : (
-                <>
-                  <Badge variant="outline">
-                    {payload ? formatScope(payload.scope) : "加载中"}
-                  </Badge>
-                  <Badge variant="secondary">
-                    {payload
-                      ? `更新于 ${new Date(payload.generatedAt).toLocaleString("zh-CN")}`
-                      : "正在获取数据"}
-                  </Badge>
-                </>
-              )}
+              <Badge variant="outline">
+                {payload ? formatScope(payload.scope) : "加载中"}
+              </Badge>
+              <Badge variant="secondary">
+                {payload
+                  ? `更新于 ${new Date(payload.generatedAt).toLocaleString("zh-CN")}`
+                  : "正在获取数据"}
+              </Badge>
             </div>
           }
         />
 
         <AnalyticsTabs activeKey={activeTab} />
 
-        {isSqlTab ? (
-          <AnalyticsSqlConsoleView />
-        ) : loading || !payload ? (
+        {loading || !payload ? (
           <Card>
             <CardContent className="py-10 text-sm text-muted-foreground">
               数据看板加载中...

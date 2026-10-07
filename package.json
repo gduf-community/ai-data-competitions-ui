@@ -51,7 +51,6 @@
     "@tanstack/react-table": "8.21.3",
     "recharts": "3.6.0",
     "echarts": "6.1.0",
-    "xlsx": "0.18.5",
     "@radix-ui/react-scroll-area": "1.2.10"
   },
   "devDependencies": {

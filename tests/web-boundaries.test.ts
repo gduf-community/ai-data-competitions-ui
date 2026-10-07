@@ -27,6 +27,7 @@ test("Web checker follows aliases, static imports, re-exports and config/build e
     ["src/page.tsx", 'const secret=process.env.AUTH_SECRET'],
     ["src/page.tsx", 'export type Secret=import("next-auth/jwt").JWT'],
     ["src/actions/task.ts", 'export const value=1'],
+    ["src/components/admin/sql-console/query.tsx", 'export const value=1'],
   ];
   for (const [file, source] of cases) {
     write("support/implementation.ts", source.includes('"hidden"') ? 'import "drizzle-orm"' : 'export const value=1');
@@ -38,6 +39,18 @@ test("Web checker follows aliases, static imports, re-exports and config/build e
   fs.rmSync(path.join(root,"support/implementation.ts"));
   write("src/page.tsx", 'export * from "../../outside"');
   assert.ok(scanWebBoundaries(root, {dependencies:false}).some((message: string) => /unresolved|escapes/.test(message)));
+});
+
+test("service credential transport cannot enter a client graph through a re-export", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "competition-web-service-"));
+  t.after(() => fs.rmSync(root,{recursive:true,force:true}));
+  const write = (name: string, source: string) => {const file=path.join(root,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,source);};
+  write("package.json", "{}");
+  write("tsconfig.json", JSON.stringify({compilerOptions:{baseUrl:".",paths:{"@/*":["src/*"]}}}));
+  write("src/lib/web-transport.ts", 'export const config = () => process.env.API_SERVICE_TOKEN;');
+  write("src/lib/bridge.ts", 'export * from "@/lib/web-transport";');
+  write("src/view.tsx", '"use client"; import "@/lib/bridge";');
+  assert.ok(scanWebBoundaries(root,{dependencies:false}).some((message: string) => /client graph imports service credentials/.test(message)));
 });
 
 test("installed dependency graph rejects hidden backend dependencies and development adapters", t => {
