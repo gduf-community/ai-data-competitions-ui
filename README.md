@@ -1,6 +1,6 @@
 # 学院竞赛管理与问答平台 Web
 
-此仓库承接真实 Web，取代原 Mock 演示；API、认证实现、数据库、事务、有效赋权和对象存储管理留在维护者的 API 仓库。原 Git 历史保留。
+本仓库是平台唯一完整 Web，负责全部页面、组件、SSR、同源 BFF 和前端测试。可信 API、认证签名、授权、事务、数据库与对象存储由 [gduf-community/competition-Q-A-website](https://github.com/gduf-community/competition-Q-A-website) 承担。Browser → Web → API → DB / Object Storage。原 Git 历史保留。
 
 ## 本地运行
 
@@ -14,7 +14,7 @@ SSR 每次 cache:no-store 读取当前 API，只有 401 视为匿名、404 视�
 
 ## 本轮范围与后续
 
-#81 迁移比赛公开展示、登录/注册/重置、报名、本人报名/成果/经验/资料及现有公开页面；业务判断继续由 API 执行。#82 承接问答互动，#83 承接管理和社团工作台。旧全栈保持兼容，PR 按 issue 堆叠，维护者审查后晋级；本地构建和静态边界检查不代表生产完成。
+#81 迁移比赛公开展示、登录/注册/重置、报名、本人报名/成果/经验/资料及现有公开页面；业务判断继续由 API 执行。#82 承接问答互动，#83 承接管理和社团工作台。API 物理清理删除了旧页面、组件和 Server Actions，Web 实现全部在本仓维护。两仓分别评审和晋级；本地检查不代表生产验收。
 
 Zeabur 按负责人决策使用同服务器两个独立 project。#84 验证双部署、入口 IP、会话、上传/流式传输、连接池与独立回滚；#85 切换来源，#86 记录同机成本，不宣称释放服务器资源。不要让 Web 启动执行迁移。
 
@@ -47,3 +47,9 @@ PR/fork、push和默认手动CI只有read权限，使用public模式与合成数
 维护者在main手动运行CI并明确`deploy=true`才会晋级：同次运行全部检查成功，artifact仓库/run/SHA/名字/有效期/digest正确，当前main仍等于candidate且已有production可快进。高权限job不checkout、不运行仓库代码、不下载执行产物；只调用固定GitHub API门禁并记录SHA/run/artifact/digest。旧运行、污染或过期产物、失败/取消/跳过检查、非快进均拒绝。API仓库有独立检查、runtime和production ref，不随Web晋级。
 
 回滚只处理对应仓库：对main提交revert PR，经同一检查产生新的exact SHA/产物后手动晋级；不强推production，不让Web回滚修改数据库或存储。平台也可使用保存的已验证旧产物独立回部署，实际产物校验、Zeabur source配置和演练归#106。源码晋级回执不能证明平台已经部署或消费该artifact。本轮只改开发/CI与未来发布门禁，未触发生产发布。
+
+## 物理拆分后的测试归属
+
+前端列表、比赛编辑、报名表单、浏览器 HTTP 客户端、SQL 导出和安全态势 presenter 测试从 API 迁入本仓 tests。报名回归执行本仓实际源码声明与提交 handler，不引入另一套表单实现；API 保留 DB、权限、事务、HTTP、存储和运行时回归。
+
+环境影响为开发/CI 与后续构建；本次未部署、未修改数据库或存储。API 默认 build/start 仅运行 API，迁移为显式 release runner 步骤。build:api/start:api 保留一个发布周期后再移除。
