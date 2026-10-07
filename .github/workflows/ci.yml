@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 15
     env:
       WEB_RELEASE_MODE: public
+      API_SERVICE_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

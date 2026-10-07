@@ -40,6 +40,14 @@ test("runtime packaging produces verifiable payload and refuses environment cont
     fs.writeFileSync(path.join(root,"pnpm-lock.yaml"),"synthetic lock");
     const repo="gduf-community/"+(role==="web"?"ai-data-competitions-ui":"competition-Q-A-website");
     const manifest=packageRuntime(root,role,candidate,repo);
+    if (role === "web") {
+      const asset=path.join(next,"static/fixture.js");
+      for (const name of ["API_SERVICE_TOKEN","DATABASE_URL","PGPASSWORD","S3_SECRET_ACCESS_KEY","MINIO_SECRET_KEY"]) {
+        fs.writeFileSync(asset,"console.log(process.env."+name+")");
+        assert.throws(()=>packageRuntime(root,role,candidate,repo),/Web browser artifact/);
+      }
+      fs.writeFileSync(asset,"synthetic");
+    }
     const bytes=fs.readFileSync(path.join(root,"build/release/runtime.tar.gz"));
     assert.equal(manifest.payloadSha256,createHash("sha256").update(bytes).digest("hex"));
     const listed=[];tar.t({file:path.join(root,"build/release/runtime.tar.gz"),sync:true,onentry:entry=>listed.push(entry.path)});

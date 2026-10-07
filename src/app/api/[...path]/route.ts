@@ -1,9 +1,10 @@
-import { getTransportConfig, forwardedHeaders, permittedBrowserRequest } from "@/lib/web-transport";
+import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability } from "@/lib/web-transport";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const hop = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "content-length", "content-encoding", "set-cookie"]);
 async function relay(request: Request) {
   const config = getTransportConfig();
+  if (!hasBrowserApiCapability(request, config)) return Response.json({ message: "接口不存在。" }, { status: 404, headers: { "Cache-Control": "private, no-store, max-age=0" } });
   if (!permittedBrowserRequest(request, config)) return Response.json({ message: "当前来源不能访问业务接口。" }, { status: 403, headers: { "Cache-Control": "private, no-store, max-age=0" } });
   const target = new URL(request.url); target.protocol = config.api.protocol; target.host = config.api.host;
   try {

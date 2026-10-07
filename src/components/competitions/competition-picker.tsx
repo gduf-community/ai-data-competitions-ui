@@ -42,28 +42,35 @@ export function CompetitionPicker({
     [],
   );
   const [loading, setLoading] = React.useState(true);
+  const [keyword, setKeyword] = React.useState("");
 
   React.useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/competitions")
-      .then((res) => res.json())
-      .then(
-        (data: { competitions?: CompetitionOption[] }) => {
-          if (!cancelled && data.competitions) {
-            setCompetitions(data.competitions);
-          }
-        },
-        () => {},
-      )
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      fetch("/api/me/competition-options?keyword=" + encodeURIComponent(keyword.slice(0, 120)), { cache: "no-store", signal: controller.signal })
+        .then((res) => { if (!res.ok) throw new Error("加载比赛选项失败"); return res.json(); })
+        .then(
+          (data: { competitions?: CompetitionOption[] }) => {
+            if (!cancelled && data.competitions) {
+              setCompetitions(data.competitions);
+            }
+          },
+          () => { if (!cancelled) setCompetitions([]); },
+        )
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 250);
 
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
-  }, []);
+  }, [keyword]);
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
@@ -83,8 +90,8 @@ export function CompetitionPicker({
         className="w-[var(--radix-popover-trigger-width)] p-0"
         align="start"
       >
-        <Command>
-          <CommandInput placeholder="搜索比赛..." />
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="搜索比赛..." value={keyword} onValueChange={setKeyword} maxLength={120} />
           <CommandList
             className="max-h-80 overscroll-contain"
             onWheelCapture={(event) => {

@@ -11,7 +11,7 @@
 3. 前端、HTTP 传输、边界和产物回归。
 4. Next standalone 生产构建。
 
-检查保留 public 模式、合成数据和只读 `contents` 权限，checkout 不持久化凭据。fork/PR 不接生产密钥、真实身份或 API 发布权限。
+检查保留 public 模式、合成 API_SERVICE_TOKEN 和只读 `contents` 权限，checkout 不持久化凭据。边界检查拒绝 SQL 恢复及服务凭据传输模块进入 client graph，打包检查浏览器 JS 中的后端配置/凭据名。fork/PR 不接生产密钥、真实身份或 API 发布权限。
 
 ## 产物
 

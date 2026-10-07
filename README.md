@@ -14,9 +14,9 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-PowerShell 可用 `Copy-Item .env.example .env.local`。API 单独在其仓库运行，默认地址 `http://127.0.0.1:3001`；Web 默认 `http://localhost:3000`。仅启动 Web 时不能完成依赖 API 的数据读取。
+PowerShell 可用 `Copy-Item .env.example .env.local`。API 单独在其仓库运行，默认地址 `http://127.0.0.1:3001`；Web 默认 `http://localhost:3000`。两端运行环境须配置相同 `API_SERVICE_TOKEN`（32 随机字节，64 位小写 hex），仅运行时注入；仅启动 Web 时不能完成依赖 API 的数据读取。
 
-默认 `WEB_RELEASE_MODE=public` 只提供公开读取，不转发身份 Cookie、不接受业务写入；登录、报名、本人及管理页面会被阻断。完整本地联调使用隔离合成数据，并按[环境与 HTTP 边界](./docs/开发环境与HTTP边界.md)配置 `trusted` 模式。
+默认 `WEB_RELEASE_MODE=public` 只提供 Server Component 私网读取的公开页面和受限素材/跳转 BFF，不转发身份 Cookie、不接受业务写入；登录、报名、本人及管理页面会被阻断。完整本地联调使用隔离合成数据，并按[环境与 HTTP 边界](./docs/开发环境与HTTP边界.md)配置 `trusted` 模式。
 
 ## 检查与构建
 
@@ -35,6 +35,8 @@ pnpm run ci
 - [Project #2](https://github.com/orgs/gduf-community/projects/2)：同时管理 Web 与 API，实施范围为 `Web`、`API`、`Web/API`。
 - [Web issues](https://github.com/gduf-community/ai-data-competitions-ui/issues) / [API issues](https://github.com/gduf-community/competition-Q-A-website/issues)：按主导交付方归属，跨仓任务保留一个主任务，两侧 PR 分别关联。
 
-API 仓库需访问权限。数据库、认证签名、授权、事务和存储管理在 API；Web 不配置后端管理密钥。旧 Mock 反向同步已退役。
+API 仓库需访问权限。数据库、认证签名、授权、事务和存储管理在 API；Web 仅持有独立服务凭据，不配置后端管理密钥。旧 Mock 反向同步已退役。
+
+BFF 位于本仓 HTTP 传输层，逐路径和方法允许；未命中在请求 API 前返回 404。公开业务 JSON 仅供 SSR 私网读取，比赛列表按 URL 筛选和分页，每页 30 条；通知使用最多 20 条 SSR 记录。SQL 查询台已从两仓源码及生产产物删除，固定分析保留，边界与构建门禁阻止恢复。详细能力、服务身份及配对发布要求见[HTTP 边界](./docs/开发环境与HTTP边界.md)。
 
 源码能力、本地测试、浏览器、远程 CI 和生产部署分别记录；部署平台配置与独立回滚仍需单独核验。历史迁移记录见[归档](./docs/archive/README.md)。

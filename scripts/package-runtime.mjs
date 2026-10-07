@@ -6,6 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import tar from "next/dist/compiled/tar/index.js";
+import { browserArtifactCredentials } from "./check-web-boundaries.mjs";
 
 const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 function copyDirectory(source, destination) {
@@ -26,6 +27,12 @@ export function packageRuntime(root, unit, sha, repository, companion = "") {
   if (!fs.existsSync(path.join(serverDirectory, "server.js"))) throw new Error("Standalone server missing");
   // Web Next tracing is rooted in this checkout. API already copies its runtime assets.
   if (unit === "web") {
+    const assets = [path.join(next, "static")];
+    for (const directory of assets) for (const entry of fs.readdirSync(directory, {withFileTypes:true})) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) assets.push(file);
+      else if (/\.[cm]?js$/.test(file) && browserArtifactCredentials.test(fs.readFileSync(file,"utf8"))) throw new Error("Server credential/configuration in Web browser artifact: " + file);
+    }
     copyDirectory(path.join(next, "static"), path.join(serverDirectory, ".next/static"));
     if (fs.existsSync(path.join(root, "public"))) copyDirectory(path.join(root, "public"), path.join(serverDirectory, "public"));
   }
@@ -99,7 +106,7 @@ async function verifyRuntime(root, manifest) {
     }
     const env = Object.fromEntries(["PATH","SystemRoot","ComSpec","TEMP","TMP"].filter(name=>process.env[name]).map(name=>[name,process.env[name]]));
     let output = "";
-    child = spawn(process.execPath,[path.join(temporary,manifest.server)],{cwd:temporary,windowsHide:true,stdio:["ignore","pipe","pipe"],env:{...env,NODE_ENV:"production",HOSTNAME:"127.0.0.1",PORT:"55447",WEB_RELEASE_MODE:"public",NEXT_TELEMETRY_DISABLED:"1"}});
+    child = spawn(process.execPath,[path.join(temporary,manifest.server)],{cwd:temporary,windowsHide:true,stdio:["ignore","pipe","pipe"],env:{...env,NODE_ENV:"production",HOSTNAME:"127.0.0.1",PORT:"55447",WEB_RELEASE_MODE:"public",API_SERVICE_TOKEN:"a".repeat(64),NEXT_TELEMETRY_DISABLED:"1"}});
     for (const stream of [child.stdout,child.stderr]) stream.on("data",data=>{output=(output+String(data)).slice(-8000);});
     let response;
     for (let attempt=0;attempt<100;attempt++) {
@@ -109,7 +116,7 @@ async function verifyRuntime(root, manifest) {
     }
     if (!response || response.status !== (manifest.unit === "web" ? 503 : 200)) throw new Error("Detached runtime probe failed: " + output);
     if (manifest.unit === "api" && (await response.json()).status !== "ok") throw new Error("API health payload differs");
-    if (manifest.unit === "web" && (await fetch("http://127.0.0.1:55447/api/me/session",{method:"POST"})).status !== 403) throw new Error("Detached public Web admitted a private write");
+    if (manifest.unit === "web" && (await fetch("http://127.0.0.1:55447/api/me/session",{method:"POST"})).status !== 404) throw new Error("Detached public Web admitted a private write");
     console.log("Verified detached " + manifest.unit + " runtime: " + manifest.sha);
   } finally {
     if (child && child.exitCode === null) {const stopped=new Promise(resolve=>child.once("exit",resolve));child.kill();await Promise.race([stopped,delay(5000).then(()=>{throw new Error("Runtime did not stop");})]);}
