@@ -6,12 +6,13 @@ import ts from "typescript";
 
 const forbidden = /^(?:pg(?:\/|$)|postgres(?:\/|$)|drizzle(?:-orm|-kit)(?:\/|$)|@auth\/[^/]+-adapter(?:\/|$)|@aws-sdk\/|bcrypt(?:js)?(?:\/|$)|maxmind(?:\/|$)|next-auth\/(?:jwt|core)(?:\/|$))/;
 const credentials = /\b(?:DATABASE_URL|AUTH_SECRET|PGPASSWORD|S3_SECRET_ACCESS_KEY|MINIO_SECRET_KEY|UPSTASH_REDIS_REST_TOKEN|PERSONAL_DATA_ENCRYPTION_KEY)\b/;
+export const browserArtifactCredentials = /\b(?:API_SERVICE_TOKEN|DATABASE_URL|AUTH_SECRET|PGHOST|PGPORT|PGDATABASE|PGUSER|PGPASSWORD|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|MINIO_ACCESS_KEY|MINIO_SECRET_KEY)\b/;
 const codeFile = /\.(?:[cm]?[jt]sx?|css)$/;
 const ownFile = fileURLToPath(import.meta.url);
 
 export function scanWebBoundaries(root, { dependencies = true } = {}) {
   root = fs.realpathSync(root);
-  const problems = [], queue = [], seen = new Set();
+  const problems = [], queue = [], seen = new Set(), clients = [], localEdges = new Map();
   const inside = file => file === root || file.startsWith(root + path.sep);
   const relative = file => path.relative(root, file).replaceAll(path.sep, "/");
   const report = (file, message) => problems.push(relative(file) + ": " + message);
@@ -38,9 +39,11 @@ export function scanWebBoundaries(root, { dependencies = true } = {}) {
     seen.add(file);
     if (!inside(file)) { report(file, "module escapes repository"); continue; }
     const name = relative(file);
+    if (/^src\/.*(?:sql-console|admin\/analytics\/sql(?:\/|$))/.test(name)) report(file, "SQL console is forbidden");
     if (/(?:^|\/)(?:server|actions|db)(?:\/|$)/.test(name) && !name.startsWith("src/app/(dashboard)/admin/security/actions/")) report(file, "backend directory");
     if (/^src\/lib\/(?:auth\/(?:auth|session)|storage\/(?:s3|storage|client))(?:\.|\/|$)/.test(name)) report(file, "backend module");
     const source = fs.readFileSync(file, "utf8");
+    if (name.startsWith("src/") && name !== "src/lib/web-transport.ts" && /\bAPI_SERVICE_TOKEN\b/.test(source)) report(file, "service credential must stay in the server transport");
     // The checker declares these rule names; only its actual imports are scanned below.
     if (file !== ownFile && credentials.test(source)) report(file, "backend credential/configuration");
     if (file.endsWith(".css")) continue;
@@ -55,7 +58,10 @@ export function scanWebBoundaries(root, { dependencies = true } = {}) {
         const packagePath = fs.realpathSync(resolved).replaceAll(path.sep, "/").split("/node_modules/").at(-1);
         if (forbidden.test(packagePath)) report(file, "resolved backend import: " + value);
       }
-      else if (resolved) queue.push(resolved);
+      else if (resolved) {
+        queue.push(resolved);
+        localEdges.set(file, [...(localEdges.get(file) ?? []), fs.realpathSync(resolved)]);
+      }
       else if (value.startsWith(".") || value.startsWith("@/")) {
         const direct = path.resolve(path.dirname(file), value);
         if (fs.existsSync(direct) && fs.statSync(direct).isFile()) queue.push(direct);
@@ -64,6 +70,7 @@ export function scanWebBoundaries(root, { dependencies = true } = {}) {
     }
     function visit(node) {
       if (ts.isExpressionStatement(node) && ts.isStringLiteral(node.expression) && node.expression.text === "use server") report(file, "Server Action");
+      if (ts.isExpressionStatement(node) && ts.isStringLiteral(node.expression) && node.expression.text === "use client") clients.push(file);
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) && node.moduleSpecifier) moduleEdge(node.moduleSpecifier);
       if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) moduleEdge(node.moduleReference.expression);
       if (ts.isImportTypeNode(node)) moduleEdge(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : undefined);
@@ -71,6 +78,15 @@ export function scanWebBoundaries(root, { dependencies = true } = {}) {
       ts.forEachChild(node, visit);
     }
     visit(ast);
+  }
+  for (const client of clients) {
+    const pending = [client], visited = new Set();
+    for (const file of pending) {
+      if (visited.has(file)) continue;
+      visited.add(file);
+      if (relative(file) === "src/lib/web-transport.ts") report(client, "client graph imports service credentials");
+      pending.push(...(localEdges.get(file) ?? []));
+    }
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
   for (const [name, command] of Object.entries(manifest.scripts ?? {})) if (/(?:^|[\s"'])\.\.[\\/]/.test(command)) report(path.join(root, "package.json"), "script escapes repository: " + name);

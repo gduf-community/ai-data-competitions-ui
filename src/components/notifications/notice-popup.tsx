@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import type { PublishedNoticeRecord } from "@/lib/contracts/portal";
 import { X, Megaphone } from "lucide-react";
 
 import { fetchClientSessionUser } from "@/lib/auth/client-session";
@@ -14,6 +15,11 @@ import { getSafeStorageItem, setSafeStorageItem } from "@/lib/safe-storage";
 import { Button } from "@/components/ui/button";
 
 const DISMISSED_KEY = "dismissed_notice_popups";
+const PublishedNoticesContext = createContext<PublishedNoticeRecord[]>([]);
+export function NoticeProvider({ notices, children }: { notices: PublishedNoticeRecord[]; children: React.ReactNode }) {
+  return <PublishedNoticesContext value={notices}>{children}</PublishedNoticesContext>;
+}
+export function usePublishedNotices() { return useContext(PublishedNoticesContext); }
 
 interface PublishedNoticeItem {
   id: string;
@@ -71,6 +77,7 @@ function getPopupNotice(
 }
 
 export function NoticePopup() {
+  const notices = usePublishedNotices();
   const [notice, setNotice] = useState<PublishedNoticeItem | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -79,11 +86,8 @@ export function NoticePopup() {
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const [sessionUser, noticesResponse, readResponse] = await Promise.all([
+          const [sessionUser, readResponse] = await Promise.all([
             fetchClientSessionUser(),
-            fetch("/api/notices/published?limit=20", { cache: "no-store" }).catch(
-              () => null,
-            ),
             fetch("/api/me/notices/read", { cache: "no-store" }).catch(() => null),
           ]);
           if (!active) return;
@@ -98,15 +102,7 @@ export function NoticePopup() {
             );
           }
 
-          if (!noticesResponse?.ok) {
-            setNotice(null);
-            return;
-          }
-          const payload = (await noticesResponse.json()) as {
-            notices?: PublishedNoticeItem[];
-          };
-          const list = payload.notices ?? [];
-          setNotice(getPopupNotice(list, currentUserId));
+          setNotice(getPopupNotice(notices, currentUserId));
         } catch {
           if (!active) return;
           setNotice(null);
@@ -118,7 +114,7 @@ export function NoticePopup() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [notices]);
 
   if (!notice) return null;
 

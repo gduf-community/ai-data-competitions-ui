@@ -7,7 +7,6 @@ import {
   BookOpenCheck,
   Calendar,
   ClipboardCheck,
-  Database,
   Home,
   ImageIcon,
   LayoutDashboard,
@@ -60,7 +59,6 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
     items: [
       { title: "后台首页", url: "/admin", icon: LayoutDashboard },
       { title: "官网首页", url: "/", icon: Home },
-      { title: "SQL 查询台", url: "/admin/analytics/sql", capability: "canReadAnalytics", icon: Database },
     ],
   },
   {

@@ -239,12 +239,6 @@ export default function AdminHomePage() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" className="justify-between">
-              <Link href="/admin/analytics/sql">
-                打开 SQL 查询台
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
           </CardContent>
         </Card>
 

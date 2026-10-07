@@ -1,7 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getTransportConfig, forwardedHeaders, isPublicRead } from "@/lib/web-transport";
+import { getTransportConfig, forwardedHeaders, permittedPublicServerRead } from "@/lib/web-transport";
 
 export class WebApiError extends Error {
   constructor(public status: number) { super("服务暂不可用，请稍后重试。"); }
@@ -9,7 +9,7 @@ export class WebApiError extends Error {
 export async function readAPI<T>(pathname: string): Promise<T> {
   const config = getTransportConfig();
   if (!pathname.startsWith("/api/") || pathname.includes("\\")) throw new Error("Invalid API path");
-  if (!config.business && !isPublicRead(pathname)) throw new WebApiError(503);
+  if (!config.business && !permittedPublicServerRead(pathname)) throw new WebApiError(503);
   const incoming = await headers();
   const response = await fetch(new URL(pathname, config.api), {
     headers: forwardedHeaders(incoming, config), cache: "no-store", redirect: "manual",

@@ -4,8 +4,7 @@ export type AdminAnalyticsTabKey =
   | "funnel"
   | "users"
   | "notifications"
-  | "risk"
-  | "sql";
+  | "risk";
 
 export interface AdminAnalyticsDistributionItem {
   label: string;
