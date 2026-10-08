@@ -29,6 +29,7 @@ jobs:
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
       - run: git diff --exit-code -- package.json pnpm-lock.yaml
+      - run: pnpm run check:framework
       - run: pnpm run ci
       - name: Package web standalone runtime with source and lock digests
         run: node scripts/package-runtime.mjs web
