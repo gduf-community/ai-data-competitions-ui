@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import tar from "next/dist/compiled/tar/index.js";
+import * as tar from "tar";
 import { browserArtifactCredentials } from "./check-web-boundaries.mjs";
 
 const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -73,7 +73,7 @@ export function packageRuntime(root, unit, sha, repository, companion = "") {
   const linkTargets = new Map(links.filter(file => fs.lstatSync(file).isSymbolicLink()).map(file => [path.relative(standalone,file).replaceAll(path.sep,"/"),path.relative(path.dirname(file),fs.realpathSync(file)).replaceAll(path.sep,"/")]));
   const intermediate = path.join(output,"runtime-source.tar");
   try {
-    // Use Next's pinned tar library. Preserve pnpm's graph; dereferencing changes Node resolution.
+    // Use the explicitly locked tar dependency. Preserve pnpm's graph; dereferencing changes Node resolution.
     tar.c({file:intermediate,cwd:standalone,sync:true,portable:true},["."]);
     tar.c({file:payload,gzip:true,sync:true,portable:true,filter:(name,entry)=>{
       if (entry.type === "SymbolicLink") {

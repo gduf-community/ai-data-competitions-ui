@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import tar from "next/dist/compiled/tar/index.js";
+import * as tar from "tar";
 import { packageRuntime } from "../scripts/package-runtime.mjs";
 
 const workflow = fs.readFileSync(".github/workflows/ci.yml", "utf8").replaceAll("\r\n", "\n");
