@@ -28,3 +28,6 @@
 环境影响：开发/CI 触发与校验、停止 GitHub CD；没有执行生产发布、数据库迁移或平台配置更改。源码、本地检查、远程 run 和真实部署分别记录。
 
 返回[文档入口](./README.md)。
+
+
+当前框架固定 Next.js/eslint-config-next **16.3.8**，React/react-dom **19.2.3**。冻结安装后执行 `pnpm run check:framework`（已接入 CI），再运行既有质量、构建和 runtime 校验；[兼容依赖与环境影响](./开发环境与HTTP边界.md)记录官方依据。
