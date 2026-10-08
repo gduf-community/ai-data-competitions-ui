@@ -42,3 +42,13 @@ GitHub CI 固定工具链、public 模式与合成夹具，既不连接生产服
 正式启用需维护窗口配对发布或平台原子切换：两端先配置同一服务凭据，旧 Web 不发送凭据，新 Web 依赖比赛年份聚合响应，不能混配旧版本。API 无 public domain/port forwarding；跨 Project 私网、Web→DB/MinIO 禁连须真实容器实测。Zeabur Server Firewall 只管 ingress，不能替代 service/container egress policy。本轮未修改生产变量、网络、数据库或部署；浏览器 DevTools、实际平台验收独立留证。
 
 返回[文档入口](./README.md)。
+
+## Next.js 16.3.8 依赖基线（2026-10-08）
+
+Next.js 与 eslint-config-next 从 16.1.1 同步固定到 **16.3.8**，使用 pnpm 10.34.5 正规重生成唯一锁文件。依据 [官方稳定发布](https://github.com/vercel/next.js/releases/tag/v16.3.8) 与 [npm 元数据](https://registry.npmjs.org/next/16.3.8)，这是满足最低要求的最小稳定修复版本；Node 要求 ≥20.9.0，现行 Node 22.23.3 满足。React/react-dom 保持 19.2.3，类型保持 19.2.7/19.2.3：Next 支持 React ^19.0.0，React DOM 要求 React ^19.2.3，DOM 类型要求 React 类型 ^19.2.0。
+
+冻结安装后运行 `pnpm run check:framework`，CI 校验实际安装版本、Next/ESLint 耦合、React/DOM 一致性和类型主版本。继续执行 lint、typegen/typecheck、单元测试、独立 build 与 standalone 打包/解包探针；API 专用 PostgreSQL 和双仓 HTTP 回归使用本地合成数据。历史 benchmark 和部署记录保留当时实际版本。
+
+依赖影响开发、CI 及未来生产构建；本次仅交付任务分支与草稿 PR，未修改生产配置或执行部署。API 仍仅手动 CI，Web 仍自动 push/PR CI，两仓没有 CD 晋级。
+
+16.3.8 已移除内部 `next/dist/compiled/tar`；runtime 打包脚本和既有归档回归改用显式锁定的开发依赖 `tar@7.5.22`（Node ≥18）。继续保留 pnpm 相对链接、源 SHA/摘要检查和解包启动探针，不依赖 Next 私有打包实现。
