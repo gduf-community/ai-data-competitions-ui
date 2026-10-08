@@ -117,7 +117,10 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
   }, [pathname]);
 
   async function handleSignOut() {
-    await signOut({ callbackUrl: "/" });
+    // Auth.js may return the private API origin through the BFF.
+    // Finish cookie invalidation before navigating within the current Web origin.
+    await signOut({ redirect: false, callbackUrl: "/" });
+    window.location.assign("/");
   }
 
   return (
