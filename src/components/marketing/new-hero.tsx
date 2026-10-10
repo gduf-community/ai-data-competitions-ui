@@ -103,7 +103,7 @@ export function NewHero({ featuredCompetitions, currentUser }: NewHeroProps) {
               </div>
 
               <h1 className="animate-appear text-4xl font-bold leading-[1.08] tracking-tight text-white delay-100 sm:text-5xl lg:text-6xl">
-                广东金融学院大数据与人工智能学院
+                大数据与人工智能学院
                 <br />
                 <span className="text-blue-300">|竞赛综合服务</span>中心
               </h1>
