@@ -12,6 +12,7 @@
 | `API_SERVICE_TOKEN` | 两端相同的 32 随机字节、64 位小写 hex；仅运行时注入，不得使用 NEXT_PUBLIC_ 或提交真实值 |
 | `WEB_TRUSTED_ORIGIN` | 默认 `http://localhost:3000`；trusted 必须显式填写，禁止凭浏览器转发头选择 |
 | `WEB_RELEASE_MODE` | 默认 public；仅 `trusted` 接受身份 Cookie 和业务写入 |
+| `SEARCH_REGEX_ENABLED` | 默认 false；本地合成验收可设 true，且须 API 同名开关与能力声明；生产资源验收前保持关闭 |
 | `WEB_CLIENT_IP_HEADER` | 只允许 `x-forwarded-for`、`x-real-ip`、`cf-connecting-ip`；trusted production 必填，且入口必须覆盖为单一有效 IP |
 
 完整本地联调将 API_ORIGIN、WEB_TRUSTED_ORIGIN 设为上述 loopback origin，WEB_RELEASE_MODE 设为 `trusted`，并在两端注入同一合成服务凭据，运行 `pnpm dev`。API 的 `WEB_TRUSTED_ORIGIN`、`AUTH_URL`、`NEXT_PUBLIC_APP_URL` 设为同一 `http://localhost:3000`；API 管理密钥只注入 API。本地 `pnpm start` 属于 production 模式，仍要求已验证的 IP 头，不能以本地开发配置绕过生产入口约束。
@@ -27,7 +28,7 @@ public 模式仅允许 server-only 公开 DTO 读取及显式素材字节/跳转
 
 浏览器不能代理 competitions/homepage/notices/published/portal competitions/awards/hall-of-fame/profiles/clubs/questions 等公开业务 JSON；SSR 读取策略与浏览器策略独立。素材字节、官方链接和通知打开跳转是显式例外。身份、报名、交互、私有文件、后台与 SSE 保留逐接口权限。
 
-比赛列表按 URL 的 keyword/status/year/page 在 API 内筛选，每页 30 条；年份来自聚合计数，Filter Bar 只更新 URL，Flight 只含当前页。通知铃铛/弹窗使用最多 20 条 SSR 通知；成果比赛选择器使用需登录、限流、每次最多 20 个 id/title 的 `/api/me/competition-options`。SQL 页面、组件、类型和专属测试已删除；API companion 删除 schema/run/validate 与执行能力，固定 `/api/admin/analytics` 保留。Web 边界与产物检查禁止 SQL 恢复及服务凭据进入 client graph/浏览器 JS。
+比赛列表按 URL 的 q/mode/status/year/page/pageSize 在 API 内筛选（兼容 keyword），默认每页20、最多50条；年份来自聚合计数，Filter Bar 只更新 URL，Flight 只含当前页。正则只在两个运行时开关及API能力声明一致时提供，采用SSR路径；具体语法/预算见[搜索约定](./代码组织与组件约定.md)。通知铃铛/弹窗使用最多20条SSR通知；成果比赛选择器使用需登录、限流、每次最多20个id/title的 `/api/me/competition-options`。SQL页面、组件、类型和专属测试已删除；API companion删除schema/run/validate与执行能力，固定 `/api/admin/analytics` 保留。Web边界与产物检查禁止SQL恢复及服务凭据进入client graph/浏览器JS。
 
 ## 图片与富文本
 

@@ -1,3 +1,4 @@
+import { readAPI, WebApiError } from "@/lib/web-api";
 import Link from "next/link";
 import { ChevronRight, LogIn } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -35,12 +36,14 @@ export default async function QuestionsPage({
         role: session.user.role,
       }
     : null;
+  const capability = process.env.SEARCH_REGEX_ENABLED === "true" ? await readAPI<{ searchCapabilities?: { regex: boolean } }>("/api/competitions?limit=1") : null;
+  const allowRegex = capability?.searchCapabilities?.regex === true;
   const urlParams = new URLSearchParams();
   for (const [key, entry] of Object.entries(await searchParams)) for (const value of Array.isArray(entry) ? entry : entry === undefined ? [] : [entry]) urlParams.append(key, value);
   let query;
   let status: "open" | "closed" | undefined;
   try {
-    query = parseSearchQuery(urlParams);
+    query = parseSearchQuery(urlParams, { allowRegex });
     const rawStatus = searchParameter(urlParams, "status");
     const requestedCompetition = searchParameter(urlParams, "competitionId");
     if (requestedCompetition !== null && requestedCompetition !== id) throw new SearchQueryError("INVALID_QUERY", "比赛范围与当前页面不一致。");
@@ -48,7 +51,10 @@ export default async function QuestionsPage({
     status = rawStatus ?? undefined;
   } catch (error) { return <main role="alert" className="p-8">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href={`/competitions/${id}/questions`}>重置搜索</Link></main>; }
   const page = query.page;
-  const {questions, hasMore, total} = await listQuestionPage(id, query, status);
+  let result;
+  try { result = await listQuestionPage(id, query, status); }
+  catch (error) { if (!(error instanceof WebApiError)) throw error; return <main role="alert" className="p-8"><p>{error.publicMessage}</p><Link href={`/competitions/${id}/questions?${urlParams}`}>重试搜索</Link> · <Link href={`/competitions/${id}/questions`}>重置搜索</Link></main>; }
+  const {questions, hasMore, total} = result;
   const href = (page: number) => `/competitions/${id}/questions?` + serializeSearchQuery({ ...query, page }, urlParams);
 
   return (
@@ -72,7 +78,7 @@ export default async function QuestionsPage({
             <h1 className="text-2xl font-semibold">问答讨论</h1>
           </div>
 
-          <SearchQueryForm key={JSON.stringify(query) + status} path={`/competitions/${id}/questions`} query={query} parameters={urlParams.toString()}
+          <SearchQueryForm key={JSON.stringify(query) + status} path={`/competitions/${id}/questions`} query={query} parameters={urlParams.toString()} allowRegex={allowRegex}
             placeholder="搜索问题标题或正文" status={status ?? "all"} statuses={[{ value: "open", label: "讨论中" }, { value: "closed", label: "已关闭" }]} />
           <QuestionList questions={questions} emptyLabel={query.q || status ? "当前搜索没有匹配的问题，可以调整关键词或状态。" : undefined} />
           <nav aria-label="问答分页" className="flex items-center justify-between text-sm">
