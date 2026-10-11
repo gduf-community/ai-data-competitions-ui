@@ -84,7 +84,7 @@ export function hasBrowserApiCapability(request: Request, config: TransportConfi
   if (!config.business && !["GET", "HEAD"].includes(request.method)) return false;
   if (!browserApiPolicy.some(rule => rule.path.test(url.pathname) && rule.methods.includes(request.method) && (config.business || rule.public))) return false;
   if (!config.business && url.pathname === "/api/uploads") {
-    return ["GET", "HEAD"].includes(request.method) && url.searchParams.size === 1 && /^uploads\/(?:public\/)?(?:award|club|competition|notice)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(url.searchParams.get("key") ?? "");
+    return ["GET", "HEAD"].includes(request.method) && url.searchParams.size === 1 && /^[a-z0-9_-]+\/(?:public\/)?(?:award|club|competition|notice)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(url.searchParams.get("key") ?? "");
   }
   return true;
 }
