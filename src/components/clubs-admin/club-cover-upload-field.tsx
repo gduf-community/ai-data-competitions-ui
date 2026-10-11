@@ -46,7 +46,7 @@ export function ClubCoverUploadField({
     try {
       const formData = new FormData();
       formData.set("scope", "club");
-      formData.set("clubId", clubId);
+      formData.set("clubSlug", clubId);
       formData.set("files", file);
 
       const res = await fetchWithCsrf("/api/uploads", {
