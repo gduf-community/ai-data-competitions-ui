@@ -19,7 +19,9 @@ export async function proxy(request: NextRequest) {
       if (!gate.ok) return new NextResponse("服务暂不可用，请稍后重试。",{status:503, headers:{"Cache-Control":"private, no-store, max-age=0"}});
     } catch { return new NextResponse("服务暂不可用，请稍后重试。",{status:503, headers:{"Cache-Control":"private, no-store, max-age=0"}}); }
   }
-  const response = NextResponse.next();
+  const routeHeaders = new Headers(request.headers);
+  routeHeaders.set("x-web-current-path", path + request.nextUrl.search);
+  const response = NextResponse.next({ request: { headers: routeHeaders } });
   if (config.business && !path.startsWith("/api/") && !request.cookies.has(CSRF_COOKIE_NAME)) response.cookies.set(CSRF_COOKIE_NAME, randomBytes(32).toString("base64url"), {httpOnly: false, secure: config.web.protocol === "https:", sameSite: "strict", path: "/"});
   return response;
 }

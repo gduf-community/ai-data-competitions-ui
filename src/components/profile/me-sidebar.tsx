@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, FileSpreadsheet, Trophy, Award, BookOpen, Users2 } from "lucide-react";
+import { User, FileSpreadsheet, Trophy, Award, BookOpen } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,7 +11,6 @@ const menuItems = [
   { href: "/me/applications", label: "我的报名", icon: FileSpreadsheet },
   { href: "/me/achievements", label: "我的成果", icon: Award },
   { href: "/me/experiences", label: "经验文章", icon: BookOpen },
-  { href: "/me/clubs", label: "社团管理", icon: Users2 },
   { href: "/me/hall-of-fame", label: "名人堂展示", icon: Trophy },
 ];
 

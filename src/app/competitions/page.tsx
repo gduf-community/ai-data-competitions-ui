@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { parseSearchQuery, serializeSearchQuery, searchParameter, SearchQueryError } from "@/lib/search";
 import { CompetitionCard } from "@/components/competitions/competition-card";
 import { CompetitionFilterBar } from "@/components/competitions/competition-filter-bar";
 import { NewFooter } from "@/components/marketing/new-footer";
@@ -7,42 +8,57 @@ import { Section } from "@/components/marketing/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { publicCompetitionFilterStatuses } from "@/lib/competition-status";
-import { readAPI } from "@/lib/web-api";
+import { readAPI, WebApiError } from "@/lib/web-api";
 import type { CompetitionStatus } from "@/lib/types";
 import type { PublicCompetitionSummary } from "@/lib/contracts/public-portal";
 
 export default async function CompetitionsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const metadata = await readAPI<{ years: Array<{ year: number; total: number }>; searchCapabilities?: { regex: boolean } }>("/api/competitions?limit=1");
+  const allowRegex = process.env.SEARCH_REGEX_ENABLED === "true" && metadata.searchCapabilities?.regex === true;
   const params = await searchParams;
-  const value = (key: string) => typeof params[key] === "string" ? params[key] as string : "";
-  const keyword = value("keyword").trim().slice(0, 120);
-  const status = publicCompetitionFilterStatuses.includes(value("status") as CompetitionStatus) ? value("status") as CompetitionStatus : "all";
-  const rawYear = Number(value("year"));
-  let year = Number.isInteger(rawYear) && rawYear >= 1900 && rawYear <= 9999 ? rawYear : null;
+  const urlParams = new URLSearchParams();
+  for (const [key, entry] of Object.entries(params)) for (const item of Array.isArray(entry) ? entry : entry === undefined ? [] : [entry]) urlParams.append(key, item);
+  let search;
+  let status: CompetitionStatus | "all" = "all";
+  let year: number | null = null;
+  try {
+    search = parseSearchQuery(urlParams, { allowRegex });
+    const rawStatus = searchParameter(urlParams, "status");
+    const rawYear = searchParameter(urlParams, "year");
+    if (rawStatus !== null) {
+      if (!publicCompetitionFilterStatuses.includes(rawStatus as CompetitionStatus)) throw new SearchQueryError("INVALID_QUERY", "无效的比赛状态。");
+      status = rawStatus as CompetitionStatus;
+    }
+    if (rawYear !== null) {
+      if (!/^[0-9]{4}$/.test(rawYear) || Number(rawYear) < 1900) throw new SearchQueryError("INVALID_QUERY", "无效的比赛年份。");
+      year = Number(rawYear);
+    }
+  } catch (error) { return <main className="p-8" role="alert">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href="/competitions">重置搜索</Link></main>; }
   if (year === null) {
     // Preserve the existing latest-year default using aggregates and one bounded probe.
-    const metadata = await readAPI<{ years: Array<{ year: number; total: number }> }>("/api/competitions?limit=1");
     year = metadata.years[0]?.year ?? null;
   }
-  const rawPage = Number(value("page"));
-  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 33334) : 1;
-  const query = new URLSearchParams({ limit: "30", offset: String((page - 1) * 30), sort: "registration" });
-  if (keyword) query.set("keyword", keyword);
+  const page = search.page;
+  const query = new URLSearchParams({ search: "1", q: search.q, mode: search.mode, page: String(page), pageSize: String(search.pageSize) });
   if (status !== "all") query.set("status", status);
   if (year !== null) query.set("year", String(year));
-  const { competitions, total, years } = await readAPI<{
+  let result;
+  try { result = await readAPI<{
     competitions: PublicCompetitionSummary[]; total: number; years: Array<{ year: number; total: number }>;
-  }>("/api/competitions?" + query);
+  }>("/api/competitions?" + query); }
+  catch (error) { if (!(error instanceof WebApiError)) throw error; return <main role="alert" className="p-8"><p>{error.publicMessage}</p><Link href={"/competitions?" + urlParams}>重试搜索</Link> · <Link href="/competitions">重置搜索</Link></main>; }
+  const { competitions, total, years } = result;
   const href = (nextPage: number, nextYear = year) => {
-    const navigation = new URLSearchParams();
-    if (keyword) navigation.set("keyword", keyword);
+    const navigation = serializeSearchQuery({ ...search, page: nextPage }, urlParams);
+
     if (status !== "all") navigation.set("status", status);
     if (nextYear !== null) navigation.set("year", String(nextYear));
     if (nextPage > 1) navigation.set("page", String(nextPage));
     return "/competitions" + (navigation.size ? "?" + navigation : "");
   };
-  const pages = Math.max(1, Math.ceil(total / 30));
+  const pages = Math.max(1, Math.ceil(total / search.pageSize));
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -50,7 +66,7 @@ export default async function CompetitionsPage({ searchParams }: {
       <main className="pt-24">
         <Section className="pb-10 pt-6 sm:pt-10">
           <div className="mx-auto max-w-7xl space-y-8">
-            <PageHeader eyebrow="Competitions" title="比赛列表" description="按年份、报名状态和关键词浏览比赛，每页最多展示 30 场。" />
+            <PageHeader eyebrow="Competitions" title="比赛列表" description="按年份、报名状态和关键词浏览比赛，支持模糊与完整匹配，按年份和状态筛选。" />
             <nav aria-label="比赛年份" className="flex flex-wrap gap-3 border-t border-border/70 pt-6">
               {years.map(item => (
                 <Link key={item.year ?? "all"} href={href(1, item.year)} aria-current={year === item.year ? "page" : undefined}
@@ -59,7 +75,7 @@ export default async function CompetitionsPage({ searchParams }: {
                 </Link>
               ))}
             </nav>
-            <CompetitionFilterBar key={keyword + status + year} keyword={keyword} status={status} year={year} />
+            <CompetitionFilterBar key={JSON.stringify(search) + status + year} query={search} status={status} year={year} parameters={urlParams.toString()} allowRegex={allowRegex} />
             {competitions.length ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {competitions.map(competition => <CompetitionCard key={competition.id} competition={competition} />)}

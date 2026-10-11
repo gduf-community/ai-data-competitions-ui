@@ -35,7 +35,7 @@ const MAX_RICH_TEXT_HREF_LENGTH = 2048;
 const MAX_RICH_TEXT_TITLE_LENGTH = 200;
 const MAX_UPLOAD_STORAGE_KEY_LENGTH = 512;
 const RICH_TEXT_IMAGE_STORAGE_KEY_PATTERN =
-  /^uploads\/(?:(?:public|private)\/)?(?:registration|notice|competition|avatar|experience_cover|award|rich_text|club)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
+  /^[a-z0-9_-]+\/(?:(?:public|private)\/)?(?:registration|notice|competition|avatar|experience_cover|award|rich_text|club)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
 function safeDecodeURIComponent(value: string) {
   try {

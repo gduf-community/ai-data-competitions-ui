@@ -68,6 +68,9 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/contacts$/, methods: ["GET", "HEAD", "PUT"] },
   { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/admins$/, methods: ["GET", "HEAD", "POST"] },
   { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/admins\/[A-Za-z0-9_-]+$/, methods: ["DELETE"] },
+  { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/contents$/, methods: ["GET", "HEAD", "POST"] },
+  { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/contents\/[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PATCH", "DELETE"] },
+  { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/contents\/[A-Za-z0-9_-]+\/(?:publish|offline|archive)$/, methods: ["POST"] },
   { path: /^\/api\/admin\/clubs\/contents$/, methods: ["GET", "HEAD"] },
   { path: /^\/api\/admin\/clubs\/contents\/[A-Za-z0-9_-]+\/(?:review|offline|archive)$/, methods: ["POST"] },
   { path: /^\/api\/admin\/security\/(?:events|alerts)$/, methods: ["GET", "HEAD"] },
@@ -84,7 +87,7 @@ export function hasBrowserApiCapability(request: Request, config: TransportConfi
   if (!config.business && !["GET", "HEAD"].includes(request.method)) return false;
   if (!browserApiPolicy.some(rule => rule.path.test(url.pathname) && rule.methods.includes(request.method) && (config.business || rule.public))) return false;
   if (!config.business && url.pathname === "/api/uploads") {
-    return ["GET", "HEAD"].includes(request.method) && url.searchParams.size === 1 && /^uploads\/(?:public\/)?(?:award|club|competition|notice)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(url.searchParams.get("key") ?? "");
+    return ["GET", "HEAD"].includes(request.method) && url.searchParams.size === 1 && /^[a-z0-9_-]+\/(?:public\/)?(?:award|club|competition|notice)\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(url.searchParams.get("key") ?? "");
   }
   return true;
 }

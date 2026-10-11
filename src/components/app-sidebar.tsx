@@ -83,12 +83,6 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
       { title: "用户管理", url: "/admin/users", capability: "canReadUserManagement", icon: Users },
       { title: "赛程安排", url: "/admin/schedule", icon: Calendar },
       { title: "名人堂管理", url: "/admin/hall-of-fame", capability: "canReadRestrictedContentManagement", icon: Award },
-      { title: "社团管理", url: "/admin/clubs", icon: Users2 },
-      {
-        title: "社团内容审核",
-        url: "/admin/clubs/reviews",
-        icon: ClipboardCheck,
-      },
       {
         title: "经验文章审核",
         url: "/admin/experience-reviews", capability: "canReadRestrictedContentManagement",
@@ -96,6 +90,15 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
       },
       { title: "奖状审核", url: "/admin/award-reviews", icon: ImageIcon },
     ],
+  },
+  {
+    label: "社团管理",
+    capability: "canAccessClubManagement",
+    items: [{ title: "内容工作台", url: "/admin/clubs", icon: Users2 }],
+  },
+  {
+    label: "社团治理", capability: "canModerateClubContent",
+    items: [{ title: "已发布内容治理", url: "/admin/clubs/governance", icon: ClipboardCheck }],
   },
   {
     label: "安全中心",

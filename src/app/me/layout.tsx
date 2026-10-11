@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { NewFooter } from "@/components/marketing/new-footer";
 import { NewNavbar } from "@/components/marketing/new-navbar";
@@ -15,7 +16,8 @@ export default async function MeLayout({
   const sessionUser = await getSessionUser();
 
   if (!sessionUser.id) {
-    redirect("/sign-in?callbackUrl=/me");
+    const path = (await headers()).get("x-web-current-path") ?? "/me";
+    redirect("/sign-in?callbackUrl=" + encodeURIComponent(path.startsWith("/me/clubs") ? path : "/me"));
   }
 
   return (
