@@ -135,9 +135,7 @@ export function ClubContentManageList({
                   </div>
 
                   <div className="flex shrink-0 flex-wrap gap-1.5">
-                    {!governance && (item.status === "draft" ||
-                      item.status === "published" ||
-                      item.status === "offline") && (
+                    {!governance && item.allowedActions?.includes("edit") && (
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/admin/clubs/${clubId}/contents/${item.id}/edit`}>
                           <Pencil className="mr-1 size-3.5" />
@@ -145,7 +143,7 @@ export function ClubContentManageList({
                         </Link>
                       </Button>
                     )}
-                    {!governance && (item.status === "draft" || item.status === "offline") ? (
+                    {!governance && item.allowedActions?.includes("publish") ? (
                       <Button
                         size="sm"
                         disabled={isLoading}
@@ -155,7 +153,7 @@ export function ClubContentManageList({
                         直接发布
                       </Button>
                     ) : null}
-                    {item.status === "published" ? (
+                    {item.allowedActions?.includes("offline") ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -166,7 +164,7 @@ export function ClubContentManageList({
                         下线
                       </Button>
                     ) : null}
-                    {!governance && (item.status === "draft" || item.status === "offline") && (
+                    {!governance && item.allowedActions?.includes("delete") && (
                       <Button
                         variant="destructive"
                         size="sm"

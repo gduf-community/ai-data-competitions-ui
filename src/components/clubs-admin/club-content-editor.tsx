@@ -76,7 +76,7 @@ interface ClubContentEditorProps {
   clubId: string;
   mode: "create" | "edit";
   contentId?: string;
-  /** 编辑模式下原状态，决定是否显示"保存并发布"（仅 draft / rejected 可提交）。 */
+  /** 草稿与已下线内容可保存后直接发布。 */
   initialStatus?: string;
   initialRevision?: number;
   defaultValues: ClubContentEditorDefaultValues;
@@ -270,7 +270,7 @@ export function ClubContentEditor({
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={mode === "edit"}
+                      disabled={mode === "edit" || Boolean(savedRef.current.id)}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -285,7 +285,7 @@ export function ClubContentEditor({
                         ))}
                       </SelectContent>
                     </Select>
-                    {mode === "edit" ? (
+                    {mode === "edit" || savedRef.current.id ? (
                       <p className="text-xs text-muted-foreground">
                         内容类型创建后不可修改。
                       </p>
