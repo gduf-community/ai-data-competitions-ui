@@ -82,8 +82,7 @@ export function LoginForm1({
       }
 
       toast.success("登录成功");
-      const target = result.url ? sanitizeCallbackUrl(result.url) : callbackUrl;
-      router.push(target);
+      router.push(callbackUrl);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "登录失败";

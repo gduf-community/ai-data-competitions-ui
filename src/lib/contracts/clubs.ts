@@ -20,6 +20,7 @@ export interface ClubContentRow {
   coverImages: string[];
   status: ClubContentStatus;
   revision: number;
+  allowedActions?: string[];
   recruitmentStartAt: Date | null;
   recruitmentEndAt: Date | null;
   registrationUrl: string | null;
