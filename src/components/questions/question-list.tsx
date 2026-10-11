@@ -1,6 +1,7 @@
 import { QuestionCard } from "./question-card";
 
 interface QuestionListProps {
+  emptyLabel?: string;
   questions: Array<{
     id: string;
     competitionId: string;
@@ -14,11 +15,11 @@ interface QuestionListProps {
   }>;
 }
 
-export function QuestionList({ questions }: QuestionListProps) {
+export function QuestionList({ questions, emptyLabel = "暂无问答，成为第一个提问的人吧" }: QuestionListProps) {
   if (questions.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border/70 px-6 py-10 text-center text-sm text-muted-foreground">
-        暂无问答，成为第一个提问的人吧
+        {emptyLabel}
       </div>
     );
   }
