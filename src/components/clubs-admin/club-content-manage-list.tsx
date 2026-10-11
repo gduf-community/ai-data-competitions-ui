@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requestJSON } from "@/lib/http-client";
+import { confirmI18n } from "@/lib/i18n/client";
 import type { ClubContentRow } from "@/lib/contracts/clubs";
 
 const STATUS_CONFIG: Record<
@@ -42,11 +43,13 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
 interface ClubContentManageListProps {
   clubId: string;
   contents: ClubContentRow[];
+  governance?: boolean;
 }
 
 export function ClubContentManageList({
   clubId,
   contents,
+  governance = false,
 }: ClubContentManageListProps) {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState("all");
@@ -61,6 +64,7 @@ export function ClubContentManageList({
     contentId: string,
     action: "publish" | "offline" | "delete",
   ) {
+    if (loading || ((action === "delete" || action === "offline") && !confirmI18n(action === "delete" ? "确认删除该内容？" : "确认下线该内容？"))) return;
     setLoading(contentId);
     try {
       const url =
@@ -131,7 +135,7 @@ export function ClubContentManageList({
                   </div>
 
                   <div className="flex shrink-0 flex-wrap gap-1.5">
-                    {(item.status === "draft" ||
+                    {!governance && (item.status === "draft" ||
                       item.status === "published" ||
                       item.status === "offline") && (
                       <Button variant="outline" size="sm" asChild>
@@ -141,7 +145,7 @@ export function ClubContentManageList({
                         </Link>
                       </Button>
                     )}
-                    {(item.status === "draft" || item.status === "offline") ? (
+                    {!governance && (item.status === "draft" || item.status === "offline") ? (
                       <Button
                         size="sm"
                         disabled={isLoading}
@@ -162,7 +166,7 @@ export function ClubContentManageList({
                         下线
                       </Button>
                     ) : null}
-                    {(item.status === "draft" || item.status === "offline") && (
+                    {!governance && (item.status === "draft" || item.status === "offline") && (
                       <Button
                         variant="destructive"
                         size="sm"

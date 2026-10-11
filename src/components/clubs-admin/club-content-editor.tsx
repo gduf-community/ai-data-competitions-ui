@@ -222,7 +222,7 @@ export function ClubContentEditor({
         toast.success(mode === "create" ? "已保存草稿" : "已保存");
       }
 
-      router.push(`/admin/clubs/${clubId}`);
+      router.push(`/admin/clubs/${clubId}/contents`);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "操作失败";
@@ -237,7 +237,7 @@ export function ClubContentEditor({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/admin/clubs/${clubId}`}>
+          <Link href={`/admin/clubs/${clubId}/contents`}>
             <ArrowLeft className="mr-1 size-4" />
             返回
           </Link>
