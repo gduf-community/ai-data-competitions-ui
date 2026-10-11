@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { parseSearchQuery, serializeSearchQuery, SearchQueryError } from "@/lib/search";
 import { CompetitionCard } from "@/components/competitions/competition-card";
 import { CompetitionFilterBar } from "@/components/competitions/competition-filter-bar";
 import { NewFooter } from "@/components/marketing/new-footer";
@@ -16,7 +17,11 @@ export default async function CompetitionsPage({ searchParams }: {
 }) {
   const params = await searchParams;
   const value = (key: string) => typeof params[key] === "string" ? params[key] as string : "";
-  const keyword = value("keyword").trim().slice(0, 120);
+  const urlParams = new URLSearchParams();
+  for (const [key, entry] of Object.entries(params)) for (const item of Array.isArray(entry) ? entry : entry === undefined ? [] : [entry]) urlParams.append(key, item);
+  let search;
+  try { search = parseSearchQuery(urlParams); } catch (error) { return <main className="p-8" role="alert">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href="/competitions">重置搜索</Link></main>; }
+  const keyword = search.q;
   const status = publicCompetitionFilterStatuses.includes(value("status") as CompetitionStatus) ? value("status") as CompetitionStatus : "all";
   const rawYear = Number(value("year"));
   let year = Number.isInteger(rawYear) && rawYear >= 1900 && rawYear <= 9999 ? rawYear : null;
@@ -25,9 +30,8 @@ export default async function CompetitionsPage({ searchParams }: {
     const metadata = await readAPI<{ years: Array<{ year: number; total: number }> }>("/api/competitions?limit=1");
     year = metadata.years[0]?.year ?? null;
   }
-  const rawPage = Number(value("page"));
-  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 33334) : 1;
-  const query = new URLSearchParams({ limit: "30", offset: String((page - 1) * 30), sort: "registration" });
+  const page = search.page;
+  const query = new URLSearchParams({ limit: String(search.pageSize), offset: String((page - 1) * search.pageSize), sort: "registration" });
   if (keyword) query.set("keyword", keyword);
   if (status !== "all") query.set("status", status);
   if (year !== null) query.set("year", String(year));
@@ -35,14 +39,14 @@ export default async function CompetitionsPage({ searchParams }: {
     competitions: PublicCompetitionSummary[]; total: number; years: Array<{ year: number; total: number }>;
   }>("/api/competitions?" + query);
   const href = (nextPage: number, nextYear = year) => {
-    const navigation = new URLSearchParams();
-    if (keyword) navigation.set("keyword", keyword);
+    const navigation = serializeSearchQuery({ ...search, page: nextPage }, urlParams);
+
     if (status !== "all") navigation.set("status", status);
     if (nextYear !== null) navigation.set("year", String(nextYear));
     if (nextPage > 1) navigation.set("page", String(nextPage));
     return "/competitions" + (navigation.size ? "?" + navigation : "");
   };
-  const pages = Math.max(1, Math.ceil(total / 30));
+  const pages = Math.max(1, Math.ceil(total / search.pageSize));
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -50,7 +54,7 @@ export default async function CompetitionsPage({ searchParams }: {
       <main className="pt-24">
         <Section className="pb-10 pt-6 sm:pt-10">
           <div className="mx-auto max-w-7xl space-y-8">
-            <PageHeader eyebrow="Competitions" title="比赛列表" description="按年份、报名状态和关键词浏览比赛，每页最多展示 30 场。" />
+            <PageHeader eyebrow="Competitions" title="比赛列表" description="按年份、报名状态和关键词浏览比赛，支持模糊与完整匹配，按年份和状态筛选。" />
             <nav aria-label="比赛年份" className="flex flex-wrap gap-3 border-t border-border/70 pt-6">
               {years.map(item => (
                 <Link key={item.year ?? "all"} href={href(1, item.year)} aria-current={year === item.year ? "page" : undefined}
@@ -59,7 +63,7 @@ export default async function CompetitionsPage({ searchParams }: {
                 </Link>
               ))}
             </nav>
-            <CompetitionFilterBar key={keyword + status + year} keyword={keyword} status={status} year={year} />
+            <CompetitionFilterBar key={JSON.stringify(search) + status + year} query={search} status={status} year={year} parameters={urlParams.toString()} />
             {competitions.length ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {competitions.map(competition => <CompetitionCard key={competition.id} competition={competition} />)}
