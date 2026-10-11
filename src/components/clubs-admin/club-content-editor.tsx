@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Send } from "lucide-react";
@@ -75,8 +75,9 @@ interface ClubContentEditorProps {
   clubId: string;
   mode: "create" | "edit";
   contentId?: string;
-  /** 编辑模式下原状态，决定是否显示"保存并提交审核"（仅 draft / rejected 可提交）。 */
+  /** 编辑模式下原状态，决定是否显示"保存并发布"（仅 draft / rejected 可提交）。 */
   initialStatus?: string;
+  initialRevision?: number;
   defaultValues: ClubContentEditorDefaultValues;
 }
 
@@ -101,11 +102,15 @@ export function ClubContentEditor({
   mode,
   contentId,
   initialStatus,
+  initialRevision,
   defaultValues,
 }: ClubContentEditorProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  const savedRef = useRef({ id: contentId, revision: initialRevision });
+  const commandRef = useRef<string | null>(null);
+  const pendingPublishRef = useRef<string | null>(null);
 
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,7 +130,7 @@ export function ClubContentEditor({
   const canSubmitAfterSave =
     mode === "create" ||
     initialStatus === "draft" ||
-    initialStatus === "rejected";
+    initialStatus === "offline";
 
   function buildPayload(values: FormValues) {
     const base = {
@@ -161,12 +166,14 @@ export function ClubContentEditor({
     try {
       const payload = buildPayload(values);
 
-      let savedId = contentId;
-      if (mode === "create") {
-        const res = await fetchWithCsrf(`/api/me/clubs/${clubId}/contents`, {
+      let savedId = savedRef.current.id;
+      const samePendingPublish = submitAfterSave && pendingPublishRef.current === JSON.stringify(payload);
+      if (!savedId) {
+        commandRef.current ??= crypto.randomUUID();
+        const res = await fetchWithCsrf(`/api/admin/clubs/${clubId}/contents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contentType: values.contentType, ...payload }),
+          body: JSON.stringify({ commandId: commandRef.current, contentType: values.contentType, ...payload }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -177,45 +184,50 @@ export function ClubContentEditor({
           throw new Error(body.message ?? "创建失败");
         }
         savedId = body.data?.id;
-      } else {
+        savedRef.current = { id: savedId, revision: body.data?.revision };
+      } else if (!samePendingPublish) {
         const res = await fetchWithCsrf(
-          `/api/me/clubs/${clubId}/contents/${contentId}`,
+          `/api/admin/clubs/${clubId}/contents/${savedId}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, expectedRevision: savedRef.current.revision }),
           },
         );
+        const body = await res.json().catch(() => ({ message: "保存失败" }));
         if (!res.ok) {
-          const body = await res.json().catch(() => ({ message: "保存失败" }));
           if (body.field === "coverImage") {
             form.setError("coverImage", { message: body.message });
             document.getElementById("club-cover-upload")?.focus();
           }
-          throw new Error(body.message);
+          throw new Error(body.code === "VERSION_CONFLICT" ? "内容已被更新，请保留当前编辑并重新加载核对。" : body.message);
         }
+        savedRef.current = { id: savedId, revision: body.data?.revision };
       }
 
       if (submitAfterSave && savedId) {
+        pendingPublishRef.current = JSON.stringify(payload);
         const submitRes = await fetchWithCsrf(
-          `/api/me/clubs/${clubId}/contents/${savedId}/submit`,
-          { method: "POST" },
+          `/api/admin/clubs/${clubId}/contents/${savedId}/publish`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedRevision: savedRef.current.revision }) },
         );
         if (!submitRes.ok) {
           const body = await submitRes
             .json()
-            .catch(() => ({ message: "提交审核失败" }));
+            .catch(() => ({ message: "发布失败" }));
           throw new Error(body.message);
         }
-        toast.success("已提交审核");
+        toast.success("已发布");
       } else {
         toast.success(mode === "create" ? "已保存草稿" : "已保存");
       }
 
-      router.push(`/me/clubs/${clubId}`);
+      router.push(`/admin/clubs/${clubId}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "操作失败");
+      const message = error instanceof Error ? error.message : "操作失败";
+      form.setError("root", { message });
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -225,7 +237,7 @@ export function ClubContentEditor({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/me/clubs/${clubId}`}>
+          <Link href={`/admin/clubs/${clubId}`}>
             <ArrowLeft className="mr-1 size-4" />
             返回
           </Link>
@@ -236,7 +248,7 @@ export function ClubContentEditor({
       </div>
 
       <Form {...form}>
-        <form className="space-y-6" onSubmit={form.handleSubmit(values => save(values, false))}>
+        <form className="space-y-6" onSubmit={event => { void form.handleSubmit(values => save(values, false))(event); }}>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">基础信息</CardTitle>
@@ -422,24 +434,25 @@ export function ClubContentEditor({
             </CardContent>
           </Card>
 
+          {form.formState.errors.root ? <p role="alert" className="text-sm text-destructive">{form.formState.errors.root.message} 编辑内容已保留。</p> : null}
           <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               disabled={submitting || coverUploading}
-              onClick={form.handleSubmit((values) => save(values, false))}
+              onClick={event => { void form.handleSubmit(values => save(values, false))(event); }}
             >
               <Save className="mr-1 size-4" />
-              {submitting ? "保存中..." : "保存草稿"}
+              {submitting ? "保存中..." : initialStatus === "published" ? "保存并更新公开内容" : "保存"}
             </Button>
             {canSubmitAfterSave ? (
               <Button
                 type="button"
                 disabled={submitting || coverUploading}
-                onClick={form.handleSubmit((values) => save(values, true))}
+                onClick={event => { void form.handleSubmit(values => save(values, true))(event); }}
               >
                 <Send className="mr-1 size-4" />
-                {submitting ? "提交中..." : "保存并提交审核"}
+                {submitting ? "提交中..." : "保存并发布"}
               </Button>
             ) : null}
           </div>
