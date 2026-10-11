@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
@@ -13,6 +13,8 @@ interface ClubCoverUploadFieldProps {
   value: string | null;
   onChange: (url: string | null) => void;
   label?: string;
+  onUploadingChange?: (uploading: boolean) => void;
+  error?: string;
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -23,9 +25,13 @@ export function ClubCoverUploadField({
   value,
   onChange,
   label = "封面图",
+  onUploadingChange,
+  error,
 }: ClubCoverUploadFieldProps) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestRef = useRef(0);
+  useEffect(() => () => { requestRef.current += 1; }, []);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -42,7 +48,9 @@ export function ClubCoverUploadField({
       return;
     }
 
+    const request = ++requestRef.current;
     setUploading(true);
+    onUploadingChange?.(true);
     try {
       const formData = new FormData();
       formData.set("scope", "club");
@@ -67,19 +75,24 @@ export function ClubCoverUploadField({
         throw new Error("上传成功但未返回图片地址");
       }
 
+      if (request !== requestRef.current) return;
       onChange(uploadedUrl);
       toast.success("封面图已上传");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "上传失败");
+      if (request === requestRef.current) toast.error(error instanceof Error ? error.message : "上传失败");
     } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
+      if (request === requestRef.current) {
+        setUploading(false);
+        onUploadingChange?.(false);
+        if (inputRef.current) inputRef.current.value = "";
+      }
     }
   }
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
+      <p className="text-sm font-medium">{label}（必填）</p>
+      <p className="text-xs text-muted-foreground">PNG / JPEG / WEBP，最大 5MB。上传完成后才能保存或发布。</p>
       <div className="relative aspect-[16/9] w-full max-w-sm overflow-hidden rounded-lg border border-border bg-muted/30">
         <LazyFillImage src={value} alt={label} fallbackText="暂无封面图" />
         {uploading ? (
@@ -103,6 +116,9 @@ export function ClubCoverUploadField({
         variant="outline"
         size="sm"
         disabled={uploading}
+        id="club-cover-upload"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "club-cover-error" : undefined}
         onClick={() => inputRef.current?.click()}
       >
         <ImagePlus className="mr-1 size-3.5" />
@@ -115,6 +131,7 @@ export function ClubCoverUploadField({
         className="hidden"
         onChange={handleFileChange}
       />
+      {error ? <p id="club-cover-error" role="alert" className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

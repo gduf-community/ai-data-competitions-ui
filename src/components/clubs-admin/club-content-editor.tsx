@@ -47,7 +47,7 @@ const formSchema = z.object({
   ]),
   title: z.string().trim().min(1, "标题不能为空").max(300),
   content: z.string().default(""),
-  coverImage: z.string().nullable().default(null),
+  coverImage: z.string().nullable().refine(value => Boolean(value?.trim()), "请上传封面图"),
   recruitmentStartAt: z.string().default(""),
   recruitmentEndAt: z.string().default(""),
   registrationUrl: z.string().default(""),
@@ -105,6 +105,7 @@ export function ClubContentEditor({
 }: ClubContentEditorProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
 
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,6 +156,7 @@ export function ClubContentEditor({
   }
 
   async function save(values: FormValues, submitAfterSave: boolean) {
+    if (coverUploading || submitting) return;
     setSubmitting(true);
     try {
       const payload = buildPayload(values);
@@ -168,6 +170,10 @@ export function ClubContentEditor({
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
+          if (body.field === "coverImage") {
+            form.setError("coverImage", { message: body.message });
+            document.getElementById("club-cover-upload")?.focus();
+          }
           throw new Error(body.message ?? "创建失败");
         }
         savedId = body.data?.id;
@@ -182,6 +188,10 @@ export function ClubContentEditor({
         );
         if (!res.ok) {
           const body = await res.json().catch(() => ({ message: "保存失败" }));
+          if (body.field === "coverImage") {
+            form.setError("coverImage", { message: body.message });
+            document.getElementById("club-cover-upload")?.focus();
+          }
           throw new Error(body.message);
         }
       }
@@ -226,7 +236,7 @@ export function ClubContentEditor({
       </div>
 
       <Form {...form}>
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={form.handleSubmit(values => save(values, false))}>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">基础信息</CardTitle>
@@ -375,8 +385,10 @@ export function ClubContentEditor({
                 <ClubCoverUploadField
                   clubId={clubId}
                   value={coverImage}
+                  onUploadingChange={setCoverUploading}
+                  error={form.formState.errors.coverImage?.message}
                   onChange={(url) =>
-                    form.setValue("coverImage", url, { shouldDirty: true })
+                    form.setValue("coverImage", url, { shouldDirty: true, shouldValidate: true })
                   }
                 />
               </div>
@@ -414,7 +426,7 @@ export function ClubContentEditor({
             <Button
               type="button"
               variant="outline"
-              disabled={submitting}
+              disabled={submitting || coverUploading}
               onClick={form.handleSubmit((values) => save(values, false))}
             >
               <Save className="mr-1 size-4" />
@@ -423,7 +435,7 @@ export function ClubContentEditor({
             {canSubmitAfterSave ? (
               <Button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || coverUploading}
                 onClick={form.handleSubmit((values) => save(values, true))}
               >
                 <Send className="mr-1 size-4" />
