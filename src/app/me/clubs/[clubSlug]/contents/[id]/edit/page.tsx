@@ -39,6 +39,7 @@ export default async function EditClubContentPage({
       mode="edit"
       contentId={content.id}
       initialStatus={content.status}
+      initialRevision={content.revision}
       defaultValues={{
         contentType: content.contentType,
         title: content.title,

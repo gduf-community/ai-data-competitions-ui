@@ -19,6 +19,7 @@ export interface ClubContentRow {
   coverImage: string | null;
   coverImages: string[];
   status: ClubContentStatus;
+  revision: number;
   recruitmentStartAt: Date | null;
   recruitmentEndAt: Date | null;
   registrationUrl: string | null;
@@ -42,6 +43,7 @@ export interface ClubContentSummaryRow {
   coverImage: string | null;
   coverImages: string[];
   status: ClubContentStatus;
+  revision: number;
   recruitmentStartAt: Date | null;
   recruitmentEndAt: Date | null;
   registrationUrl: string | null;
