@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { matchSearchText, parseSearchQuery } from "@/lib/search";
 import {
   flexRender,
   getCoreRowModel,
@@ -104,6 +105,10 @@ export function AdminDataTable<TData>({
   const effectiveSearchValue = isExternalSearch
     ? (searchValue ?? "")
     : internalGlobalFilter;
+  let searchError: string | undefined;
+  let localQuery = { q: "", mode: "fuzzy" as const, page: 1, pageSize: 20 };
+  try { localQuery = { ...parseSearchQuery(new URLSearchParams({ q: effectiveGlobalFilter })), mode: "fuzzy" }; }
+  catch (error) { searchError = error instanceof Error ? error.message : "无效搜索内容"; }
 
   // TanStack Table 当前返回的对象包含不适合 memoize 的内部函数，这里显式保留现状。
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -128,7 +133,12 @@ export function AdminDataTable<TData>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: "includesString",
+    globalFilterFn: (row, columnId) => {
+      if (searchError) return false;
+      if (!localQuery.q) return true;
+      const value = row.getValue(columnId);
+      return (typeof value === "string" || typeof value === "number") && matchSearchText(String(value), localQuery) > 0;
+    },
   });
 
   const currentPage = table.getState().pagination.pageIndex + 1;
@@ -142,6 +152,8 @@ export function AdminDataTable<TData>({
     <div className="space-y-4" aria-busy={loading}>
       <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 md:flex-row md:items-center md:justify-between">
         <Input
+          aria-label={searchPlaceholder}
+          maxLength={256}
           value={effectiveSearchValue}
           disabled={Boolean(pagination) && !isExternalSearch}
           onChange={(event) => {
@@ -156,7 +168,7 @@ export function AdminDataTable<TData>({
           className="md:max-w-sm"
         />
         {toolbar}
-        <div className="text-sm text-muted-foreground">{loading ? "加载中…" : error ? "加载失败" : `${totalRows} 条结果`}</div>
+        <div role="status" className="text-sm text-muted-foreground">{searchError ?? (loading ? "加载中…" : error ? "加载失败" : `${totalRows} 条结果`)}</div>
       </div>
       <div className="overflow-hidden rounded-xl border border-border/60">
         <Table>

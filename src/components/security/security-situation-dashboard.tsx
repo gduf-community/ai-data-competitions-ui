@@ -1,4 +1,5 @@
 "use client";
+import { matchSearchText, normalizeSearchText } from "@/lib/search";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Copy, ListFilter, Loader2, RefreshCw } from "lucide-react";
@@ -61,16 +62,17 @@ export function SecuritySituationDashboard({
   }, [events]);
 
   const filteredEvents = useMemo(() => {
-    const keyword = eventKeyword.trim().toLowerCase();
+    const keyword = normalizeSearchText(eventKeyword);
     return events.filter((item) => {
       if (eventRisk !== "all" && item.riskLevel !== eventRisk) return false;
       if (eventStatus === "blocked" && !item.isBlocked) return false;
       if (eventStatus === "allowed" && item.isBlocked) return false;
       if (!keyword) return true;
-      const matchesPath = item.path?.toLowerCase().includes(keyword);
-      const matchesIp = item.maskedIp.toLowerCase().includes(keyword);
-      const matchesReason = item.reason?.toLowerCase().includes(keyword);
-      const matchesRegion = `${item.province ?? ""}${item.city ?? ""}`.toLowerCase().includes(keyword);
+      const query = { q: keyword, mode: "fuzzy" as const };
+      const matchesPath = matchSearchText(item.path, query);
+      const matchesIp = matchSearchText(item.maskedIp, query);
+      const matchesReason = matchSearchText(item.reason, query);
+      const matchesRegion = matchSearchText(`${item.province ?? ""}${item.city ?? ""}`, query);
       return Boolean(matchesPath || matchesIp || matchesReason || matchesRegion);
     });
   }, [events, eventKeyword, eventRisk, eventStatus]);
@@ -202,9 +204,10 @@ export function SecuritySituationDashboard({
           </div>
           <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
             <div className="space-y-1">
-              <Label htmlFor="event-keyword">关键词</Label>
+              <Label htmlFor="event-keyword">搜索当前已加载事件</Label>
               <Input
                 id="event-keyword"
+                maxLength={256}
                 placeholder="IP、路径、地区、原因"
                 value={eventKeyword}
                 onChange={(event) => setEventKeyword(event.target.value)}
