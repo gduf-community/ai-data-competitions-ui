@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Send } from "lucide-react";
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { confirmI18n } from "@/lib/i18n/client";
 
 const CONTENT_TYPE_OPTIONS = [
   { value: "recruitment", label: "招新信息" },
@@ -126,6 +127,12 @@ export function ClubContentEditor({
 
   const contentType = useWatch({ control: form.control, name: "contentType" });
   const coverImage = useWatch({ control: form.control, name: "coverImage" });
+  useEffect(() => {
+    if (!form.formState.isDirty || submitting) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [form.formState.isDirty, submitting]);
 
   const canSubmitAfterSave =
     mode === "create" ||
@@ -237,7 +244,7 @@ export function ClubContentEditor({
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/admin/clubs/${clubId}/contents`}>
+          <Link href={`/admin/clubs/${clubId}/contents`} onClick={event => { if (form.formState.isDirty && !confirmI18n("当前编辑尚未保存，确认离开？")) event.preventDefault(); }}>
             <ArrowLeft className="mr-1 size-4" />
             返回
           </Link>
@@ -248,7 +255,7 @@ export function ClubContentEditor({
       </div>
 
       <Form {...form}>
-        <form className="space-y-6" onSubmit={event => { void form.handleSubmit(values => save(values, false))(event); }}>
+        <form className="space-y-6" inert={submitting} onSubmit={event => { void form.handleSubmit(values => save(values, false))(event); }}>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">基础信息</CardTitle>
