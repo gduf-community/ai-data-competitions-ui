@@ -27,6 +27,8 @@ import {
   type AssignableUserRole,
 } from "@/lib/auth/role-utils";
 import type { UserRole } from "@/lib/types";
+import { clubsData } from "@/lib/data/clubs";
+import { fetchWithCsrf } from "@/lib/security/csrf-client";
 
 type UserStatus = "active" | "pending_verification" | "disabled";
 
@@ -45,7 +47,8 @@ interface RoleCatalogItem {
 interface AdminRoleAssignmentRecord {
   id: string;
   role: UserRole;
-  scopeType: "global" | "competition";
+  scopeType: "global" | "competition" | "club";
+  clubSlug?: string | null;
   competitionId: string | null;
   competitionTitle: string | null;
   expiresAt: string | null;
@@ -218,7 +221,7 @@ export default function AdminUsersPage() {
 
     const roles = Array.from(
       new Set(
-        user.roleAssignments.map(
+        user.roleAssignments.filter(item => item.scopeType !== "club").map(
           (item) =>
             (item.role === "content_editor" ? "business_admin" : item.role) as AssignableUserRole,
         ),
@@ -302,6 +305,22 @@ export default function AdminUsersPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function changeClubAssignment(clubSlug: string, grant: AdminRoleAssignmentRecord | undefined) {
+    if (!editingUserId || submitting || !permissions.canManageRoles) return;
+    setSubmitting(true);
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${editingUserId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clubAssignment: { clubSlug, action: grant ? "revoke" : "grant", expectedAssignmentId: grant?.id ?? null } }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? "社团授权更新失败");
+      await loadUsers();
+      toast.success("社团授权已更新");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "社团授权更新失败"); }
+    finally { setSubmitting(false); }
   }
 
   async function deleteUser(user: AdminUserRecord) {
@@ -455,6 +474,18 @@ export default function AdminUsersPage() {
               <CardTitle>编辑用户权限</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>社团授权（单独保存，不改变平台或比赛权限）</Label>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {clubsData.map(club => {
+                    const grant = users.find(user => user.id === editingUserId)?.roleAssignments.find(item => item.scopeType === "club" && item.clubSlug === club.id);
+                    return <label key={club.id} className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+                      <Checkbox checked={Boolean(grant)} disabled={submitting} onCheckedChange={() => void changeClubAssignment(club.id, grant)} />
+                      {club.name}{grant?.expiresAt ? `（到期 ${new Date(grant.expiresAt).toLocaleString()}）` : ""}
+                    </label>;
+                  })}
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>账号状态</Label>
