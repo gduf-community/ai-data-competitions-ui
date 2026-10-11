@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { parseSearchQuery, serializeSearchQuery, SearchQueryError } from "@/lib/search";
+import { parseSearchQuery, serializeSearchQuery, searchParameter, SearchQueryError } from "@/lib/search";
 import { CompetitionCard } from "@/components/competitions/competition-card";
 import { CompetitionFilterBar } from "@/components/competitions/competition-filter-bar";
 import { NewFooter } from "@/components/marketing/new-footer";
@@ -16,23 +16,31 @@ export default async function CompetitionsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const value = (key: string) => typeof params[key] === "string" ? params[key] as string : "";
   const urlParams = new URLSearchParams();
   for (const [key, entry] of Object.entries(params)) for (const item of Array.isArray(entry) ? entry : entry === undefined ? [] : [entry]) urlParams.append(key, item);
   let search;
-  try { search = parseSearchQuery(urlParams); } catch (error) { return <main className="p-8" role="alert">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href="/competitions">重置搜索</Link></main>; }
-  const keyword = search.q;
-  const status = publicCompetitionFilterStatuses.includes(value("status") as CompetitionStatus) ? value("status") as CompetitionStatus : "all";
-  const rawYear = Number(value("year"));
-  let year = Number.isInteger(rawYear) && rawYear >= 1900 && rawYear <= 9999 ? rawYear : null;
+  let status: CompetitionStatus | "all" = "all";
+  let year: number | null = null;
+  try {
+    search = parseSearchQuery(urlParams);
+    const rawStatus = searchParameter(urlParams, "status");
+    const rawYear = searchParameter(urlParams, "year");
+    if (rawStatus !== null) {
+      if (!publicCompetitionFilterStatuses.includes(rawStatus as CompetitionStatus)) throw new SearchQueryError("INVALID_QUERY", "无效的比赛状态。");
+      status = rawStatus as CompetitionStatus;
+    }
+    if (rawYear !== null) {
+      if (!/^[0-9]{4}$/.test(rawYear) || Number(rawYear) < 1900) throw new SearchQueryError("INVALID_QUERY", "无效的比赛年份。");
+      year = Number(rawYear);
+    }
+  } catch (error) { return <main className="p-8" role="alert">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href="/competitions">重置搜索</Link></main>; }
   if (year === null) {
     // Preserve the existing latest-year default using aggregates and one bounded probe.
     const metadata = await readAPI<{ years: Array<{ year: number; total: number }> }>("/api/competitions?limit=1");
     year = metadata.years[0]?.year ?? null;
   }
   const page = search.page;
-  const query = new URLSearchParams({ limit: String(search.pageSize), offset: String((page - 1) * search.pageSize), sort: "registration" });
-  if (keyword) query.set("keyword", keyword);
+  const query = new URLSearchParams({ search: "1", q: search.q, mode: search.mode, page: String(page), pageSize: String(search.pageSize) });
   if (status !== "all") query.set("status", status);
   if (year !== null) query.set("year", String(year));
   const { competitions, total, years } = await readAPI<{
