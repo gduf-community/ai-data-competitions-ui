@@ -24,4 +24,7 @@ export function getSessionCapabilities(user: RoleCarrier) {
   };
 }
 
-export type SessionCapabilities = ReturnType<typeof getSessionCapabilities>;
+export type SessionCapabilities = ReturnType<typeof getSessionCapabilities> & {
+  canAccessClubManagement: boolean;
+  canModerateClubContent: boolean;
+};

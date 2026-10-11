@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { canAccessDashboard } from "@/lib/auth/authorization";
 import { getSessionUser } from "@/lib/web-session";
 
 export default async function AdminLayout({
@@ -13,7 +12,7 @@ export default async function AdminLayout({
     redirect("/sign-in?callbackUrl=/admin");
   }
 
-  if (!canAccessDashboard(sessionUser)) {
+  if (!("capabilities" in sessionUser) || !sessionUser.capabilities.canAccessDashboard) {
     redirect("/errors/forbidden");
   }
 
