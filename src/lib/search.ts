@@ -1,12 +1,13 @@
 /** Search comparison copies only. Never normalize stored content or identity keys. */
-export type SearchMode = "fuzzy" | "exact";
+import { matchBoundedRegex, parseBoundedRegex, RegexQueryError, REGEX_LIMITS } from "./search-regex";
+export type SearchMode = "fuzzy" | "exact" | "regex";
 export type SearchQuery = { q: string; mode: SearchMode; page: number; pageSize: number };
 export type SearchHit<T> = { item: T; score: number; matchedFields: string[] };
 export type SearchResult<T> = { items: SearchHit<T>[]; total: number; query: SearchQuery };
 export type SearchField<T> = { key: string; weight: number; text: (item: T) => string | readonly string[] | null | undefined };
 
 export class SearchQueryError extends Error {
-  constructor(public code: "INVALID_QUERY" | "QUERY_TOO_LONG" | "UNSUPPORTED_SEARCH_MODE", message: string) {
+  constructor(public code: "INVALID_QUERY" | "QUERY_TOO_LONG" | "UNSUPPORTED_SEARCH_MODE" | "INVALID_REGEX" | "REGEX_TOO_LONG" | "UNSUPPORTED_REGEX_SYNTAX" | "REGEX_CAPACITY_EXCEEDED", message: string) {
     super(message);
   }
 }
@@ -21,16 +22,18 @@ export function searchParameter(params: URLSearchParams, key: string) {
   return params.get(key);
 }
 
-export function parseSearchQuery(params: URLSearchParams, options: { maxPageSize?: number; defaultPageSize?: number; preserveText?: boolean } = {}): SearchQuery {
+export function parseSearchQuery(params: URLSearchParams, options: { maxPageSize?: number; defaultPageSize?: number; preserveText?: boolean; allowRegex?: boolean } = {}): SearchQuery {
   const mode = searchParameter(params, "mode") ?? "fuzzy";
-  if (mode === "regex") throw new SearchQueryError("UNSUPPORTED_SEARCH_MODE", "当前入口未启用正则搜索。");
-  if (mode !== "fuzzy" && mode !== "exact") throw new SearchQueryError("INVALID_QUERY", "无效的搜索模式。");
+  if (mode === "regex" && !options.allowRegex) throw new SearchQueryError("UNSUPPORTED_SEARCH_MODE", "当前入口未启用正则搜索。");
+  if (mode !== "fuzzy" && mode !== "exact" && mode !== "regex") throw new SearchQueryError("INVALID_QUERY", "无效的搜索模式。");
   const q = searchParameter(params, "q");
   const keyword = searchParameter(params, "keyword");
   if (q !== null && keyword !== null && q !== keyword) throw new SearchQueryError("INVALID_QUERY", "q 与 keyword 不能冲突。");
   const raw = q ?? keyword ?? "";
-  if (raw.length > 256) throw new SearchQueryError("QUERY_TOO_LONG", "搜索内容最多 256 个 UTF-16 单元。");
-  const normalized = options.preserveText ? raw.trim() : normalizeSearchText(raw, mode);
+  if (mode === "regex") {
+    try { parseBoundedRegex(raw); } catch (error) { if (error instanceof RegexQueryError) throw new SearchQueryError(error.code, error.message); throw error; }
+  } else if (raw.length > 256) throw new SearchQueryError("QUERY_TOO_LONG", "搜索内容最多 256 个 UTF-16 单元。");
+  const normalized = mode === "regex" ? raw : options.preserveText ? raw.trim() : normalizeSearchText(raw, mode);
   if (normalized.length > 256) throw new SearchQueryError("QUERY_TOO_LONG", "规范化后的搜索内容过长。");
   const integer = (key: string, fallback: number, max: number) => {
     const value = searchParameter(params, key);
@@ -59,6 +62,7 @@ export function serializeSearchQuery(query: SearchQuery, existing = new URLSearc
 /** Only the best tier counts. All tokens must occur in this one field. */
 export function matchSearchText(text: string | null | undefined, query: Pick<SearchQuery, "q" | "mode">): number {
   if (!query.q || typeof text !== "string") return 0;
+  if (query.mode === "regex") return matchBoundedRegex(parseBoundedRegex(query.q), text) ? 100 : 0;
   const value = normalizeSearchText(text, query.mode);
   if (!value) return 0;
   if (value === query.q) return 100;
@@ -95,6 +99,9 @@ export function searchInMemory<T>(source: { kind: "complete"; items: readonly T[
   fields: readonly SearchField<T>[]; id: (item: T) => string; compare: (left: T, right: T) => number;
 }): SearchResult<T> {
   if (source.kind !== "complete") throw new Error("Memory search requires a complete dataset.");
+  if (query.mode === "regex" && (source.items.length > REGEX_LIMITS.rows || source.items.reduce((total, item) => total + config.fields.reduce((sum, field) => {
+    const value = field.text(item); return sum + (typeof value === "string" ? new TextEncoder().encode(value).length : (value ?? []).reduce((bytes, text) => bytes + new TextEncoder().encode(text).length, 0));
+  }, 0), 0) > REGEX_LIMITS.textBytes)) throw new RegexQueryError("REGEX_CAPACITY_EXCEEDED", "完整数据超过正则资源上限。");
   const ids = new Set<string>();
   const hits = source.items.map(item => {
     const id = config.id(item);

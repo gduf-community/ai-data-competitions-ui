@@ -38,6 +38,20 @@ test("canonical URL roundtrip and idempotent normalization", () => {
 });
 
 const fields = [{ key: "title", weight: 10, text: (item: { title: string }) => item.title }];
+test("bounded regex preserves raw case/spaces, rejects backtracking grammar, and ranks before paging", () => {
+  const regex = (q: string) => parseSearchQuery(new URLSearchParams({q,mode:"regex"}),{allowRegex:true});
+  for (const q of ["(","a*","a+","a?","(a+)+$","(a|aa)+$","(?=x)","\\1","\\D","[a-z]","a{17}",".{16}".repeat(5),"a".repeat(33),"**"]) assert.throws(()=>regex(q));
+  for (const [pattern,text,matched] of [["^数学[模数]{1,2}$","数学模数",true],["^数学[模数]{1,2}$","x数学模数",false],["a.b","a\nb",true],["a\\.b","a.b",true],["^$","",true],["^$","x",false],[" ","a b",true],[" ","ab",false],["Σ","σ",false],["İ","i",false],["^😀{1,2}$","😀😀",true],["^a{0,2}b$","b",true],["^a{0,2}b$","aaab",false]] as const) {
+    assert.equal(matchSearchText(text,regex(pattern)), matched?100:0,pattern+":"+text);
+  }
+  assert.equal(regex(" ").q," "); assert.equal(regex("Ｃ").q,"Ｃ");
+  assert.equal(matchSearchText("abc",regex("")),0);
+  const items=[{id:"b",title:"alpha"},{id:"a",title:"alpha"},{id:"hidden",title:"beta"}];
+  const result=searchInMemory({kind:"complete",items}, {...regex("^alpha$"),page:2,pageSize:1},{fields,id:item=>item.id,compare:()=>0});
+  assert.equal(result.total,2); assert.equal(result.items[0].item.id,"b"); assert.equal(result.items[0].score,1000);
+  assert.throws(()=>matchSearchText("a".repeat(16385),regex("a")));
+  assert.throws(()=>searchInMemory({kind:"complete",items:Array.from({length:1001},(_,i)=>({id:String(i),title:"a"}))},regex("a"),{fields,id:item=>item.id,compare:()=>0}));
+});
 test("global ranking before paging, tie IDs, empty/out-of-range and immutability", () => {
   const items = ["e", "c", "a", "d", "b"].map(id => ({ id, title: "数学", date: 1 }));
   const config = { fields, id: (item: typeof items[number]) => item.id, compare: () => 0 };

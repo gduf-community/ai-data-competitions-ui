@@ -8,13 +8,15 @@ import { Section } from "@/components/marketing/section";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { publicCompetitionFilterStatuses } from "@/lib/competition-status";
-import { readAPI } from "@/lib/web-api";
+import { readAPI, WebApiError } from "@/lib/web-api";
 import type { CompetitionStatus } from "@/lib/types";
 import type { PublicCompetitionSummary } from "@/lib/contracts/public-portal";
 
 export default async function CompetitionsPage({ searchParams }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const metadata = await readAPI<{ years: Array<{ year: number; total: number }>; searchCapabilities?: { regex: boolean } }>("/api/competitions?limit=1");
+  const allowRegex = process.env.SEARCH_REGEX_ENABLED === "true" && metadata.searchCapabilities?.regex === true;
   const params = await searchParams;
   const urlParams = new URLSearchParams();
   for (const [key, entry] of Object.entries(params)) for (const item of Array.isArray(entry) ? entry : entry === undefined ? [] : [entry]) urlParams.append(key, item);
@@ -22,7 +24,7 @@ export default async function CompetitionsPage({ searchParams }: {
   let status: CompetitionStatus | "all" = "all";
   let year: number | null = null;
   try {
-    search = parseSearchQuery(urlParams);
+    search = parseSearchQuery(urlParams, { allowRegex });
     const rawStatus = searchParameter(urlParams, "status");
     const rawYear = searchParameter(urlParams, "year");
     if (rawStatus !== null) {
@@ -36,16 +38,18 @@ export default async function CompetitionsPage({ searchParams }: {
   } catch (error) { return <main className="p-8" role="alert">{error instanceof SearchQueryError ? error.message : "无效搜索参数"}<Link href="/competitions">重置搜索</Link></main>; }
   if (year === null) {
     // Preserve the existing latest-year default using aggregates and one bounded probe.
-    const metadata = await readAPI<{ years: Array<{ year: number; total: number }> }>("/api/competitions?limit=1");
     year = metadata.years[0]?.year ?? null;
   }
   const page = search.page;
   const query = new URLSearchParams({ search: "1", q: search.q, mode: search.mode, page: String(page), pageSize: String(search.pageSize) });
   if (status !== "all") query.set("status", status);
   if (year !== null) query.set("year", String(year));
-  const { competitions, total, years } = await readAPI<{
+  let result;
+  try { result = await readAPI<{
     competitions: PublicCompetitionSummary[]; total: number; years: Array<{ year: number; total: number }>;
-  }>("/api/competitions?" + query);
+  }>("/api/competitions?" + query); }
+  catch (error) { if (!(error instanceof WebApiError)) throw error; return <main role="alert" className="p-8"><p>{error.publicMessage}</p><Link href={"/competitions?" + urlParams}>重试搜索</Link> · <Link href="/competitions">重置搜索</Link></main>; }
+  const { competitions, total, years } = result;
   const href = (nextPage: number, nextYear = year) => {
     const navigation = serializeSearchQuery({ ...search, page: nextPage }, urlParams);
 
@@ -71,7 +75,7 @@ export default async function CompetitionsPage({ searchParams }: {
                 </Link>
               ))}
             </nav>
-            <CompetitionFilterBar key={JSON.stringify(search) + status + year} query={search} status={status} year={year} parameters={urlParams.toString()} />
+            <CompetitionFilterBar key={JSON.stringify(search) + status + year} query={search} status={status} year={year} parameters={urlParams.toString()} allowRegex={allowRegex} />
             {competitions.length ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 {competitions.map(competition => <CompetitionCard key={competition.id} competition={competition} />)}

@@ -1,5 +1,5 @@
 "use client";
-import { matchSearchText, normalizeSearchText } from "@/lib/search";
+import { matchSearchText, parseSearchQuery } from "@/lib/search";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Copy, ListFilter, Loader2, RefreshCw } from "lucide-react";
@@ -61,21 +61,27 @@ export function SecuritySituationDashboard({
       .slice(0, 8);
   }, [events]);
 
+  const eventSearch = useMemo(() => {
+    try { return { query: parseSearchQuery(new URLSearchParams({ q: eventKeyword })) }; }
+    catch (error) { return { error: error instanceof Error ? error.message : "无效的搜索内容。" }; }
+  }, [eventKeyword]);
+
   const filteredEvents = useMemo(() => {
-    const keyword = normalizeSearchText(eventKeyword);
+    const query = eventSearch.query;
+    if (!query) return [];
+    const keyword = query.q;
     return events.filter((item) => {
       if (eventRisk !== "all" && item.riskLevel !== eventRisk) return false;
       if (eventStatus === "blocked" && !item.isBlocked) return false;
       if (eventStatus === "allowed" && item.isBlocked) return false;
       if (!keyword) return true;
-      const query = { q: keyword, mode: "fuzzy" as const };
       const matchesPath = matchSearchText(item.path, query);
       const matchesIp = matchSearchText(item.maskedIp, query);
       const matchesReason = matchSearchText(item.reason, query);
       const matchesRegion = matchSearchText(`${item.province ?? ""}${item.city ?? ""}`, query);
       return Boolean(matchesPath || matchesIp || matchesReason || matchesRegion);
     });
-  }, [events, eventKeyword, eventRisk, eventStatus]);
+  }, [events, eventSearch, eventRisk, eventStatus]);
 
   const selectedEvent = useMemo(
     () => filteredEvents.find((item) => item.id === selectedEventId) ?? filteredEvents[0] ?? null,
@@ -210,8 +216,11 @@ export function SecuritySituationDashboard({
                 maxLength={256}
                 placeholder="IP、路径、地区、原因"
                 value={eventKeyword}
+                aria-invalid={Boolean(eventSearch.error)}
+                aria-describedby={eventSearch.error ? "event-search-error" : undefined}
                 onChange={(event) => setEventKeyword(event.target.value)}
               />
+              {eventSearch.error ? <p id="event-search-error" role="alert" className="text-sm text-destructive">{eventSearch.error}</p> : null}
             </div>
             <div className="space-y-1">
               <Label htmlFor="event-risk-filter">风险等级</Label>
