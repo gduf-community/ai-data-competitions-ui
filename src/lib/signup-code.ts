@@ -10,7 +10,7 @@ export async function requestSignupCode(email: string, onStarted: () => void, ou
   const timer = setTimeout(() => timeout.abort(), 10_000);
   let abort = () => {};
   const expired = new Promise<never>((_, reject) => {
-    abort = () => reject(new SignupCodeError("发送失败：10秒内未确认发出，请稍后重试。迟到邮件中的验证码可能已失效。"));
+    abort = () => reject(new SignupCodeError("发送确认失败：10秒内未确认结果，邮件仍可能发出。请查收邮箱，勿立即重发；迟到验证码可能已失效。"));
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) abort();
   });
