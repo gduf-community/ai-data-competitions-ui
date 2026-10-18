@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { requestSignupCode, SignupCodeError } from "@/lib/signup-code";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,6 +76,9 @@ export function SignupForm1({
   const searchParams = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
+  const [codeStatus, setCodeStatus] = useState("");
+  const codeRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => { codeRequest.current?.abort(); }, []);
   const [codeCooldownSeconds, setCodeCooldownSeconds] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -108,39 +112,32 @@ export function SignupForm1({
   }, [codeCooldownSeconds]);
 
   async function sendVerificationCode() {
-    const valid = await form.trigger("email");
-    if (!valid) {
-      return;
-    }
-
+    if (codeRequest.current || codeCooldownSeconds > 0) return;
+    const controller = new AbortController();
+    codeRequest.current = controller;
     setSendingCode(true);
     try {
-      const email = form.getValues("email");
-      const response = await fetch("/api/auth/register/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
-      const payload = (await response.json()) as { message?: string };
-      if (!response.ok) {
-        if (response.status === 429) {
-          const retryAfter = Number(response.headers.get("Retry-After") ?? "60");
-          if (Number.isFinite(retryAfter) && retryAfter > 0) {
-            setCodeCooldownSeconds(Math.max(1, Math.ceil(retryAfter)));
-          }
-        }
-        throw new Error(payload.message ?? "发送验证码失败");
-      }
-
-      toast.success(payload.message ?? "验证码已发送");
+      if (!await form.trigger("email") || controller.signal.aborted) return;
+      setCodeStatus("正在请求发送验证码…");
+      await requestSignupCode(form.getValues("email"), () => {
+        if (!controller.signal.aborted) setCodeStatus("服务器开始投送");
+      }, controller.signal);
+      if (controller.signal.aborted) return;
+      setCodeStatus("验证码发出");
+      toast.success("验证码发出，请查收邮箱");
       setCodeCooldownSeconds(60);
     } catch (error) {
+      if (controller.signal.aborted) return;
       const message = error instanceof Error ? error.message : "发送验证码失败";
+      setCodeStatus(message);
       toast.error(message);
+      // A timeout cannot undo a provider send or the server's consumed quota.
+      setCodeCooldownSeconds(error instanceof SignupCodeError ? error.retryAfter : 60);
     } finally {
-      setSendingCode(false);
+      if (codeRequest.current === controller) {
+        codeRequest.current = null;
+        if (!controller.signal.aborted) setSendingCode(false);
+      }
     }
   }
 
@@ -328,8 +325,9 @@ export function SignupForm1({
                       onClick={() => void sendVerificationCode()}
                       disabled={sendingCode || codeCooldownSeconds > 0}
                     >
-                      {sendingCode ? tt("发送中...") : tt("发送验证码")}
+                      {sendingCode ? tt("确认发送中...") : tt("发送验证码")}
                     </Button>
+                    <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{codeStatus}</span>
                     {codeCooldownSeconds > 0 ? (
                       <p className="md:col-span-2 text-xs text-muted-foreground">
                         当前邮箱需等待 {codeCooldownSeconds} 秒后才能重新发送验证码。
