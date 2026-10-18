@@ -20,18 +20,18 @@ test('429 cooldown preserved',async()=>{
  const {requestSignupCode}=load({fetch:async()=>Response.json({message:'limited'},{status:429,headers:{'Retry-After':'123'}})});
  await assert.rejects(requestSignupCode('test@example.invalid',()=>{},new AbortController().signal),e=>e.retryAfter===123);
 });
-test('single 10 second window includes stalled connection; late response ignored',async()=>{
+test('single 30 second window includes stalled connection; late response ignored',async()=>{
  let expire,finish;let started=0;let fetchSignal;
- const {requestSignupCode}=load({setTimeout:(fn,ms)=>{assert.equal(ms,10000);expire=fn;return 1},clearTimeout:()=>{},fetch:async(_,options)=>{fetchSignal=options.signal;return new Promise(r=>finish=r)}});
+ const {requestSignupCode}=load({setTimeout:(fn,ms)=>{assert.equal(ms,30000);expire=fn;return 1},clearTimeout:()=>{},fetch:async(_,options)=>{fetchSignal=options.signal;return new Promise(r=>finish=r)}});
  const promise=requestSignupCode('test@example.invalid',()=>started++,new AbortController().signal);
- expire();await assert.rejects(promise,/10秒/);assert.equal(fetchSignal.aborted,true);
+ expire();await assert.rejects(promise,/30秒/);assert.equal(fetchSignal.aborted,true);
  finish(streamResponse([{state:'sending'},{state:'sent'}]));await new Promise(r=>setImmediate(r));assert.equal(started,0);
 });
-test('10 second timeout covers stream body, not only fetch headers',async()=>{
+test('30 second timeout covers stream body, not only fetch headers',async()=>{
  let expire;
  const {requestSignupCode}=load({setTimeout:fn=>{expire=fn;return 1},clearTimeout:()=>{},fetch:async()=>new Response(new ReadableStream(),{headers:{'content-type':'application/x-ndjson'}})});
  const promise=requestSignupCode('test@example.invalid',()=>{},new AbortController().signal);
- await Promise.resolve();expire();await assert.rejects(promise,/10秒/);
+ await Promise.resolve();expire();await assert.rejects(promise,/30秒/);
 });
 test('component rejects simultaneous clicks before validation and suppresses cancelled completion',async()=>{
  let source=readFileSync(new URL('../src/app/(auth)/sign-up/components/signup-form-1.tsx',import.meta.url),'utf8');
@@ -60,4 +60,18 @@ test('Web relay forwards first state without waiting for terminal state',async()
  const reader=response.body.getReader();assert.match(new TextDecoder().decode((await reader.read()).value),/sending/);
  output.enqueue(new TextEncoder().encode('{"state":"sent"}\n'));output.close();
  assert.match(new TextDecoder().decode((await reader.read()).value),/sent/);
+});
+test('provider confirmation arriving at 25 seconds succeeds, not at the old 10 second cutoff',async()=>{
+ let time=0;const timers=[];
+ const later=(fn,ms)=>{const item={fn,at:time+ms};timers.push(item);return item};
+ const advance=ms=>{time+=ms;for(const item of timers)if(!item.done&&item.at<=time){item.done=true;item.fn()}};
+ const {requestSignupCode}=load({setTimeout:later,clearTimeout:item=>{item.done=true},fetch:async()=>new Promise(resolve=>later(()=>resolve(streamResponse([{state:'sending'},{state:'sent'}])),25000))});
+ let complete=false;const pending=requestSignupCode('test@example.invalid',()=>{},new AbortController().signal).then(()=>{complete=true});
+ advance(10000);await new Promise(r=>setImmediate(r));assert.equal(complete,false);
+ advance(15000);await pending;assert.equal(complete,true);
+});
+test('known server failure returns immediately without waiting 30 seconds',async()=>{
+ let cleared=false;
+ const {requestSignupCode}=load({setTimeout:()=>1,clearTimeout:()=>{cleared=true},fetch:async()=>Response.json({message:'rejected'},{status:500})});
+ await assert.rejects(requestSignupCode('test@example.invalid',()=>{},new AbortController().signal),/rejected/);assert.equal(cleared,true);
 });
