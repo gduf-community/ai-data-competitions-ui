@@ -7,6 +7,7 @@ import { AdminDataTable } from "@/components/admin/admin-data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -194,6 +195,15 @@ export default function AdminAwardsPage() {
 
   const total = data?.total ?? 0;
   const summary = data?.summary ?? { confirmed: 0, pending: 0, total: 0 };
+  const rows = data?.items ?? [];
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  const resetFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setKeyword("");
+    setDebouncedKeyword("");
+    setPage(1);
+  };
 
   const openExport = async (format: "csv" | "xlsx") => {
     if (total === 0) {
@@ -336,6 +346,31 @@ export default function AdminAwardsPage() {
 
   const pagination: PaginationState = { pageIndex: page - 1, pageSize };
 
+  const mobilePager =
+    total > pageSize ? (
+      <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-3 py-2">
+        <Button
+          disabled={page <= 1}
+          size="sm"
+          variant="outline"
+          onClick={() => setPage((value) => Math.max(1, value - 1))}
+        >
+          上一页
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          第 {page} / {pageCount} 页
+        </span>
+        <Button
+          disabled={page >= pageCount}
+          size="sm"
+          variant="outline"
+          onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+        >
+          下一页
+        </Button>
+      </div>
+    ) : null;
+
   if (forbidden) {
     return (
       <div className="px-4 lg:px-6">
@@ -353,8 +388,8 @@ export default function AdminAwardsPage() {
   }
 
   return (
-    <div className="px-4 lg:px-6">
-      <div className="space-y-6">
+    <div className="px-3 pb-6 sm:px-4 lg:px-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           eyebrow="获奖管理"
           title="获奖名单"
@@ -364,51 +399,60 @@ export default function AdminAwardsPage() {
               : "全部比赛的已确认获奖名单，可按比赛、奖项、赛道筛选，并导出 CSV/XLSX。"
           }
           actions={
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => void openExport("csv")} disabled={Boolean(exporting) || total === 0}>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button
+                variant="outline"
+                className="flex-1 sm:flex-none"
+                onClick={() => void openExport("csv")}
+                disabled={Boolean(exporting) || total === 0}
+              >
                 {exporting === "csv" ? "导出中…" : "导出 CSV"}
               </Button>
-              <Button onClick={() => void openExport("xlsx")} disabled={Boolean(exporting) || total === 0}>
+              <Button
+                className="flex-1 sm:flex-none"
+                onClick={() => void openExport("xlsx")}
+                disabled={Boolean(exporting) || total === 0}
+              >
                 {exporting === "xlsx" ? "导出中…" : "导出 XLSX"}
               </Button>
             </div>
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border/60 bg-card p-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">已确认获奖人数</p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{summary.confirmed}</p>
-            <p className="mt-1 text-xs text-muted-foreground">仅该部分计入正式获奖人数</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums sm:mt-2">{summary.confirmed}</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">仅该部分计入正式获奖人数</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">待确认记录</p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{summary.pending}</p>
-            <p className="mt-1 text-xs text-muted-foreground">未确认，不计入获奖人数</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums sm:mt-2">{summary.pending}</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">未确认，不计入获奖人数</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">当前筛选结果</p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{summary.total}</p>
-            <p className="mt-1 text-xs text-muted-foreground">导出将使用这一整份结果</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums sm:mt-2">{summary.total}</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">导出将使用这一整份结果</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">名单最后更新</p>
-            <p className="mt-2 text-sm font-medium">
+            <p className="mt-1.5 text-sm font-medium sm:mt-2">
               {data?.scope.lastUpdated ? data.scope.lastUpdated.replace("T", " ").slice(0, 16) : "—"}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">{data?.scope.edition || "—"}</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground sm:text-xs">{data?.scope.edition || "—"}</p>
           </div>
         </div>
 
         {summary.pending > 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] leading-5 text-amber-800 sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
             仍有 <strong>{summary.pending}</strong> 条记录待确认，它们<strong>不计入</strong>正式获奖人数；
             请先在名单补全工作台完成确认，再对外使用本名单。
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-border/60 bg-card p-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
             <Select
               value={filters.competitionId}
               onValueChange={(value) => {
@@ -488,44 +532,153 @@ export default function AdminAwardsPage() {
           </div>
         </div>
 
-        <AdminDataTable
-          data={data?.items ?? []}
-          columns={columns}
-          searchPlaceholder="搜索姓名、团队、学院或指导老师"
-          searchValue={keyword}
-          onSearchChange={setKeyword}
-          emptyLabel={emptyLabel}
-          loading={loading}
-          error={error ?? undefined}
-          onRetry={() => setRefreshKey((value) => value + 1)}
-          pagination={pagination}
-          rowCount={total}
-          onPaginationChange={(updater) => {
-            const next = typeof updater === "function" ? updater(pagination) : updater;
-            setPage(next.pageIndex + 1);
-            setPageSize(next.pageSize);
-          }}
-          toolbar={
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setFilters(EMPTY_FILTERS);
-                  setKeyword("");
-                  setDebouncedKeyword("");
-                  setPage(1);
-                }}
-                disabled={!filtersActive && !keyword}
-              >
-                重置筛选
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}>
-                刷新
+        {/* 桌面 / 平板：表格 */}
+        <div className="hidden md:block">
+          <AdminDataTable
+            data={rows}
+            columns={columns}
+            searchPlaceholder="搜索姓名、团队、学院或指导老师"
+            searchValue={keyword}
+            onSearchChange={setKeyword}
+            emptyLabel={emptyLabel}
+            loading={loading}
+            error={error ?? undefined}
+            onRetry={() => setRefreshKey((value) => value + 1)}
+            pagination={pagination}
+            rowCount={total}
+            onPaginationChange={(updater) => {
+              const next = typeof updater === "function" ? updater(pagination) : updater;
+              setPage(next.pageIndex + 1);
+              setPageSize(next.pageSize);
+            }}
+            toolbar={
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={resetFilters} disabled={!filtersActive && !keyword}>
+                  重置筛选
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}>
+                  刷新
+                </Button>
+              </div>
+            }
+          />
+        </div>
+
+        {/* 手机：卡片列表，避免横向滚动 */}
+        <div className="space-y-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <Input
+              aria-label="搜索获奖名单"
+              className="h-9"
+              maxLength={256}
+              placeholder="搜索姓名、团队、学院或老师"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+            />
+            <Button
+              className="h-9 shrink-0"
+              disabled={!filtersActive && !keyword}
+              size="sm"
+              variant="outline"
+              onClick={resetFilters}
+            >
+              重置
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+            <span role="status">{loading ? "加载中…" : error ? "加载失败" : `共 ${total} 条`}</span>
+            <button
+              className="underline-offset-2 hover:underline disabled:opacity-50"
+              disabled={loading}
+              type="button"
+              onClick={() => setRefreshKey((value) => value + 1)}
+            >
+              刷新
+            </button>
+          </div>
+
+          {!loading && !error ? mobilePager : null}
+
+          {loading ? (
+            <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+              正在加载…
+            </div>
+          ) : error ? (
+            <div className="space-y-3 rounded-xl border border-dashed border-border/60 p-6 text-center text-sm" role="alert">
+              <p>{error}</p>
+              <Button size="sm" variant="outline" onClick={() => setRefreshKey((value) => value + 1)}>
+                重试
               </Button>
             </div>
-          }
-        />
+          ) : rows.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
+              {emptyLabel}
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {rows.map((row) => (
+                <li key={row.id} className="rounded-xl border border-border/60 bg-card p-3.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-medium">{row.studentName}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.teamName}</p>
+                    </div>
+                    <Badge className={AWARD_LEVEL_CLASS[row.awardLevel] ?? ""} variant="outline">
+                      {row.awardLevel}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <Badge className="text-[11px]" variant="outline">
+                      {row.track}
+                    </Badge>
+                    {row.status === "confirmed" ? (
+                      <Badge className="border-emerald-200 bg-emerald-50 text-[11px] text-emerald-700" variant="outline">
+                        已确认
+                      </Badge>
+                    ) : (
+                      <Badge className="border-dashed border-amber-300 text-[11px] text-amber-700" variant="outline">
+                        待确认
+                      </Badge>
+                    )}
+                    <Badge className={`text-[11px] ${SOURCE_CLASS[row.source] ?? ""}`} variant="outline">
+                      {AWARD_SOURCE_LABEL[row.source] ?? row.source}
+                    </Badge>
+                    {row.missing.length > 0 ? (
+                      <Badge className="border-amber-200 bg-amber-50 text-[11px] text-amber-700" variant="outline">
+                        缺{row.missing.join("、")}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/40 pt-2.5 text-xs">
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">年级</dt>
+                      <dd className="mt-0.5 truncate">{row.grade ?? "—"}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">学院</dt>
+                      <dd className="mt-0.5 truncate">{row.college}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">专业</dt>
+                      <dd className="mt-0.5 truncate">{row.major ?? "—"}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-muted-foreground">指导老师</dt>
+                      <dd className="mt-0.5 truncate">
+                        {row.teachers.length > 0 ? row.teachers.join("、") : "无"}
+                      </dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {!loading && !error ? mobilePager : null}
+        </div>
 
         <p className="text-xs text-muted-foreground">
           导出范围：当前筛选的全部 {total} 条记录（不受分页影响）；文件名包含比赛与届次；
