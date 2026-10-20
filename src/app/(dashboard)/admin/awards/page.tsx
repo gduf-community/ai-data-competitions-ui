@@ -419,7 +419,29 @@ export default function AdminAwardsPage() {
           }
         />
 
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+        {/* 手机：压缩成一行摘要，避免首屏被统计卡占满 */}
+        <div className="flex items-stretch divide-x divide-border/60 rounded-xl border border-border/60 bg-card md:hidden">
+          <div className="flex-1 px-3 py-2">
+            <p className="text-[10px] leading-4 text-muted-foreground">已确认</p>
+            <p className="text-lg leading-6 font-semibold tabular-nums">{summary.confirmed}</p>
+          </div>
+          <div className="flex-1 px-3 py-2">
+            <p className="text-[10px] leading-4 text-muted-foreground">待确认</p>
+            <p className="text-lg leading-6 font-semibold tabular-nums text-amber-600">{summary.pending}</p>
+          </div>
+          <div className="flex-1 px-3 py-2">
+            <p className="text-[10px] leading-4 text-muted-foreground">筛选结果</p>
+            <p className="text-lg leading-6 font-semibold tabular-nums">{summary.total}</p>
+          </div>
+          <div className="flex-1 px-3 py-2">
+            <p className="text-[10px] leading-4 text-muted-foreground">更新</p>
+            <p className="text-[11px] leading-6 text-muted-foreground">
+              {data?.scope.lastUpdated ? data.scope.lastUpdated.slice(5, 10).replace("-", "/") : "—"}
+            </p>
+          </div>
+        </div>
+
+        <div className="hidden grid-cols-2 gap-2 sm:gap-3 md:grid xl:grid-cols-4">
           <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">已确认获奖人数</p>
             <p className="mt-1.5 text-2xl font-semibold tabular-nums sm:mt-2">{summary.confirmed}</p>
@@ -616,62 +638,46 @@ export default function AdminAwardsPage() {
               {emptyLabel}
             </div>
           ) : (
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               {rows.map((row) => (
-                <li key={row.id} className="rounded-xl border border-border/60 bg-card p-3.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-medium">{row.studentName}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.teamName}</p>
+                <li key={row.id} className="rounded-lg border border-border/60 bg-card px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[15px] font-medium leading-5">{row.studentName}</p>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {row.missing.length > 0 ? (
+                        <span className="rounded bg-amber-50 px-1 text-[10px] leading-4 text-amber-700">
+                          缺{row.missing.join("、")}
+                        </span>
+                      ) : null}
+                      <Badge
+                        className={`px-1.5 py-0 text-[10px] ${AWARD_LEVEL_CLASS[row.awardLevel] ?? ""}`}
+                        variant="outline"
+                      >
+                        {row.awardLevel}
+                      </Badge>
                     </div>
-                    <Badge className={AWARD_LEVEL_CLASS[row.awardLevel] ?? ""} variant="outline">
-                      {row.awardLevel}
-                    </Badge>
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <Badge className="text-[11px]" variant="outline">
-                      {row.track}
-                    </Badge>
-                    {row.status === "confirmed" ? (
-                      <Badge className="border-emerald-200 bg-emerald-50 text-[11px] text-emerald-700" variant="outline">
-                        已确认
-                      </Badge>
-                    ) : (
-                      <Badge className="border-dashed border-amber-300 text-[11px] text-amber-700" variant="outline">
-                        待确认
-                      </Badge>
-                    )}
-                    <Badge className={`text-[11px] ${SOURCE_CLASS[row.source] ?? ""}`} variant="outline">
-                      {AWARD_SOURCE_LABEL[row.source] ?? row.source}
-                    </Badge>
-                    {row.missing.length > 0 ? (
-                      <Badge className="border-amber-200 bg-amber-50 text-[11px] text-amber-700" variant="outline">
-                        缺{row.missing.join("、")}
-                      </Badge>
-                    ) : null}
-                  </div>
+                  <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground">
+                    {row.grade ?? "—"} · {row.college} · {row.major ?? "—"}
+                  </p>
+                  <p className="truncate text-[11px] leading-4 text-muted-foreground">
+                    {row.track} · {row.teamName}
+                  </p>
 
-                  <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/40 pt-2.5 text-xs">
-                    <div className="min-w-0">
-                      <dt className="text-muted-foreground">年级</dt>
-                      <dd className="mt-0.5 truncate">{row.grade ?? "—"}</dd>
-                    </div>
-                    <div className="min-w-0">
-                      <dt className="text-muted-foreground">学院</dt>
-                      <dd className="mt-0.5 truncate">{row.college}</dd>
-                    </div>
-                    <div className="min-w-0">
-                      <dt className="text-muted-foreground">专业</dt>
-                      <dd className="mt-0.5 truncate">{row.major ?? "—"}</dd>
-                    </div>
-                    <div className="min-w-0">
-                      <dt className="text-muted-foreground">指导老师</dt>
-                      <dd className="mt-0.5 truncate">
-                        {row.teachers.length > 0 ? row.teachers.join("、") : "无"}
-                      </dd>
-                    </div>
-                  </dl>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] leading-4">
+                    <span className="truncate text-muted-foreground">
+                      导师 {row.teachers.length > 0 ? row.teachers.join("、") : "无"}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className={row.status === "confirmed" ? "text-emerald-600" : "text-amber-600"}>
+                        {row.status === "confirmed" ? "已确认" : "待确认"}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {AWARD_SOURCE_LABEL[row.source] ?? row.source}
+                      </span>
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
