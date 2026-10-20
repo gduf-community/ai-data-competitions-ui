@@ -45,37 +45,42 @@ type Failure = { kind: "forbidden" | "notfound" | "error"; message: string };
 type CorrectionForm = { levelCode: string; subTrack: string; teamName: string; reason: string };
 
 const SOURCE_CLASS: Record<string, string> = {
-  official: "border-blue-200 bg-blue-50 text-blue-700",
-  application: "border-violet-200 bg-violet-50 text-violet-700",
-  manual: "border-orange-200 bg-orange-50 text-orange-700",
+  official: "border-blue-400/30 bg-blue-400/10 text-blue-800 dark:text-blue-200",
+  application: "border-violet-400/30 bg-violet-400/10 text-violet-800 dark:text-violet-200",
+  manual: "border-orange-400/30 bg-orange-400/10 text-orange-800 dark:text-orange-200",
 };
 
-/** 等级配色：一等奖金、二等奖蓝、三等奖紫、优秀灰，深浅色主题都能分辨。 */
-const LEVEL_TONE: Record<string, { badge: string; bar: string }> = {
+type LevelTone = { pill: string; dot: string; bar: string };
+
+/** 等级配色：一等奖金、二等奖蓝、三等奖紫、优秀灰；用低饱和渐变代替实心色块。 */
+const LEVEL_TONE: Record<string, LevelTone> = {
   一等奖: {
-    badge:
-      "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200",
-    bar: "bg-amber-400",
+    pill: "border-amber-400/40 bg-gradient-to-r from-amber-400/20 to-amber-300/5 text-amber-900 dark:text-amber-100",
+    dot: "bg-amber-500 dark:bg-amber-300",
+    bar: "bg-gradient-to-b from-amber-300 to-amber-500",
   },
   二等奖: {
-    badge: "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-200",
-    bar: "bg-sky-400",
+    pill: "border-sky-400/40 bg-gradient-to-r from-sky-400/20 to-sky-300/5 text-sky-900 dark:text-sky-100",
+    dot: "bg-sky-500 dark:bg-sky-300",
+    bar: "bg-gradient-to-b from-sky-300 to-sky-500",
   },
   三等奖: {
-    badge:
-      "border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200",
-    bar: "bg-violet-400",
+    pill: "border-violet-400/40 bg-gradient-to-r from-violet-400/20 to-violet-300/5 text-violet-900 dark:text-violet-100",
+    dot: "bg-violet-500 dark:bg-violet-300",
+    bar: "bg-gradient-to-b from-violet-300 to-violet-500",
   },
   优秀奖: {
-    badge: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300",
-    bar: "bg-slate-400",
+    pill: "border-slate-400/40 bg-gradient-to-r from-slate-400/20 to-slate-300/5 text-slate-800 dark:text-slate-200",
+    dot: "bg-slate-500 dark:bg-slate-300",
+    bar: "bg-gradient-to-b from-slate-300 to-slate-500",
   },
 };
 
-function levelTone(level: string) {
+function levelTone(level: string): LevelTone {
   return (
     LEVEL_TONE[level] ?? {
-      badge: "border-border bg-muted text-foreground",
+      pill: "border-border bg-muted text-foreground",
+      dot: "bg-muted-foreground",
       bar: "bg-border",
     }
   );
@@ -86,24 +91,27 @@ function StatCard({
   value,
   hint,
   tone,
+  accent,
   icon: Icon,
 }: {
   label: string;
   value: number;
   hint: string;
   tone: string;
+  accent: string;
   icon: typeof Trophy;
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card p-4">
+    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-4">
+      <span aria-hidden className={`absolute inset-x-0 top-0 h-px ${accent}`} />
       <div className="flex items-center gap-2">
-        <span className={`flex size-8 items-center justify-center rounded-lg ${tone}`}>
+        <span className={`flex size-8 items-center justify-center rounded-lg ring-1 ring-inset ${tone}`}>
           <Icon className="size-4" />
         </span>
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground">{label}</p>
       </div>
-      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+      <p className="mt-2.5 text-[2rem] leading-none font-semibold tracking-tight tabular-nums">{value}</p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -418,8 +426,12 @@ export default function OfficialAwardCompetitionPage() {
   }
 
   return (
-    <div className="px-3 pb-6 sm:px-4 lg:px-6">
-      <div className="space-y-4 sm:space-y-6">
+    <div className="relative px-3 pb-8 sm:px-4 lg:px-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-primary/5 via-transparent to-transparent"
+      />
+      <div className="relative space-y-4 sm:space-y-6">
         <PageHeader
           eyebrow="官方获奖名单"
           title={data?.competition.title ?? "获奖名单"}
@@ -467,31 +479,35 @@ export default function OfficialAwardCompetitionPage() {
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <StatCard
+            accent="bg-gradient-to-r from-transparent via-amber-400/70 to-transparent"
             hint="一奖一行，团队奖不按人数放大"
             icon={Trophy}
             label="奖项数"
-            tone="bg-amber-500/15 text-amber-600 dark:text-amber-300"
+            tone="bg-amber-500/10 text-amber-600 ring-amber-500/20 dark:text-amber-300"
             value={summary.awardCount}
           />
           <StatCard
+            accent="bg-gradient-to-r from-transparent via-sky-400/70 to-transparent"
             hint="团队成员累加"
             icon={Users}
             label="获奖人次"
-            tone="bg-sky-500/15 text-sky-600 dark:text-sky-300"
+            tone="bg-sky-500/10 text-sky-600 ring-sky-500/20 dark:text-sky-300"
             value={summary.memberCount}
           />
           <StatCard
+            accent="bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent"
             hint="按姓名 + 学院去重"
             icon={UserCheck}
             label="去重人数"
-            tone="bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+            tone="bg-emerald-500/10 text-emerald-600 ring-emerald-500/20 dark:text-emerald-300"
             value={summary.verifiedMemberCount}
           />
           <StatCard
+            accent="bg-gradient-to-r from-transparent via-orange-400/70 to-transparent"
             hint="不计入上方正式事实"
             icon={ClipboardList}
             label="草稿待处理"
-            tone="bg-orange-500/15 text-orange-600 dark:text-orange-300"
+            tone="bg-orange-500/10 text-orange-600 ring-orange-500/20 dark:text-orange-300"
             value={summary.draftPending}
           />
         </div>
@@ -503,7 +519,7 @@ export default function OfficialAwardCompetitionPage() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-border/60 bg-card p-4">
+        <div className="rounded-2xl border border-border/60 bg-card p-4">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-normal text-muted-foreground">获奖年份</Label>
@@ -604,7 +620,7 @@ export default function OfficialAwardCompetitionPage() {
             该比赛在当前筛选下还没有已确认的获奖事实。
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
             <div className="hidden md:block">
               <Table>
                 <TableHeader>
@@ -632,7 +648,7 @@ export default function OfficialAwardCompetitionPage() {
                     const tone = levelTone(row.levelCode);
                     return (
                       <Fragment key={row.awardId}>
-                        <TableRow className="h-14">
+                        <TableRow className="h-16">
                           <TableCell>
                             <button
                               aria-expanded={open}
@@ -645,18 +661,22 @@ export default function OfficialAwardCompetitionPage() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col items-start gap-1">
-                              <Badge className={`px-2 py-0.5 text-xs font-medium ${tone.badge}`} variant="outline">
-                                {row.levelRaw}
-                              </Badge>
-                              {levelNeedsReview(row) ? (
-                                <span className="text-[10px] text-muted-foreground">规范：{row.levelCode}</span>
-                              ) : null}
-                              {row.voided ? (
-                                <Badge className="border-slate-300 bg-slate-100 text-[10px] text-slate-600" variant="outline">
-                                  已撤销
-                                </Badge>
-                              ) : null}
+                            <div className="flex items-start gap-2.5">
+                              <span
+                                aria-hidden
+                                className={`mt-1 h-8 w-1.5 shrink-0 rounded-full ${tone.bar}`}
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm leading-6 font-semibold">{row.levelRaw}</p>
+                                {levelNeedsReview(row) ? (
+                                  <p className="text-[11px] leading-4 text-muted-foreground">规范：{row.levelCode}</p>
+                                ) : null}
+                                {row.voided ? (
+                                  <span className="mt-1 inline-flex rounded bg-slate-500/15 px-1.5 py-0.5 text-[10px] text-slate-600 dark:text-slate-300">
+                                    已撤销
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -692,8 +712,8 @@ export default function OfficialAwardCompetitionPage() {
                                 variant="ghost"
                                 onClick={() => openCorrection(row)}
                               >
-                                <PencilLine className="size-3.5" />
-                                <span className="ml-1 hidden xl:inline">更正</span>
+                                <PencilLine className="size-4" />
+                                <span className="ml-1">更正</span>
                               </Button>
                               <Button
                                 aria-label="撤销该获奖事实"
@@ -704,8 +724,8 @@ export default function OfficialAwardCompetitionPage() {
                                 variant="ghost"
                                 onClick={() => openVoid(row)}
                               >
-                                <Ban className="size-3.5" />
-                                <span className="ml-1 hidden xl:inline">撤销</span>
+                                <Ban className="size-4" />
+                                <span className="ml-1">撤销</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -811,7 +831,7 @@ export default function OfficialAwardCompetitionPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border/60 bg-card px-3 py-2">
           <Button
             disabled={pageIndex === 0 || loading}
             size="sm"
