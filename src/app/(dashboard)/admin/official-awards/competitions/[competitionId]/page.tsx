@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Ban, ChevronDown, ChevronRight, ClipboardList, PencilLine, Trophy, UserCheck, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,64 @@ const SOURCE_CLASS: Record<string, string> = {
   application: "border-violet-200 bg-violet-50 text-violet-700",
   manual: "border-orange-200 bg-orange-50 text-orange-700",
 };
+
+/** 等级配色：一等奖金、二等奖蓝、三等奖紫、优秀灰，深浅色主题都能分辨。 */
+const LEVEL_TONE: Record<string, { badge: string; bar: string }> = {
+  一等奖: {
+    badge:
+      "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200",
+    bar: "bg-amber-400",
+  },
+  二等奖: {
+    badge: "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-200",
+    bar: "bg-sky-400",
+  },
+  三等奖: {
+    badge:
+      "border-violet-300 bg-violet-100 text-violet-900 dark:border-violet-500/40 dark:bg-violet-500/15 dark:text-violet-200",
+    bar: "bg-violet-400",
+  },
+  优秀奖: {
+    badge: "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/15 dark:text-slate-300",
+    bar: "bg-slate-400",
+  },
+};
+
+function levelTone(level: string) {
+  return (
+    LEVEL_TONE[level] ?? {
+      badge: "border-border bg-muted text-foreground",
+      bar: "bg-border",
+    }
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  tone,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  tone: string;
+  icon: typeof Trophy;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex items-center gap-2">
+        <span className={`flex size-8 items-center justify-center rounded-lg ${tone}`}>
+          <Icon className="size-4" />
+        </span>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      </div>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
 
 function Missing({ label }: { label: string }) {
   return (
@@ -407,27 +465,35 @@ export default function OfficialAwardCompetitionPage() {
           }
         />
 
-        <div className="flex items-stretch divide-x divide-border/60 rounded-xl border border-border/60 bg-card">
-          <div className="flex-1 px-3 py-2">
-            <p className="text-[10px] leading-4 text-muted-foreground sm:text-xs">奖项数</p>
-            <p className="text-lg leading-6 font-semibold tabular-nums sm:text-2xl sm:leading-8">{summary.awardCount}</p>
-          </div>
-          <div className="flex-1 px-3 py-2">
-            <p className="text-[10px] leading-4 text-muted-foreground sm:text-xs">获奖人次</p>
-            <p className="text-lg leading-6 font-semibold tabular-nums sm:text-2xl sm:leading-8">{summary.memberCount}</p>
-          </div>
-          <div className="flex-1 px-3 py-2">
-            <p className="text-[10px] leading-4 text-muted-foreground sm:text-xs">去重人数</p>
-            <p className="text-lg leading-6 font-semibold tabular-nums sm:text-2xl sm:leading-8">
-              {summary.verifiedMemberCount}
-            </p>
-          </div>
-          <div className="flex-1 px-3 py-2">
-            <p className="text-[10px] leading-4 text-muted-foreground sm:text-xs">草稿待处理</p>
-            <p className="text-lg leading-6 font-semibold tabular-nums text-amber-600 sm:text-2xl sm:leading-8">
-              {summary.draftPending}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <StatCard
+            hint="一奖一行，团队奖不按人数放大"
+            icon={Trophy}
+            label="奖项数"
+            tone="bg-amber-500/15 text-amber-600 dark:text-amber-300"
+            value={summary.awardCount}
+          />
+          <StatCard
+            hint="团队成员累加"
+            icon={Users}
+            label="获奖人次"
+            tone="bg-sky-500/15 text-sky-600 dark:text-sky-300"
+            value={summary.memberCount}
+          />
+          <StatCard
+            hint="按姓名 + 学院去重"
+            icon={UserCheck}
+            label="去重人数"
+            tone="bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+            value={summary.verifiedMemberCount}
+          />
+          <StatCard
+            hint="不计入上方正式事实"
+            icon={ClipboardList}
+            label="草稿待处理"
+            tone="bg-orange-500/15 text-orange-600 dark:text-orange-300"
+            value={summary.draftPending}
+          />
         </div>
 
         {summary.draftPending > 0 ? (
@@ -437,76 +503,88 @@ export default function OfficialAwardCompetitionPage() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-border/60 bg-card p-3 sm:p-4">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-            <Select
-              value={filters.year}
-              onValueChange={(value) => {
-                setFilters((prev) => ({ ...prev, year: value }));
-                resetToFirstPage();
-              }}
-            >
-              <SelectTrigger aria-label="按获奖年份筛选">
-                <SelectValue placeholder="全部年份" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部年份</SelectItem>
-                {(data?.competition.years ?? []).map((year) => (
-                  <SelectItem key={year} value={String(year)}>
-                    {year} 年
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="rounded-xl border border-border/60 bg-card p-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-normal text-muted-foreground">获奖年份</Label>
+              <Select
+                value={filters.year}
+                onValueChange={(value) => {
+                  setFilters((prev) => ({ ...prev, year: value }));
+                  resetToFirstPage();
+                }}
+              >
+                <SelectTrigger aria-label="按获奖年份筛选" className="w-full">
+                  <SelectValue placeholder="全部年份" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部年份</SelectItem>
+                  {(data?.competition.years ?? []).map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year} 年
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={filters.level}
-              onValueChange={(value) => {
-                setFilters((prev) => ({ ...prev, level: value }));
-                resetToFirstPage();
-              }}
-            >
-              <SelectTrigger aria-label="按规范等级筛选">
-                <SelectValue placeholder="全部等级" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部等级</SelectItem>
-                {(data?.competition.levels ?? []).map((level) => (
-                  <SelectItem key={level} value={level}>
-                    {level}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-normal text-muted-foreground">规范等级</Label>
+              <Select
+                value={filters.level}
+                onValueChange={(value) => {
+                  setFilters((prev) => ({ ...prev, level: value }));
+                  resetToFirstPage();
+                }}
+              >
+                <SelectTrigger aria-label="按规范等级筛选" className="w-full">
+                  <SelectValue placeholder="全部等级" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部等级</SelectItem>
+                  {(data?.competition.levels ?? []).map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {level}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={filters.subTrack}
-              onValueChange={(value) => {
-                setFilters((prev) => ({ ...prev, subTrack: value }));
-                resetToFirstPage();
-              }}
-            >
-              <SelectTrigger aria-label="按赛道筛选">
-                <SelectValue placeholder="全部赛道" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部赛道</SelectItem>
-                {(data?.competition.subTracks ?? []).map((track) => (
-                  <SelectItem key={track} value={track}>
-                    {track}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-normal text-muted-foreground">赛道</Label>
+              <Select
+                value={filters.subTrack}
+                onValueChange={(value) => {
+                  setFilters((prev) => ({ ...prev, subTrack: value }));
+                  resetToFirstPage();
+                }}
+              >
+                <SelectTrigger aria-label="按赛道筛选" className="w-full">
+                  <SelectValue placeholder="全部赛道" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部赛道</SelectItem>
+                  {(data?.competition.subTracks ?? []).map((track) => (
+                    <SelectItem key={track} value={track}>
+                      {track}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Input
-              aria-label="按姓名搜索获奖名单"
-              className="h-9"
-              maxLength={64}
-              placeholder="搜索获奖学生姓名"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-            />
+            <div className="col-span-2 space-y-1.5 xl:col-span-1">
+              <Label className="text-xs font-normal text-muted-foreground">搜索学生</Label>
+              <Input
+                aria-label="按姓名搜索获奖名单"
+                className="h-9 w-full"
+                maxLength={64}
+                placeholder="输入姓名，如：何子轩"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -530,29 +608,36 @@ export default function OfficialAwardCompetitionPage() {
             <div className="hidden md:block">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10" />
-                    <TableHead>奖项</TableHead>
-                    <TableHead>年份</TableHead>
-                    <TableHead>赛道</TableHead>
-                    <TableHead>团队</TableHead>
-                    <TableHead className="text-right">人数</TableHead>
-                    <TableHead>指导老师</TableHead>
-                    <TableHead>来源</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="h-11 w-10" />
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">奖项</TableHead>
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">年份</TableHead>
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">赛道</TableHead>
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">团队</TableHead>
+                    <TableHead className="h-11 text-right text-xs font-semibold tracking-wide text-muted-foreground">
+                      人数
+                    </TableHead>
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">
+                      指导老师
+                    </TableHead>
+                    <TableHead className="h-11 text-xs font-semibold tracking-wide text-muted-foreground">来源</TableHead>
+                    <TableHead className="h-11 text-right text-xs font-semibold tracking-wide text-muted-foreground">
+                      操作
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((row) => {
                     const open = expanded.includes(row.awardId);
+                    const tone = levelTone(row.levelCode);
                     return (
                       <Fragment key={row.awardId}>
-                        <TableRow>
+                        <TableRow className="h-14">
                           <TableCell>
                             <button
                               aria-expanded={open}
                               aria-label={open ? "收起成员" : "展开成员"}
-                              className="text-muted-foreground hover:text-foreground"
+                              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                               type="button"
                               onClick={() => toggleExpanded(row.awardId)}
                             >
@@ -560,33 +645,36 @@ export default function OfficialAwardCompetitionPage() {
                             </button>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <span className="font-medium">{row.levelRaw}</span>
-                              <div className="flex flex-wrap items-center gap-1">
-                                {levelNeedsReview(row) ? (
-                                  <Badge
-                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-700"
-                                    variant="outline"
-                                  >
-                                    规范：{row.levelCode}
-                                  </Badge>
-                                ) : null}
-                                {row.voided ? (
-                                  <Badge
-                                    className="border-slate-300 bg-slate-100 text-[10px] text-slate-600"
-                                    variant="outline"
-                                  >
-                                    已撤销
-                                  </Badge>
-                                ) : null}
-                              </div>
+                            <div className="flex flex-col items-start gap-1">
+                              <Badge className={`px-2 py-0.5 text-xs font-medium ${tone.badge}`} variant="outline">
+                                {row.levelRaw}
+                              </Badge>
+                              {levelNeedsReview(row) ? (
+                                <span className="text-[10px] text-muted-foreground">规范：{row.levelCode}</span>
+                              ) : null}
+                              {row.voided ? (
+                                <Badge className="border-slate-300 bg-slate-100 text-[10px] text-slate-600" variant="outline">
+                                  已撤销
+                                </Badge>
+                              ) : null}
                             </div>
                           </TableCell>
-                          <TableCell className="tabular-nums">{row.awardYear}</TableCell>
-                          <TableCell>{row.subTrack}</TableCell>
-                          <TableCell className="max-w-[16rem] truncate">{row.teamName ?? "—"}</TableCell>
-                          <TableCell className="text-right tabular-nums">{row.memberCount}</TableCell>
-                          <TableCell className="max-w-[12rem] truncate">
+                          <TableCell>
+                            <span className="inline-flex rounded-md bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+                              {row.awardYear}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm">{row.subTrack}</TableCell>
+                          <TableCell className="max-w-[16rem] truncate text-sm font-medium">
+                            {row.teamName ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                              <Users className="size-3.5" />
+                              {row.memberCount}
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-[12rem] truncate text-sm text-muted-foreground">
                             {row.advisors.length > 0 ? row.advisors.map((advisor) => advisor.name).join("、") : "无"}
                           </TableCell>
                           <TableCell>
@@ -597,21 +685,27 @@ export default function OfficialAwardCompetitionPage() {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               <Button
+                                aria-label="更正该获奖事实"
                                 disabled={!data?.permissions.canCorrect || row.voided}
                                 size="sm"
+                                title="更正"
                                 variant="ghost"
                                 onClick={() => openCorrection(row)}
                               >
-                                更正
+                                <PencilLine className="size-3.5" />
+                                <span className="ml-1 hidden xl:inline">更正</span>
                               </Button>
                               <Button
+                                aria-label="撤销该获奖事实"
                                 className="text-rose-600 hover:text-rose-700"
                                 disabled={!data?.permissions.canVoid || row.voided}
                                 size="sm"
+                                title="撤销"
                                 variant="ghost"
                                 onClick={() => openVoid(row)}
                               >
-                                撤销
+                                <Ban className="size-3.5" />
+                                <span className="ml-1 hidden xl:inline">撤销</span>
                               </Button>
                             </div>
                           </TableCell>
@@ -662,13 +756,18 @@ export default function OfficialAwardCompetitionPage() {
               {rows.map((row) => {
                 const open = expanded.includes(row.awardId);
                 return (
-                  <div key={row.awardId} className="p-3">
+                  <div key={row.awardId} className="relative p-4 pl-5">
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-3 left-0 w-1 rounded-full ${levelTone(row.levelCode).bar}`}
+                    />
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-medium">{row.levelRaw}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {row.awardYear} · {row.subTrack} · {row.teamName ?? "无团队"}
+                        <p className="truncate text-base font-semibold">{row.levelRaw}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {row.awardYear} · {row.subTrack}
                         </p>
+                        <p className="mt-0.5 truncate text-xs text-foreground/80">{row.teamName ?? "无团队"}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {row.voided ? (
@@ -678,15 +777,16 @@ export default function OfficialAwardCompetitionPage() {
                         ) : null}
                         <button
                           aria-expanded={open}
-                          className="text-xs text-muted-foreground"
+                          className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground"
                           type="button"
                           onClick={() => toggleExpanded(row.awardId)}
                         >
+                          <Users className="size-3.5" />
                           {open ? "收起" : `${row.memberCount} 人`}
                         </button>
                       </div>
                     </div>
-                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                    <p className="mt-1.5 truncate text-xs text-muted-foreground">
                       指导老师 {row.advisors.length > 0 ? row.advisors.map((advisor) => advisor.name).join("、") : "无"}
                     </p>
                     {open ? (
