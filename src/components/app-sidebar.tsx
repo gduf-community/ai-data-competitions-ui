@@ -89,7 +89,7 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
         icon: BookOpenCheck,
       },
       { title: "奖状审核", url: "/admin/award-reviews", icon: ImageIcon },
-      { title: "获奖名单", url: "/admin/awards", icon: Award },
+      { title: "官方获奖名单", url: "/admin/official-awards", capability: "canManageCompetitions", icon: Award },
     ],
   },
   {
