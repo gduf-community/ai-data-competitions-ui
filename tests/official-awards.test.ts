@@ -4,31 +4,42 @@ import { test } from "node:test";
 import {
   awardFilterKey,
   buildAwardQuery,
+  countVerifiedMembers,
   exportErrorMessage,
   flattenAwardMembers,
   isExportContentType,
   levelNeedsReview,
   parseContentDispositionFilename,
+  type OfficialAwardMember,
   type OfficialAwardRow,
 } from "../src/lib/contracts/official-awards";
 
+const member = (overrides: Partial<OfficialAwardMember> = {}): OfficialAwardMember => ({
+  memberId: "c0ffee00-4000-8000-9000-000000000001",
+  personId: "9f8e7d6c-4000-8000-9000-000000000001",
+  name: "何子轩",
+  grade: "2025级",
+  college: "经济贸易学院",
+  major: "国际经济与贸易",
+  verification: "verified",
+  source: "official",
+  ...overrides,
+});
+
 const award = (overrides: Partial<OfficialAwardRow> = {}): OfficialAwardRow => ({
-  awardId: "award-0001",
+  awardId: "a0a0a0a0-4000-8000-9000-000000000001",
   version: 1,
   awardYear: 2026,
   levelRaw: "二等奖（省级）",
-  levelCode: "二等奖",
+  levelCode: "second",
   subTrack: "数据挖掘",
   teamName: "2026·数据挖掘·01 队",
   memberCount: 2,
-  members: [
-    { memberId: "m-1", name: "何子轩", grade: "2025级", college: "经济贸易学院", major: "国际经济与贸易", source: "official" },
-    { memberId: "m-2", name: "吴嘉怡", grade: "2023级", college: "数学与统计学院", major: "信息与计算科学", source: "application" },
-  ],
+  members: [member(), member({ memberId: "m-2", personId: null, name: "吴嘉怡", verification: "unverified" })],
   advisors: [{ name: "梁晓彤", college: "计算机学院", source: "official" }],
   source: "official",
   sourceRef: "official-2026-001.pdf#p2",
-  confirmedAt: "2026-10-19T15:40:00+08:00",
+  confirmedAt: "2026-10-20T09:00:00+08:00",
   voided: false,
   voidReason: null,
   ...overrides,
@@ -36,14 +47,44 @@ const award = (overrides: Partial<OfficialAwardRow> = {}): OfficialAwardRow => (
 
 test("buildAwardQuery 省略 all 与空值，只在分页时带 cursor/limit", () => {
   assert.equal(buildAwardQuery({ year: "all", level: "all", subTrack: "all", q: "  " }), "");
-  assert.equal(buildAwardQuery({ year: "2026", level: "二等奖", subTrack: "数据挖掘", q: " 何 " }), "year=2026&level=%E4%BA%8C%E7%AD%89%E5%A5%96&subTrack=%E6%95%B0%E6%8D%AE%E6%8C%96%E6%8E%98&q=%E4%BD%95");
+  assert.equal(
+    buildAwardQuery({ year: "2026", level: "second", subTrack: "数据挖掘", q: " 何 " }),
+    "year=2026&level=second&subTrack=%E6%95%B0%E6%8D%AE%E6%8C%96%E6%8E%98&q=%E4%BD%95",
+  );
   assert.equal(buildAwardQuery({ year: "2026" }, { cursor: "MjA=", limit: 20 }), "year=2026&cursor=MjA%3D&limit=20");
 });
 
 test("awardFilterKey 不受分页影响，导出与列表共用同一筛选指纹", () => {
-  const filters = { year: "2026", level: "一等奖" };
+  const filters = { year: "2026", level: "first" };
   assert.equal(awardFilterKey(filters), awardFilterKey({ ...filters }));
-  assert.notEqual(awardFilterKey(filters), awardFilterKey({ ...filters, level: "二等奖" }));
+  assert.notEqual(awardFilterKey(filters), awardFilterKey({ ...filters, level: "second" }));
+});
+
+test("countVerifiedMembers 只对已核实的 personId 去重，同名不合并", () => {
+  const samePerson = [
+    member(),
+    member({ memberId: "m-2" }),
+    member({ memberId: "m-3", personId: null, name: "何子轩", verification: "unverified" }),
+    member({ memberId: "m-4", personId: null, name: "匿名成员", verification: "anonymous" }),
+  ];
+  assert.equal(countVerifiedMembers(samePerson), 1);
+
+  const twoPeople = [member(), member({ memberId: "m-2", personId: "9f8e7d6c-4000-8000-9000-000000000002" })];
+  assert.equal(countVerifiedMembers(twoPeople), 2);
+
+  // 同名同院但 personId 不同，必须算两个人，不能按姓名合并。
+  const sameNameDifferentPerson = [
+    member(),
+    member({ memberId: "m-2", personId: "9f8e7d6c-4000-8000-9000-000000000003" }),
+  ];
+  assert.equal(countVerifiedMembers(sameNameDifferentPerson), 2);
+  assert.equal(countVerifiedMembers([member({ personId: null, verification: "anonymous" })]), 0);
+});
+
+test("levelNeedsReview 按规范标签判断原文是否一致", () => {
+  assert.equal(levelNeedsReview({ levelRaw: "二等奖（省级）", levelCode: "second" }), false);
+  assert.equal(levelNeedsReview({ levelRaw: "三等奖", levelCode: "second" }), true);
+  assert.equal(levelNeedsReview({ levelRaw: null, levelCode: "second" }), false);
 });
 
 test("parseContentDispositionFilename 优先 RFC 5987，其次兼容引号与裸值", () => {
@@ -75,16 +116,9 @@ test("exportErrorMessage 覆盖 401/403/409/413/429/503", () => {
 });
 
 test("flattenAwardMembers 把一奖多成员展开成成员视图行", () => {
-  const rows = flattenAwardMembers([award(), award({ awardId: "award-0002", members: [] })]);
+  const rows = flattenAwardMembers([award(), award({ awardId: "award-2", members: [] })]);
   assert.equal(rows.length, 2);
   assert.equal(rows[0].name, "何子轩");
-  assert.equal(rows[0].teamName, "2026·数据挖掘·01 队");
-  assert.equal(rows[1].source, "application");
-  assert.equal(rows[1].awardId, "award-0001");
-});
-
-test("levelNeedsReview 在等级原文与规范等级不一致时提示", () => {
-  assert.equal(levelNeedsReview({ levelRaw: "二等奖（省级）", levelCode: "二等奖" }), true);
-  assert.equal(levelNeedsReview({ levelRaw: "二等奖", levelCode: "二等奖" }), false);
-  assert.equal(levelNeedsReview({ levelRaw: "", levelCode: "二等奖" }), false);
+  assert.equal(rows[0].levelCode, "second");
+  assert.equal(rows[1].verification, "unverified");
 });

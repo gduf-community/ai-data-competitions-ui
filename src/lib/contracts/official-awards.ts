@@ -1,21 +1,56 @@
-// 官方获奖名单（#138 / #131 第 6、7 节）API 契约。
-// 正式事实以「一奖一行」表达：一条 award 下挂成员与指导老师，成员与老师各自带快照来源。
+// 官方获奖名单（#131 / #134 / #135 / #138）契约。
+// 正式事实一奖一行；成员与指导老师是快照子项，身份核实状态与来源逐项表达。
 
-export type AwardSource = "official" | "application" | "manual";
+/** #131 规定的规范等级枚举；中文文案只用于展示，不作为 code 传输。 */
+export type AwardLevelCode =
+  | "special"
+  | "first"
+  | "second"
+  | "third"
+  | "excellence"
+  | "other"
+  | "unclassified";
+
+export const AWARD_LEVEL_LABEL: Record<AwardLevelCode, string> = {
+  special: "特等奖",
+  first: "一等奖",
+  second: "二等奖",
+  third: "三等奖",
+  excellence: "优秀奖",
+  other: "其他奖项",
+  unclassified: "未分类",
+};
+
+export const AWARD_LEVEL_CODES = Object.keys(AWARD_LEVEL_LABEL) as AwardLevelCode[];
+
+/** 来源枚举与 API 对齐：registration 是「报名信息」，unknown 表示无法判定。 */
+export type AwardSource = "official" | "registration" | "manual" | "unknown";
 
 export const AWARD_SOURCE_LABEL: Record<AwardSource, string> = {
   official: "官方名单",
-  application: "报名信息",
+  registration: "报名信息",
   manual: "人工补录",
+  unknown: "来源未知",
+};
+
+/** 成员身份核实状态：只有 verified 且有 personId 才计入「已核实去重人数」。 */
+export type MemberVerification = "verified" | "unverified" | "anonymous";
+
+export const VERIFICATION_LABEL: Record<MemberVerification, string> = {
+  verified: "已核实",
+  unverified: "未核实",
+  anonymous: "匿名",
 };
 
 export interface OfficialAwardMember {
   memberId: string;
+  /** 已核实身份的人员 ID；未核实或匿名时为 null，不得参与去重。 */
+  personId: string | null;
   name: string;
   grade: string | null;
   college: string | null;
   major: string | null;
-  /** 该字段来自哪份快照，用于逐字段对账。 */
+  verification: MemberVerification;
   source: AwardSource;
 }
 
@@ -26,15 +61,14 @@ export interface OfficialAwardAdvisor {
 }
 
 export interface OfficialAwardRow {
+  /** UUID，BFF 白名单按 UUID 校验动态段。 */
   awardId: string;
-  /** 乐观锁版本号，更正/撤销时必须回传。 */
   version: number;
-  awardYear: number;
-  /** 原始等级文本，保真展示。 */
-  levelRaw: string;
-  /** 规范等级，用于筛选与统计。 */
-  levelCode: string;
-  subTrack: string;
+  awardYear: number | null;
+  /** 官方原文，可能为 null（原文缺等级）。 */
+  levelRaw: string | null;
+  levelCode: AwardLevelCode;
+  subTrack: string | null;
   teamName: string | null;
   memberCount: number;
   members: OfficialAwardMember[];
@@ -49,9 +83,9 @@ export interface OfficialAwardRow {
 export interface OfficialAwardSummary {
   /** 奖项数（一奖一行）。 */
   awardCount: number;
-  /** 获奖人次（团队成员累加）。 */
+  /** 获奖人次，包含未核实与匿名身份。 */
   memberCount: number;
-  /** 去重后的获奖人数。 */
+  /** 已核实去重人数：COUNT(DISTINCT person_id)，仅统计 verified 且 personId 非空。 */
   verifiedMemberCount: number;
   /** 导入草稿待处理数，与正式事实分开呈现。 */
   draftPending: number;
@@ -68,7 +102,7 @@ export interface OfficialAwardCompetition {
   title: string;
   edition: string;
   years: number[];
-  levels: string[];
+  levels: AwardLevelCode[];
   subTracks: string[];
 }
 
@@ -82,6 +116,30 @@ export interface OfficialAwardListResponse {
   lastUpdatedAt: string;
 }
 
+/** 更正时提交的成员补丁：整组成员替换，字段级来源由 API 依据审计补齐。 */
+export interface AwardMemberPatch {
+  memberId: string;
+  name: string;
+  grade: string | null;
+  college: string | null;
+  major: string | null;
+}
+
+export interface AwardAdvisorPatch {
+  name: string;
+  college: string | null;
+}
+
+export interface AwardCorrectionPayload {
+  expectedVersion: number;
+  reason: string;
+  levelCode: AwardLevelCode;
+  subTrack: string | null;
+  teamName: string | null;
+  members: AwardMemberPatch[];
+  advisors: AwardAdvisorPatch[];
+}
+
 export type ExportView = "award" | "member";
 export type ExportFormat = "csv" | "xlsx";
 
@@ -90,15 +148,15 @@ export const EXPORT_VIEW_LABEL: Record<ExportView, string> = {
   member: "按成员（一人一行）",
 };
 
-export interface ExportFilters {
+export interface AwardFilters {
   year?: string;
   level?: string;
   subTrack?: string;
   q?: string;
 }
 
-/** 列表与导出的查询串，空值一律省略，避免把 "all" 传给 API。 */
-export function buildAwardQuery(filters: ExportFilters, paging?: { cursor?: string | null; limit?: number }): string {
+/** 列表与导出共用同一筛选串；空值与 "all" 一律省略。 */
+export function buildAwardQuery(filters: AwardFilters, paging?: { cursor?: string | null; limit?: number }): string {
   const params = new URLSearchParams();
   if (filters.year && filters.year !== "all") params.set("year", filters.year);
   if (filters.level && filters.level !== "all") params.set("level", filters.level);
@@ -112,9 +170,24 @@ export function buildAwardQuery(filters: ExportFilters, paging?: { cursor?: stri
   return params.toString();
 }
 
-/** 导出的筛选指纹：只有它变化才允许重新导出，避免用旧总数打开新筛选。 */
-export function awardFilterKey(filters: ExportFilters): string {
+/** 导出与列表共用同一筛选指纹，避免用旧总数打开新筛选。 */
+export function awardFilterKey(filters: AwardFilters): string {
   return buildAwardQuery(filters);
+}
+
+/** 已核实去重人数：只对 verified 且 personId 非空的身份去重。 */
+export function countVerifiedMembers(members: Array<Pick<OfficialAwardMember, "personId" | "verification">>): number {
+  const ids = new Set<string>();
+  for (const member of members) {
+    if (member.verification === "verified" && member.personId) ids.add(member.personId);
+  }
+  return ids.size;
+}
+
+/** 等级原文与规范等级的语义一致性：原文不包含规范标签即视为需要人工核对。 */
+export function levelNeedsReview(row: Pick<OfficialAwardRow, "levelRaw" | "levelCode">): boolean {
+  if (!row.levelRaw) return false;
+  return !row.levelRaw.includes(AWARD_LEVEL_LABEL[row.levelCode]);
 }
 
 /** 解析 Content-Disposition，优先 RFC 5987 的 filename*。 */
@@ -168,18 +241,19 @@ export function exportErrorMessage(status: number, payload?: { message?: string;
   }
 }
 
-/** 成员视图导出的行（前端只在核对与测试中使用，真实文件由服务端生成）。 */
+/** 成员视图导出的行（前端核对与测试用；真实文件由服务端生成）。 */
 export function flattenAwardMembers(rows: OfficialAwardRow[]): Array<{
   awardId: string;
-  awardYear: number;
-  levelRaw: string;
-  levelCode: string;
-  subTrack: string;
+  awardYear: number | null;
+  levelRaw: string | null;
+  levelCode: AwardLevelCode;
+  subTrack: string | null;
   teamName: string | null;
   name: string;
   grade: string | null;
   college: string | null;
   major: string | null;
+  verification: MemberVerification;
   source: AwardSource;
 }> {
   return rows.flatMap((row) =>
@@ -194,12 +268,8 @@ export function flattenAwardMembers(rows: OfficialAwardRow[]): Array<{
       grade: member.grade,
       college: member.college,
       major: member.major,
+      verification: member.verification,
       source: member.source,
     })),
   );
-}
-
-/** 一奖一行时，等级原文与规范等级不一致要提示（保真展示 + 可核对）。 */
-export function levelNeedsReview(row: Pick<OfficialAwardRow, "levelRaw" | "levelCode">): boolean {
-  return Boolean(row.levelRaw) && row.levelRaw !== row.levelCode;
 }

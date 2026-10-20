@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { matchSearchText, parseSearchQuery } from "@/lib/search";
+import { Fragment, useState, type ReactNode } from "react";import { matchSearchText, parseSearchQuery } from "@/lib/search";
 import {
   flexRender,
   getCoreRowModel,
@@ -39,6 +38,9 @@ type AdminDataTableProps<TData> = {
   error?: string;
   onRetry?: () => void;
   toolbar?: ReactNode;
+  /** 可选：行展开。返回 true 时在该行下方渲染 renderExpandedRow 的内容。 */
+  isRowExpanded?: (row: TData) => boolean;
+  renderExpandedRow?: (row: TData) => ReactNode;
 } & ({ pagination?: never; rowCount?: never; onPaginationChange?: never }
   | { pagination: PaginationState; rowCount: number; onPaginationChange: OnChangeFn<PaginationState> });
 
@@ -93,6 +95,8 @@ export function AdminDataTable<TData>({
   error,
   onRetry,
   toolbar,
+  isRowExpanded,
+  renderExpandedRow,
   pagination,
   rowCount,
   onPaginationChange,
@@ -199,15 +203,27 @@ export function AdminDataTable<TData>({
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const expanded = Boolean(isRowExpanded?.(row.original));
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {expanded && renderExpandedRow ? (
+                      <TableRow>
+                        <TableCell className="bg-muted/30 p-0" colSpan={columns.length}>
+                          {renderExpandedRow(row.original)}
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
