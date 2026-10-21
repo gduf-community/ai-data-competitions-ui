@@ -25,4 +25,4 @@ export async function proxy(request: NextRequest) {
   if (config.business && !path.startsWith("/api/") && !request.cookies.has(CSRF_COOKIE_NAME)) response.cookies.set(CSRF_COOKIE_NAME, randomBytes(32).toString("base64url"), {httpOnly: false, secure: config.web.protocol === "https:", sameSite: "strict", path: "/"});
   return response;
 }
-export const config = {matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[^/]+$).*)"]};
+export const config = {matcher: ["/((?!_next/static|_next/image|favicon.ico|api/uploads/?$|.*\\.[^/]+$).*)"]};

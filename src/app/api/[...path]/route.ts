@@ -1,3 +1,4 @@
+import { relayUpload } from "@/lib/upload-relay";
 import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability } from "@/lib/web-transport";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +14,9 @@ async function relay(request: Request) {
       cache: "no-store", signal: request.signal,
     };
     if (!["GET", "HEAD"].includes(request.method)) { options.body = request.body; options.duplex = "half"; }
-    const upstream = await fetch(target, options);
+    const upstream = request.method === "POST" && target.pathname === "/api/uploads"
+      ? await relayUpload(target, request, options.headers as Headers)
+      : await fetch(target, options);
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, name) => { if (!hop.has(name)) responseHeaders.set(name, value); });
     responseHeaders.set("Cache-Control", upstream.headers.get("cache-control") ?? "private, no-store, max-age=0");
@@ -23,7 +26,7 @@ async function relay(request: Request) {
       const redirect = new URL(location, target);
       if (redirect.origin === config.api.origin) responseHeaders.set("location", config.web.origin + redirect.pathname + redirect.search + redirect.hash);
     }
-    return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+    return new Response(upstream.body as ReadableStream<Uint8Array> | null, { status: upstream.status, headers: responseHeaders });
   } catch (error) {
     if (request.signal.aborted) throw error;
     return Response.json({ message: "服务暂不可用，请稍后重试。" }, { status: 502, headers: { "Cache-Control": "private, no-store, max-age=0" } });
