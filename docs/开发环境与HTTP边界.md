@@ -1,5 +1,7 @@
 # 开发环境与 HTTP 边界
 
+2026-10-21 新增[阿里云迁移候选方案](阿里云ECS部署.md)：离线构建及独立 ECS 模板，未部署；原平台运行事实不变。
+
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。变量来自 [.env.example](../.env.example)、[传输配置](../src/lib/web-transport.ts) 和 [proxy](../src/proxy.ts)。本文提供开发/联调方法，生产密钥与真实运行材料保存在受限环境。
 
 ## 工具链和两个运行进程

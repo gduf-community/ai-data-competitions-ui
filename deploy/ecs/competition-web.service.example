@@ -1,0 +1,29 @@
+# TEMPLATE ONLY: no automatic install/restart. Check existing units, ports and capacity first.
+[Unit]
+Description=Competition web standalone
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=competition-web
+Group=competition-web
+WorkingDirectory=/opt/competition/web/current
+EnvironmentFile=/etc/competition/web.env
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+ExecStart=/opt/competition/toolchain/node-v22.23.3/bin/node /opt/competition/web/current/ecs-start.mjs
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/competition/web/current/.next
+# Size limits require measurement alongside the existing workload before enabling.
+
+[Install]
+WantedBy=multi-user.target

@@ -15,7 +15,8 @@
     "test": "node --import tsx --test tests/*.test.ts tests/*.test.mjs",
     "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "check:framework": "node scripts/check-framework.mjs",
-    "test:search": "node --import tsx --test tests/search.test.ts"
+    "test:search": "node --import tsx --test tests/search.test.ts",
+    "release:ecs": "node scripts/release-ecs.mjs"
   },
   "dependencies": {
     "next": "16.3.8",
