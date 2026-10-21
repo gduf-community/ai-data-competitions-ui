@@ -134,9 +134,10 @@ test("official downloads verify fragmented signatures, preserve bytes and propag
       globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.from(prefix)); }, cancel() { canceled = true; } }), { headers });
       const response = await GET(request()); await response.body!.cancel(); assert.equal(canceled, true);
       const controller = new AbortController(); canceled = false;
-      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, cancel() { canceled = true; } }), { headers });
+      const reading = Promise.withResolvers<void>();
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, pull() { reading.resolve(); }, cancel() { canceled = true; } }), { headers });
       const pending = GET(request(controller.signal));
-      await new Promise(resolve => setTimeout(resolve, 5)); controller.abort();
+      await reading.promise; controller.abort();
       await assert.rejects(pending); assert.equal(canceled, true);
     }
   } finally {
