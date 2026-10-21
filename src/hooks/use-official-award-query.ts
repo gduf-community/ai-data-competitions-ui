@@ -96,6 +96,8 @@ export function useOfficialAwardQuery(competitionId: string, limit: number) {
   const cursor = currentCursor(cursorState);
   const identity = useMemo(() => dataIdentity(competitionId, filters, cursor), [competitionId, cursor, filters]);
   const query = useMemo(() => buildListQuery(filters, cursor, limit), [cursor, filters, limit]);
+  // 导出必须只用筛选，不能带 cursor/limit（#138：导出当前筛选的全部结果）。
+  const filterQuery = useMemo(() => filtersToSearch(filters), [filters]);
 
   const setYear = useCallback((value: string) => setFilters((prev) => ({ ...prev, year: value })), []);
   const setLevel = useCallback((value: string) => setFilters((prev) => ({ ...prev, level: value })), []);
@@ -122,6 +124,7 @@ export function useOfficialAwardQuery(competitionId: string, limit: number) {
     goNext,
     goPrev,
     query,
+    filterQuery,
     identity,
   };
 }

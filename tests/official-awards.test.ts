@@ -7,8 +7,9 @@ import {
   countVerifiedMembers,
   exportErrorMessage,
   flattenAwardMembers,
+  filenameMatchesFormat,
+  isAttachmentDisposition,
   isExportContentType,
-  levelNeedsReview,
   parseContentDispositionFilename,
   type OfficialAwardMember,
   type OfficialAwardRow,
@@ -81,10 +82,14 @@ test("countVerifiedMembers 只对已核实的 personId 去重，同名不合并"
   assert.equal(countVerifiedMembers([member({ personId: null, verification: "anonymous" })]), 0);
 });
 
-test("levelNeedsReview 按规范标签判断原文是否一致", () => {
-  assert.equal(levelNeedsReview({ levelRaw: "二等奖（省级）", levelCode: "second" }), false);
-  assert.equal(levelNeedsReview({ levelRaw: "三等奖", levelCode: "second" }), true);
-  assert.equal(levelNeedsReview({ levelRaw: null, levelCode: "second" }), false);
+test("导出必须是 attachment 且扩展名与格式一致", () => {
+  const csv = "attachment; filename=\"awards.csv\"; filename*=UTF-8''awards.csv";
+  assert.equal(isAttachmentDisposition(csv), true);
+  assert.equal(isAttachmentDisposition("inline"), false);
+  assert.equal(isAttachmentDisposition(null), false);
+  assert.equal(filenameMatchesFormat("awards.csv", "csv"), true);
+  assert.equal(filenameMatchesFormat("awards.xlsx", "csv"), false);
+  assert.equal(filenameMatchesFormat(null, "xlsx"), false);
 });
 
 test("parseContentDispositionFilename 优先 RFC 5987，其次兼容引号与裸值", () => {
@@ -96,9 +101,11 @@ test("parseContentDispositionFilename 优先 RFC 5987，其次兼容引号与裸
   assert.equal(parseContentDispositionFilename(null), null);
 });
 
-test("isExportContentType 拒绝 JSON/HTML 错误页，只接受真正的文件类型", () => {
+test("严格 MIME：octet-stream 与旧 XLS 都不再接受", () => {
   assert.equal(isExportContentType("text/csv; charset=utf-8", "csv"), true);
   assert.equal(isExportContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"), true);
+  assert.equal(isExportContentType("application/octet-stream", "xlsx"), false);
+  assert.equal(isExportContentType("application/vnd.ms-excel", "xlsx"), false);
   assert.equal(isExportContentType("application/json; charset=utf-8", "csv"), false);
   assert.equal(isExportContentType("text/html; charset=utf-8", "xlsx"), false);
   assert.equal(isExportContentType("text/csv", "xlsx"), false);

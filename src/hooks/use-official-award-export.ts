@@ -5,6 +5,8 @@ import { useCallback, useState } from "react";
 import {
   EXPORT_VIEW_LABEL,
   exportErrorMessage,
+  filenameMatchesFormat,
+  isAttachmentDisposition,
   isExportContentType,
   parseContentDispositionFilename,
   type ExportFormat,
@@ -19,10 +21,10 @@ type ExportScope = {
 };
 
 /**
- * 导出：只在「数据身份一致 + 非 loading + 无错误」时允许；
- * 校验 Content-Type / Content-Disposition，错误页绝不落盘，并支持取消。
+ * 导出：只接受「筛选条件」，绝不携带 cursor/limit（导出的是当前筛选的全部结果）。
+ * 同时严格校验 MIME、attachment 与文件名扩展名，错误页不落盘，并支持取消。
  */
-export function useOfficialAwardExport(competitionId: string, query: string) {
+export function useOfficialAwardExport(competitionId: string, filterQuery: string) {
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [controller, setController] = useState<AbortController | null>(null);
 
@@ -34,12 +36,17 @@ export function useOfficialAwardExport(competitionId: string, query: string) {
     async (format: ExportFormat, view: ExportView, scope: ExportScope) => {
       const label = `${EXPORT_VIEW_LABEL[view]}，共 ${scope.awardCount} 项奖 / ${scope.memberCount} 人次`;
       if (!confirmI18n(`将按当前筛选导出（${label}），导出会记录审计日志，是否继续？`)) return;
+
+      const params = new URLSearchParams(filterQuery);
+      params.set("view", view);
+      params.set("format", format);
+
       const next = new AbortController();
       setController(next);
       setExporting(format);
       try {
         const response = await fetch(
-          `/api/admin/official-awards/competitions/${encodeURIComponent(competitionId)}/export?${query}&view=${view}&format=${format}`,
+          `/api/admin/official-awards/competitions/${encodeURIComponent(competitionId)}/export?${params.toString()}`,
           { cache: "no-store", signal: next.signal },
         );
         if (!response.ok) {
@@ -49,9 +56,12 @@ export function useOfficialAwardExport(competitionId: string, query: string) {
         if (!isExportContentType(response.headers.get("content-type"), format)) {
           throw new Error("服务返回的不是文件（可能是错误页），已取消下载。");
         }
+        const disposition = response.headers.get("content-disposition");
+        const filename = parseContentDispositionFilename(disposition);
+        if (!isAttachmentDisposition(disposition) || !filename || !filenameMatchesFormat(filename, format)) {
+          throw new Error("服务未返回合法的附件响应，已取消下载。");
+        }
         const blob = await response.blob();
-        const filename =
-          parseContentDispositionFilename(response.headers.get("content-disposition")) ?? `官方获奖名单.${format}`;
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
@@ -70,7 +80,7 @@ export function useOfficialAwardExport(competitionId: string, query: string) {
         setController(null);
       }
     },
-    [competitionId, query],
+    [competitionId, filterQuery],
   );
 
   return { exporting, run, cancel };

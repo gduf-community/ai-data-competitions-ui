@@ -12,7 +12,7 @@ import {
   resetCursor,
   sameFilters,
 } from "../src/lib/official-awards/query";
-import { changedFields, diffMembers, toDrafts } from "../src/lib/official-awards/members";
+import { changedFields, diffMembers, mergeAdvisors, mergeThreeWay, toDrafts } from "../src/lib/official-awards/members";
 
 test("URL 解析与序列化可往返，且忽略未知参数", () => {
   const filters = parseFilters("?year=2026&level=second&subTrack=%E6%95%B0%E6%8D%AE%E6%8C%96%E6%8E%98&q=%E4%BD%95&page=3");
@@ -109,5 +109,67 @@ test("changedFields 用于 409 之后展示差异", () => {
   assert.deepEqual(
     changedFields(original, { memberId: "m-1", name: "何子轩", grade: "2024级", college: "计算机学院", major: "" }),
     ["年级", "学院", "专业"],
+  );
+});
+
+test("三方合并：他人新增的成员不会被旧草稿当成删除", () => {
+  const baseline = [{ memberId: "m-1", name: "甲", grade: null, college: null, major: null }];
+  const latest = [
+    { memberId: "m-1", name: "甲", grade: null, college: null, major: null },
+    { memberId: "m-2", name: "乙（他人新增）", grade: "2025级", college: "计算机学院", major: "软件工程" },
+  ];
+  const merged = mergeThreeWay({
+    baselineMembers: baseline,
+    drafts: toDrafts(baseline),
+    latestMembers: latest,
+  });
+  assert.deepEqual(merged.removedMemberIds, []);
+  assert.deepEqual(merged.members, []);
+});
+
+test("三方合并：用户主动删除仍然生效", () => {
+  const baseline = [
+    { memberId: "m-1", name: "甲", grade: null, college: null, major: null },
+    { memberId: "m-2", name: "乙", grade: null, college: null, major: null },
+  ];
+  const merged = mergeThreeWay({
+    baselineMembers: baseline,
+    drafts: toDrafts([baseline[0]]),
+    latestMembers: baseline,
+  });
+  assert.deepEqual(merged.removedMemberIds, ["m-2"]);
+  assert.equal(merged.removed, 1);
+});
+
+test("三方合并：用户修改与并发新增同时保留", () => {
+  const baseline = [{ memberId: "m-1", name: "甲", grade: "2024级", college: null, major: null }];
+  const latest = [
+    { memberId: "m-1", name: "甲", grade: "2024级", college: null, major: null },
+    { memberId: "m-2", name: "乙", grade: null, college: null, major: null },
+  ];
+  const drafts = toDrafts(baseline);
+  drafts[0] = { ...drafts[0], name: "甲（更正）" };
+  const merged = mergeThreeWay({ baselineMembers: baseline, drafts, latestMembers: latest });
+  assert.deepEqual(merged.removedMemberIds, []);
+  assert.equal(merged.members.length, 1);
+  assert.equal(merged.members[0].name, "甲（更正）");
+});
+
+test("指导老师三方合并：他人新增保留，用户删除生效", () => {
+  const baseline = [{ name: "张老师", college: "计算机学院" }];
+  const latest = [
+    { name: "张老师", college: "计算机学院" },
+    { name: "李老师（他人新增）", college: null },
+  ];
+  const kept = mergeAdvisors({ baseline, drafts: [{ name: "张老师", college: "计算机学院" }], latest });
+  assert.deepEqual(
+    kept.map((advisor) => advisor.name),
+    ["张老师", "李老师（他人新增）"],
+  );
+
+  const removed = mergeAdvisors({ baseline, drafts: [], latest });
+  assert.deepEqual(
+    removed.map((advisor) => advisor.name),
+    ["李老师（他人新增）"],
   );
 });

@@ -22,13 +22,15 @@ import {
   type AwardLevelCode,
   type OfficialAwardRow,
 } from "@/lib/contracts/official-awards";
-import { diffMembers, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
+import { mergeAdvisors, mergeThreeWay, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
 import { toast } from "@/lib/i18n/toast";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 
 type AdvisorDraft = { name: string; college: string };
 
 type Props = {
+  /** 打开弹窗时的基线版本，用于三方合并，避免把他人新增记录当成用户删除。 */
+  baseline: OfficialAwardRow | null;
   award: OfficialAwardRow | null;
   conflict: boolean;
   onClose: () => void;
@@ -37,7 +39,7 @@ type Props = {
   onConflict: () => void;
 };
 
-export function OfficialAwardCorrectionDialog({ award, conflict, onClose, onSubmitted, onConflict }: Props) {
+export function OfficialAwardCorrectionDialog({ baseline, award, conflict, onClose, onSubmitted, onConflict }: Props) {
   const [levelCode, setLevelCode] = useState<AwardLevelCode>("unclassified");
   const [subTrack, setSubTrack] = useState("");
   const [teamName, setTeamName] = useState("");
@@ -92,18 +94,29 @@ export function OfficialAwardCorrectionDialog({ award, conflict, onClose, onSubm
       return;
     }
 
-    const diff = diffMembers(award.members, members);
+    // 三方合并：baseline = 打开时版本，latest = 当前最新版本，drafts = 用户输入。
+    // 他人新增的成员/老师不会被当成"用户删除"，也不会被旧数组覆盖。
+    const base = baseline ?? award;
+    const merged = mergeThreeWay({
+      baselineMembers: base.members,
+      drafts: members,
+      latestMembers: award.members,
+    });
+    const mergedAdvisors = mergeAdvisors({
+      baseline: base.advisors,
+      drafts: advisors,
+      latest: award.advisors,
+    });
+
     const payload: AwardCorrectionPayload = {
       expectedVersion: award.version,
       reason: reason.trim(),
       levelCode,
       subTrack: subTrack.trim() || null,
       teamName: teamName.trim() || null,
-      members: diff.members,
-      removedMemberIds: diff.removedMemberIds,
-      advisors: advisors
-        .filter((advisor) => advisor.name.trim())
-        .map((advisor) => ({ name: advisor.name.trim(), college: advisor.college.trim() || null })),
+      members: merged.members,
+      removedMemberIds: merged.removedMemberIds,
+      advisors: mergedAdvisors,
     };
 
     setSubmitting(true);

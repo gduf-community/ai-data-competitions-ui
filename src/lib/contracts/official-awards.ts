@@ -192,11 +192,7 @@ export function countVerifiedMembers(members: Array<Pick<OfficialAwardMember, "p
   return ids.size;
 }
 
-/** 等级原文与规范等级的语义一致性：原文不包含规范标签即视为需要人工核对。 */
-export function levelNeedsReview(row: Pick<OfficialAwardRow, "levelRaw" | "levelCode">): boolean {
-  if (!row.levelRaw) return false;
-  return !row.levelRaw.includes(AWARD_LEVEL_LABEL[row.levelCode]);
-}
+/** 等级核对：由 API 的 levelReviewRequired 决定，前端不再用文本启发式判断。 */
 
 /** 解析 Content-Disposition，优先 RFC 5987 的 filename*。 */
 export function parseContentDispositionFilename(header: string | null): string | null {
@@ -215,17 +211,22 @@ export function parseContentDispositionFilename(header: string | null): string |
   return plain ? plain[1].trim() : null;
 }
 
-/** 只有真正的二进制类型才算下载成功，JSON/HTML 错误页一律拒绝保存。 */
+/** 严格 MIME 校验：只接受确切类型，octet-stream / 旧 XLS / JSON / HTML 一律拒绝。 */
 export function isExportContentType(contentType: string | null, format: ExportFormat): boolean {
   if (!contentType) return false;
-  const value = contentType.toLowerCase();
-  if (value.includes("application/json") || value.includes("text/html")) return false;
-  if (format === "csv") return value.includes("text/csv") || value.includes("application/csv");
-  return (
-    value.includes("spreadsheetml") ||
-    value.includes("application/vnd.ms-excel") ||
-    value.includes("application/octet-stream")
-  );
+  const value = contentType.split(";")[0].trim().toLowerCase();
+  if (format === "csv") return value === "text/csv" || value === "application/csv";
+  return value === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+}
+
+/** 必须是 attachment 且带文件名，否则视为错误响应。 */
+export function isAttachmentDisposition(header: string | null): boolean {
+  return Boolean(header && /^\s*attachment\b/i.test(header));
+}
+
+/** 文件名扩展名必须与请求格式一致。 */
+export function filenameMatchesFormat(filename: string | null, format: ExportFormat): boolean {
+  return Boolean(filename && filename.toLowerCase().endsWith(`.${format}`));
 }
 
 /** 导出失败的用户可读原因，区分 401/403/409/413/429/503。 */

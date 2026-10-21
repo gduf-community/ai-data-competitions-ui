@@ -27,6 +27,8 @@ export function useOfficialAwardList(
   refreshKey: number,
 ) {
   const [result, setResult] = useState<ListResult>(EMPTY);
+  // 每次拿到新响应就递增，供调用方判断「这是不是我等待的那次刷新」。
+  const [revision, setRevision] = useState(0);
   const [refreshing, setRefreshing] = useState(true);
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export function useOfficialAwardList(
         const payload = (await response.json()) as OfficialAwardListResponse;
         if (!active) return;
         setResult({ kind: "ok", data: payload, message: "", identity });
+        setRevision((value) => value + 1);
       } catch (cause) {
         if (!active || controller.signal.aborted) return;
         setResult({
@@ -92,6 +95,7 @@ export function useOfficialAwardList(
   const loading = refreshing || !current;
 
   return {
+    revision,
     loading,
     kind,
     message: current ? result.message : "",

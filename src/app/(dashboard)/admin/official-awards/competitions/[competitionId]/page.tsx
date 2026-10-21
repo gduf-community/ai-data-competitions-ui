@@ -30,35 +30,39 @@ export default function OfficialAwardCompetitionPage() {
   const list = useOfficialAwardList(competitionId, query.query, query.identity, refreshKey);
 
   const [exportView, setExportView] = useState<ExportView>("award");
-  const exporter = useOfficialAwardExport(competitionId, query.query);
+  // 导出只带筛选，不带 cursor/limit（#138：导出当前筛选的全部结果）。
+  const exporter = useOfficialAwardExport(competitionId, query.filterQuery);
 
   const [expanded, setExpanded] = useState<string[]>([]);
   const [editing, setEditing] = useState<OfficialAwardRow | null>(null);
+  const [editingBaseline, setEditingBaseline] = useState<OfficialAwardRow | null>(null);
   const [voiding, setVoiding] = useState<OfficialAwardRow | null>(null);
   const [conflict, setConflict] = useState(false);
-  const [conflictId, setConflictId] = useState<string | null>(null);
+  // 记录「冲突发生时列表的刷新代际」，只有真正拿到新一代响应才回填版本。
+  const [conflictWait, setConflictWait] = useState<{ awardId: string; revision: number } | null>(null);
 
-  // 409 后：列表刷新完成时用最新快照替换弹窗里的记录（同一 awardId，用户输入保持不变）。
   useEffect(() => {
-    if (!conflictId || !list.data) return;
-    const fresh = list.data.items.find((item) => item.awardId === conflictId);
+    if (!conflictWait) return;
+    if (list.revision <= conflictWait.revision) return;
+    const fresh = list.data?.items.find((item) => item.awardId === conflictWait.awardId);
     if (!fresh) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditing((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setVoiding((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setConflict(true);
-    setConflictId(null);
-  }, [conflictId, list.data]);
+    setConflictWait(null);
+  }, [conflictWait, list.data, list.revision]);
 
   const refreshAfterMutation = () => {
     setEditing(null);
+    setEditingBaseline(null);
     setVoiding(null);
     setConflict(false);
     setRefreshKey((value) => value + 1);
   };
 
   const handleConflict = (awardId: string) => {
-    setConflictId(awardId);
+    setConflictWait({ awardId, revision: list.revision });
     setRefreshKey((value) => value + 1);
   };
 
@@ -212,6 +216,7 @@ export default function OfficialAwardCompetitionPage() {
             loading={list.loading}
             onCorrect={(row) => {
               setConflict(false);
+              setEditingBaseline(row);
               setEditing(row);
             }}
             onRetry={() => setRefreshKey((value) => value + 1)}
@@ -235,6 +240,7 @@ export default function OfficialAwardCompetitionPage() {
             loading={list.loading}
             onCorrect={(row) => {
               setConflict(false);
+              setEditingBaseline(row);
               setEditing(row);
             }}
             onRetry={() => setRefreshKey((value) => value + 1)}
@@ -256,9 +262,11 @@ export default function OfficialAwardCompetitionPage() {
 
       <OfficialAwardCorrectionDialog
         award={editing}
+        baseline={editingBaseline}
         conflict={conflict}
         onClose={() => {
           setEditing(null);
+          setEditingBaseline(null);
           setConflict(false);
         }}
         onConflict={() => handleConflict(editing?.awardId ?? "")}
