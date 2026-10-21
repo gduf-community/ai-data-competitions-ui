@@ -69,6 +69,9 @@ export default function OfficialAwardCompetitionPage() {
   const summary = list.summary ?? { awardCount: 0, memberCount: 0, verifiedMemberCount: 0, draftPending: 0 };
   const permissions = list.permissions;
   const exportReady = list.kind === "ok" && !list.loading && Boolean(list.data);
+  // 失败/加载时不把 0 当成真实统计展示，避免误读。
+  const showStats = list.kind === "ok" && !list.loading && Boolean(list.data);
+  const stat = (value: number) => (showStats ? String(value) : "—");
 
   if (list.kind === "forbidden" || list.kind === "notfound") {
     return (
@@ -156,29 +159,29 @@ export default function OfficialAwardCompetitionPage() {
             description="一奖一行，团队奖不按人数放大"
             icon={<Trophy className="size-4 text-muted-foreground" />}
             label="奖项数"
-            value={String(summary.awardCount)}
+            value={stat(summary.awardCount)}
           />
           <StatsCard
             description="团队成员累加，含未核实与匿名"
             icon={<Users className="size-4 text-muted-foreground" />}
             label="获奖人次"
-            value={String(summary.memberCount)}
+            value={stat(summary.memberCount)}
           />
           <StatsCard
             description="COUNT(DISTINCT person_id)，仅已核实"
             icon={<UserCheck className="size-4 text-muted-foreground" />}
             label="已核实去重人数"
-            value={String(summary.verifiedMemberCount)}
+            value={stat(summary.verifiedMemberCount)}
           />
           <StatsCard
             description="导入草稿，不计入正式事实"
             icon={<ClipboardList className="size-4 text-muted-foreground" />}
             label="草稿待处理"
-            value={String(summary.draftPending)}
+            value={stat(summary.draftPending)}
           />
         </div>
 
-        {summary.draftPending > 0 ? (
+        {showStats && summary.draftPending > 0 ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] leading-5 text-amber-800 sm:px-4 sm:py-3 sm:text-sm">
             有 <strong>{summary.draftPending}</strong> 条导入草稿待处理，它们<strong>不计入</strong>上方正式事实统计；
             请先在导入/补全流程中确认。
