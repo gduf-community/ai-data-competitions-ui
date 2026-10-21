@@ -16,6 +16,18 @@
 
 `[id]`、`[slug]` 等是路径占位符，实际请求须编码 ID。表中的 GET 对应 BFF 通常同时允许 HEAD；源站如何生成 HEAD 由对应 GET/框架处理，不代表新增业务操作。OPTIONS 虽由 catch-all 导出，当前策略没有允许项，返回 404。
 
+## 官方获奖正式名单与文件流（API #135 配套）
+
+trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competitions/{competitionId}` 与 `/export`。competitionId为UUID；HEAD/写方法、导入/消歧/确认/汇总等其它路径均未开放，public仍404。API逐请求验证当前用户及同比赛有效授权，菜单或服务Token不授予用户权限。页面/向导由Web #136后续实现，本次只承接正式读取与文件传输。
+
+列表参数为year/level/subTrack/q/sort/cursor/limit；兼容awardYear/levelCode，但别名不能并用，重复/未知参数400。q是字面子串，`%/_/反斜线`不作为通配符。summary中的awardCount/memberCount/verifiedPersonCount/unverifiedMemberCount是当前筛选总量，rowCount是本页奖项数；items一奖一项，含明确学生与老师，老师不计学生人次。未知快照null、学号掩码，同名不推断人物身份。默认limit50、最多100；nextCursor/hasMore只支持按游标前进，换筛选从第一页重查，不提供任意页跳转。
+
+导出必填format=csv|xlsx和view=award|member，筛选/排序与列表一致，不接受cursor/limit。award一奖一行，member一学生一行且重复awardId；最多500奖项或5000学生，超限413、不截断。导出可含授权范围内完整学号，不含电话/邮箱；浏览器不要把具名结果或文件写入localStorage。空结果仍有固定表头；更正/撤销后查询与下载由同一有效集合生成。
+
+下载先检查状态、Content-Type和Content-Disposition，再消费Response.body/blob；JSON错误不能作为文件。CSV为`text/csv; charset=utf-8`、UTF-8 BOM；XLSX严格为`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，不接受application/octet-stream。固定文件名`official-awards-{competitionId}-{view}.{format}`，Disposition同时含quoted filename与UTF-8 filename*，API中和所有表格公式文本。BFF在任何文件字节转发前检查协议，MIME/文件名/Disposition异常502；合法文件原样流转并强制private/no-store，保留X-Request-Id。授权/持久审计失败503不出文件；401/403/400/413/429按状态呈现，不自动重试。
+
+本次没有新增环境变量、依赖、页面或数据库访问；开发与后续生产的BFF策略均受影响，生产未部署。两仓PR记录精确配对SHA与真实文件流回归；本地HTTP不等于完整浏览器或线上验收。
+
 ## 请求、会话与错误约定
 
 - 普通请求体用 `application/json`；表单上传用 `FormData`，不要手填 multipart 的 Content-Type/boundary。响应包裹按接口分别为 `data`、`application`、`competitions` 等，没有统一的 `{code,data}` 成功封装。

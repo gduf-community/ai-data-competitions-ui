@@ -1,4 +1,4 @@
-import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability } from "@/lib/web-transport";
+import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability, validOfficialAwardDownload } from "@/lib/web-transport";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const hop = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "content-length", "content-encoding", "set-cookie"]);
@@ -14,9 +14,13 @@ async function relay(request: Request) {
     };
     if (!["GET", "HEAD"].includes(request.method)) { options.body = request.body; options.duplex = "half"; }
     const upstream = await fetch(target, options);
+    if (upstream.ok && !validOfficialAwardDownload(target, upstream.headers)) {
+      await upstream.body?.cancel();
+      return Response.json({ message: "下载文件协议不合法，请稍后重试。" }, { status: 502, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+    }
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, name) => { if (!hop.has(name)) responseHeaders.set(name, value); });
-    responseHeaders.set("Cache-Control", upstream.headers.get("cache-control") ?? "private, no-store, max-age=0");
+    responseHeaders.set("Cache-Control", target.pathname.startsWith("/api/admin/official-awards/") ? "private, no-store, max-age=0" : upstream.headers.get("cache-control") ?? "private, no-store, max-age=0");
     if (config.business) for (const cookie of upstream.headers.getSetCookie()) responseHeaders.append("set-cookie", cookie);
     const location = responseHeaders.get("location");
     if (location) {
