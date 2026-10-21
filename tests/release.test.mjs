@@ -23,7 +23,9 @@ test("Web CI runs automatically for pull requests and every pushed branch", () =
   assert.match(trigger, /^  pull_request:$/m);
   assert.match(trigger, /^  push:$/m);
   assert.match(trigger, /^  workflow_dispatch:$/m);
-  assert.doesNotMatch(trigger, /branches:|paths:|inputs:|deploy:/);
+  assert.doesNotMatch(trigger, /branches:|paths:|deploy:/);
+  assert.match(trigger, /workflow_dispatch:\n    inputs:\n      companion_api_sha:/);
+  assert.match(workflow, /COMPANION_WEB_SHA: \$\{\{ inputs\.companion_api_sha \}\}/);
   assert.match(workflow, /WEB_RELEASE_MODE: public/);
   assert.match(workflow, /run: pnpm run ci/);
 });
