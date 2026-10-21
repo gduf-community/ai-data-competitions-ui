@@ -41,6 +41,16 @@ type AdminDataTableProps<TData> = {
   /** 可选：行展开。返回 true 时在该行下方渲染 renderExpandedRow 的内容。 */
   isRowExpanded?: (row: TData) => boolean;
   renderExpandedRow?: (row: TData) => ReactNode;
+  /** 隐藏内置搜索框（由外部统一的筛选工具条承担搜索）。 */
+  hideSearch?: boolean;
+  /** cursor 分页：隐藏数字跳页与首尾页，只保留上一页/下一页，由调用方控制。 */
+  cursorPaging?: {
+    pageNumber: number;
+    hasPrev: boolean;
+    hasNext: boolean;
+    onPrev: () => void;
+    onNext: () => void;
+  };
 } & ({ pagination?: never; rowCount?: never; onPaginationChange?: never }
   | { pagination: PaginationState; rowCount: number; onPaginationChange: OnChangeFn<PaginationState> });
 
@@ -97,6 +107,8 @@ export function AdminDataTable<TData>({
   toolbar,
   isRowExpanded,
   renderExpandedRow,
+  hideSearch = false,
+  cursorPaging,
   pagination,
   rowCount,
   onPaginationChange,
@@ -155,22 +167,24 @@ export function AdminDataTable<TData>({
   return (
     <div className="space-y-4" aria-busy={loading}>
       <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 md:flex-row md:items-center md:justify-between">
-        <Input
-          aria-label={searchPlaceholder}
-          maxLength={256}
-          value={effectiveSearchValue}
-          disabled={Boolean(pagination) && !isExternalSearch}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            if (isExternalSearch) {
-              onSearchChange(nextValue);
-              return;
-            }
-            setInternalGlobalFilter(nextValue);
-          }}
-          placeholder={searchPlaceholder}
-          className="md:max-w-sm"
-        />
+        {hideSearch ? null : (
+          <Input
+            aria-label={searchPlaceholder}
+            maxLength={256}
+            value={effectiveSearchValue}
+            disabled={Boolean(pagination) && !isExternalSearch}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              if (isExternalSearch) {
+                onSearchChange(nextValue);
+                return;
+              }
+              setInternalGlobalFilter(nextValue);
+            }}
+            placeholder={searchPlaceholder}
+            className="md:max-w-sm"
+          />
+        )}
         {toolbar}
         <div role="status" className="text-sm text-muted-foreground">{searchError ?? (loading ? "加载中…" : error ? "加载失败" : `${totalRows} 条结果`)}</div>
       </div>
@@ -237,6 +251,27 @@ export function AdminDataTable<TData>({
           </TableBody>
         </Table>
       </div>
+      {cursorPaging ? (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={cursorPaging.onPrev}
+            disabled={loading || Boolean(error) || !cursorPaging.hasPrev}
+          >
+            上一页
+          </Button>
+          <span className="text-sm text-muted-foreground">第 {cursorPaging.pageNumber} 页</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={cursorPaging.onNext}
+            disabled={loading || Boolean(error) || !cursorPaging.hasNext}
+          >
+            下一页
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <p className="text-sm text-muted-foreground">
           第 {currentPage} 页 / 共 {pageCount} 页
@@ -296,6 +331,7 @@ export function AdminDataTable<TData>({
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }

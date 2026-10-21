@@ -68,6 +68,8 @@ export interface OfficialAwardRow {
   /** 官方原文，可能为 null（原文缺等级）。 */
   levelRaw: string | null;
   levelCode: AwardLevelCode;
+  /** API 依据权威映射给出的「原文与规范等级需人工核对」标志；缺失时前端不擅自判定不一致。 */
+  levelReviewRequired?: boolean;
   subTrack: string | null;
   teamName: string | null;
   memberCount: number;
@@ -116,14 +118,18 @@ export interface OfficialAwardListResponse {
   lastUpdatedAt: string;
 }
 
-/** 更正时提交的成员补丁：整组成员替换，字段级来源由 API 依据审计补齐。 */
-export interface AwardMemberPatch {
-  memberId: string;
+/** 更正时提交的成员输入：带 memberId 表示更新，不带表示新增；删除走 removedMemberIds。 */
+export interface AwardMemberInput {
+  /** 已有成员必须回传稳定 ID；新增成员不发送该字段（不发假 ID）。 */
+  memberId?: string;
   name: string;
   grade: string | null;
   college: string | null;
   major: string | null;
 }
+
+/** 兼容旧命名。 */
+export type AwardMemberPatch = AwardMemberInput;
 
 export interface AwardAdvisorPatch {
   name: string;
@@ -136,7 +142,9 @@ export interface AwardCorrectionPayload {
   levelCode: AwardLevelCode;
   subTrack: string | null;
   teamName: string | null;
-  members: AwardMemberPatch[];
+  members: AwardMemberInput[];
+  /** 被移除的成员，按稳定 ID 表达，避免整组替换丢身份。 */
+  removedMemberIds: string[];
   advisors: AwardAdvisorPatch[];
 }
 

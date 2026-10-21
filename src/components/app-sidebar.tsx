@@ -164,8 +164,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {navGroups.filter(group => !group.capability || user.capabilities?.[group.capability] === true).map(group => {
-          const items = group.items.filter(item => !item.capability || user.capabilities?.[item.capability] === true);
+        {navGroups.map(group => {
+          const groupAllowed = !group.capability || user.capabilities?.[group.capability] === true;
+          // 分组权限不足时，仍然展示「自身能力已满足」的条目：
+          // 官方获奖名单有自己的 canReadOfficialAwards，不应被父分组权限误隐藏。
+          const items = group.items.filter(item => {
+            const itemAllowed = !item.capability || user.capabilities?.[item.capability] === true;
+            if (!itemAllowed) return false;
+            return groupAllowed || Boolean(item.capability);
+          });
           return items.length ? <NavMain key={group.label} label={group.label} items={items} /> : null;
         })}
       </SidebarContent>
