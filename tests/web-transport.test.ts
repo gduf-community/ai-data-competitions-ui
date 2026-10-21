@@ -109,6 +109,42 @@ test("Web creates service authorization and rejects missing or malformed configu
   } finally { if(previous===undefined) delete process.env.API_SERVICE_TOKEN; else process.env.API_SERVICE_TOKEN=previous; }
 });
 
+test("official downloads verify fragmented signatures, preserve bytes and propagate cancellation", async () => {
+  const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: "trusted", API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: "x-real-ip" };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  Object.assign(process.env, values);
+  const id = "10000000-0000-4000-8000-000000000001";
+  try {
+    const { GET } = await import("../src/app/api/[...path]/route");
+    for (const format of ["csv", "xlsx"]) {
+      const prefix = format === "csv" ? [239, 187, 191] : [80, 75, 3, 4];
+      const headers = { "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="official-awards-${id}-award.${format}"; filename*=UTF-8''official-awards-${id}-award.${format}`, "X-Request-Id": "synthetic-request" };
+      const request = (signal?: AbortSignal) => new Request(`${config.web.origin}/api/admin/official-awards/competitions/${id}/export?view=award&format=${format}`, { headers: { host: config.web.host }, signal });
+      for (const bytes of [prefix.concat([1, 2, 3]), [123, 34, 101, 34], [60, 104, 116, 109], prefix.slice(0, -1)]) {
+        globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { for (const byte of bytes) c.enqueue(Uint8Array.of(byte)); c.close(); } }), { headers });
+        const response = await GET(request());
+        if (bytes.length === prefix.length + 3) {
+          assert.equal(response.status, 200); assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], bytes);
+          assert.equal(response.headers.get("x-request-id"), "synthetic-request"); assert.match(response.headers.get("cache-control")!, /private, no-store/);
+        } else { assert.equal(response.status, 502); await response.text(); }
+      }
+      let canceled = false;
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.from(prefix)); }, cancel() { canceled = true; } }), { headers });
+      const response = await GET(request()); await response.body!.cancel(); assert.equal(canceled, true);
+      const controller = new AbortController(); canceled = false;
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, cancel() { canceled = true; } }), { headers });
+      const pending = GET(request(controller.signal));
+      await new Promise(resolve => setTimeout(resolve, 5)); controller.abort();
+      await assert.rejects(pending); assert.equal(canceled, true);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(previous)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
+});
+
 test("the actual BFF rejects undeclared paths and methods before contacting the API", async () => {
   const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: "trusted", API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: "x-real-ip" };
   const previous = Object.fromEntries(Object.keys(values).map(name => [name,process.env[name]]));

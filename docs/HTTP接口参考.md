@@ -1,5 +1,7 @@
 # Web HTTP 接口参考
 
+官方获奖导出在 BFF 转发前验证 MIME、规范 Content-Disposition 与起始签名（CSV UTF-8 BOM / XLSX ZIP local header）。仅预读签名所需前缀，原字节依序转发，失败或取消会取消上游；不读取整份文件，也不据此证明 ZIP 完整性或内容语义。
+
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，配套 API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
 
 ## 先选择调用入口
