@@ -1,55 +1,33 @@
-# 阿里云 ECS Web 部署候选方案
+# 阿里云 ECS Web 部署与更新
 
-2026-10-21：本分支交付离线 standalone 产物与独立 systemd 模板，尚未部署；API/RDS/OSS 由 API 仓库管理。Web 继续只持有 API 服务令牌和入口配置，不持有数据库、认证签名或对象管理凭据。
+2026-10-21 11:18 UTC交接记录，替换旧候选方案。Web已部署 `4fefbe6baf93e44c14b49818455b11d94b65d990`，实际目录 `/srv/competition-web/mail-pair-e19db6a6/releases/4fefbe6baf93e44c14b49818455b11d94b65d990`；配对API `e19db6a64588b2d6004027dfd17a0db2d86c7e84`。Web源码SHA与旧包相同，但新包SHA256为 `2ad21c0ffa803c5450e0c952ce3e7bf543c35904e64821361d44be9e5baff0af`、20461468B，使用独立mail-pair路径，不覆盖同SHA旧目录。
 
-已核实正式 origin 为 https://ai-data-competitions.cn，Web 模式 trusted，入口头 x-forwarded-for。新模板的 loopback 13000/13001 为避开旧部署约定的候选端口，不代表已核实空闲；不照搬旧附件 API 的 0.0.0.0:8080 到公网。
+主站HTTPS ai-data-competitions.cn，www与HTTP301至主站。nginx→127.0.0.1:13000 Web→127.0.0.1:13001 API；不得新增直达API公网入口。Web环境仅七项，见[样例](../deploy/ecs/runtime.env.example)，不含AUTH_SECRET/DB/OSS/Redis/邮件凭据。入口覆盖客户端IP头，不信任浏览器自填XFF。
 
-## 离线构建与暂存（不自动部署）
+## 服务和内存事故
 
-目标 ECS 为 Ubuntu 22.04、2 核/4 GiB、40 GiB、1 Mbps，有现有业务和 CPU/磁盘告警。必须先完成主机故障调查、端口/服务/磁盘与内存盘点，不在目标机 install/build，不覆盖已有反代或工作负载。所有下列命令是维护者经核实后执行的流程，本次未执行远端操作。
+competition-web.service enabled、DynamicUser=yes，共享competition-apps.slice；通过ecs-start.mjs启动server.js。release代码root只读，无广泛可写.next；PrivateTmp磁盘支持，页缓存仍计入cgroup。unit设置oldspace192MiB和BFF_UPLOAD_TIMEOUT_SECONDS1260，env文件不覆盖unit拥有的设置。root私有日志在 `/opt/competition-staging/formal-service-logs-20261021/web.*`。
 
-构建机使用 Linux、与 ECS 一致的架构、Node 22.23.3 和 pnpm 10.34.5。在干净迁移分支提交上先完成质量检查，再设置 `COMPANION_SHA=<另一仓库完整40位SHA>`，执行 `pnpm run release:ecs`。该入口拒绝脏工作区和根环境文件，使用不含后端凭据的合成构建环境，冻结安装并复用现有 standalone 打包、摘要和解包探针。配对 SHA 写入 manifest；可重建不表示 tar 字节在不同时间完全相同，最终以本次 payload SHA256 为准。
+截至2026-10-21 11:18 UTC，故障恢复后的300.6秒观察通过：10次ready和公网首页均200，原PID未变，重启及high/max/OOM/swap增量均0。最低主机可用812.4MiB，API/Web/共享slice采样最大288.1/109.7/400.6MiB。这是恢复证据，不是高流量容量保证。内存同值持久化已完成：systemctl set-property写入 `/etc/systemd/system.control` 对应API/Web/shared的MemoryHigh/MemoryMax文件，生效值逐项一致、noRestart=true；ready200/0.009s、主页200/0.481s、MLflow200。该目录优先级高，不能假称修改base unit就必然改变生效值。
 
-输出 `build/release/runtime.tar.gz` 与 `runtime-manifest.json`。通过已验证的受限上传通道传输这两份文件及同提交的 `deploy/ecs/stage-release.py`；不上传源码、node_modules 安装缓存或秘密到公共对象。1 Mbps 链路须先计算包大小/预计传输时间，使用通道支持的续传并核对最终摘要。上传通道由主线程核实，脚本不假定 SSH 可用，不创建凭据或改安全组。
+已生效预算：API640/768MiB、Web384/512MiB、共享896/1024MiB（high/max）。CPU各50%/共享100%，swap全部0，TasksMax各64/共享128。旧API256MiB high低于真实匿名内存，引发约90%PSI，服务active但接口超时；提高软限额后原PID恢复，不是重启修复。MLflow server实占约1.641GiB且未修改，不假定可随意缩小其内存。用户确认无痕可用，普通浏览器旧状态可能影响访问，具体缓存类型未证实。
 
-目标机使用自带 Python3 暂存。`--sha` 与 `--digest` 必须来自受信构建回执，不仅从同一份未验证上传的 manifest 读取。`--releases` 为预先创建且仅该业务可写的独立目录：
+[服务模板](../deploy/ecs/competition-web.service.example)和[内存drop-in](../deploy/ecs/memory-budget.conf.example)是交接事实整理而非原文件逐字导出；Node绝对路径 `/usr/bin/node` 已由目标交接核实；每次更新仍须核对运行版本与配对路径。共享slice由API配置统一维护。无RuntimeMaxSec/LimitFSIZE16MiB，Restart5s、3次/60s、Stop30s、OOMPolicy stop、143正常退出。停机先排空上传，不用30秒超时截断业务。
 
-```sh
-python3 stage-release.py --unit UNIT --payload runtime.tar.gz --manifest runtime-manifest.json --sha SOURCE_SHA --digest TRUSTED_PAYLOAD_SHA256 --releases /opt/competition/UNIT/releases
-```
+## 上传、反代和维护
 
-把 UNIT/SOURCE_SHA/TRUSTED_PAYLOAD_SHA256 换成已验证值。脚本校验仓库/角色/SHA/Node/平台/架构/摘要，拒绝越界路径、危险链接、特殊文件和覆盖同 SHA 目录，保留至少 512 MiB 磁盘余量；此下限不代替主机容量评估。成功只生成 releases/SHA，不修改 current、不重启服务、不连接数据库或对象桶。不并发暂存同一 unit。
+正式主站配置历史名称仍 `/etc/nginx/conf.d/competition-maintenance-20261021.conf`，内容实际为正式vhost。精确/api/uploads用HTTP1.1、101m、request_buffering off、next_upstream off、ignore_client_abort off，覆盖Host和可信IP。API总1200秒、BFF总1260秒、nginx上传闲置1320秒，其他路由120秒/connect5秒；闲置超时不是总预算。业务限制仍20MiB单文件/100MiB合计/10文件。
 
-systemd 文件仅为 `.service.example` 模板：独立用户、独立 /opt/competition/UNIT 与 /etc/competition/UNIT.env；固定私有 loopback 端口（API 13001，Web 13000）须先核实无占用，可用 ECS_PORT 同步修改。上传旧环境秘密时使用受限通道，目标 env 文件 root 所有、0600；不要 shell echo、set -x、命令行参数内嵌或输出文件内容。示例中的 REPLACE_* 不能用作实际值；原盘点附件的占位符也不是凭据。秘密文件不进入 release、git 或归档。保留原 AUTH_SECRET 及实际加密/HMAC key，不能轮换 fallback。
+维护与正式配置二选一；503/Retry-After300/no-store，独立公共维护HTML，无第三方资源，ACME例外。只备份替换竞赛站点文件，nginx -t成功再reload；不改MLflow vhost/全局配置。证书及HTTP01续签已建立，两域challenge绕过跳转和维护；私钥不入仓库。详细入口/TLS/备份见[API部署记录](https://github.com/gduf-community/competition-Q-A-website/blob/migration/aliyun-ecs-rds-oss/docs/阿里云迁移部署.md)。
 
-目标预置准确 Node 工具链至模板指定路径，不从系统其他业务的 Node 安装推定兼容。release 目录及所需 .next 缓存的用户权限需在安装时核实。模板不会自动创建用户、安装 unit、切换 current 或更新反代；这些步骤须由主线程在故障解除和容量验证后对精确版本协调执行。
+## 配对更新与验证边界
 
-## 配对与 ownership 激活门禁
+Linux x64、Node22.23.3、pnpm10.34.5离线构建，双向manifest和payload摘要必须核验。只暂存不等于激活。main新增奖项页面须配套API0033/0034及独立密钥，不能先发Web；已开始新写入，不能回旧Zeabur/旧库。代码回滚需兼容当前数据，保留完整旧pair，维护/排空/备份后协调。
 
-激活前使用 API 运行包内 `verify-runtime-pair.mjs`（源码为 API 仓库 scripts 同名文件）做只读校验，传入两份 manifest 路径以及来自受信提交记录的 API/Web SHA。各 manifest 同目录须有对应 runtime.tar.gz：
+Web push/PR自动CI但不部署、不晋级production；旧平台订阅仍是独立风险。全部配置、文档、PR准备完毕且故障收口后才推进更新，本轮仅本地整理。
 
-```sh
-node verify-runtime-pair.mjs API_MANIFEST WEB_MANIFEST TRUSTED_API_SHA TRUSTED_WEB_SHA
-```
+Resend sending-only状态查询可能403，注册提示unconfirmed并保留码；输入与提交不阻断，发送按钮冷却60秒，不自动重发。用户授权测试邮件已收到，不据此声称自动化注册/登录全链路完成。真实QA：首页/ready200、公开图片哈希、私有头像匿名401通过；完整容量和真实用户会话不由本地单测代替。
 
-工具要求两份自身 SHA 与指定值相等、两侧 companionSha 双向对应、平台/架构一致，并流式核对两份包的 SHA256。任何一侧空 companion、旧 manifest 或摘要不符均阻断激活；不得只改 JSON 的 SHA 冒充新构建。验证不会暂存或启动服务。暂存完成也不表示通过此配对门禁。
+后续每次发布必须核对systemctl show的生效MemoryHigh/MemoryMax及DropInPaths（包括system.control），并对真实应用连续观察至少300秒：readiness和公网页面成功、PID/重启记录、父子cgroup high/max/OOM/swap事件增量、PSI阻塞增量/比例及主机MemAvailable。仅首页一次200、仅无OOM或合成fixture通过均不能放行。机器余量阈值需按同机MLflow实际占用批准，不通过压低其资源伪造通过。
 
-stage 保持文件0600、可执行文件/新建release根目录0700。如果 root 暂存，独立业务用户不能直接读取。先核实以下精确路径不是符号链接且未作为 current 使用，再仅对该 SHA 目录执行 ownership 移交（UNIT/SHA 替换为本业务的已验证值）：
-
-```sh
-chown -hRP --preserve-root competition-UNIT:competition-UNIT /opt/competition/UNIT/releases/EXACT_SHA
-```
-
-`-P` 不遍历目录符号链接，`-h` 不更改链接目标；不得把路径扩大到 /opt、其他 release 或现有服务。保留0600/0700，不执行 chmod -R 或放开所有人访问。另核实 /opt/competition/UNIT/releases 的父目录允许该业务用户 traverse。用该用户只读检查 ecs-start.mjs 与 manifest 可读、运行目录可遍历后才安装/启动 unit；root 所有的 /etc/competition/UNIT.env 保持0600，由 systemd读取，不移交给其他业务。具体 ownership/用户创建和 current 切换在主线程核准执行时完成，本次未执行。
-
-## 切换门禁与回退
-
-先做备份恢复演练、对象清单/字节校验和权限核对，确认源数据库与 RDS PostgreSQL18 的完整业务结构、ICU 中文 collation；禁止不加区别重放含已退役 Geo 表的全量 SQL。新增迁移、搜索回填和社团切换由单一 release runner 独立审批执行，启动无迁移。腾讯补全 worker 不恢复，gduf-mlflow 及既有业务不动。
-
-配对版本在隔离验证通过后安排冻结写入/最终增量同步/原子入口切换。反代只指向 Web，覆盖选定客户端 IP 头为单一有效 IP；不要直接公开 API。主机 loopback 不等于 Web 禁连 RDS/对象管理端：必须另验进程/用户出站隔离。模板未实施网络策略，不能宣称生产私网隔离已完成。
-
-放量前分别验证 API health、ready、登录/CSRF/回调、注册/找回密码、搜索、上传/私有下载、SSE、现有业务未受影响。health 存活和 ready 的 select 1 不能代替 Schema/对象/邮件验收。记录配对 SHA、摘要、目标端口、备份一致恢复点和验收回执。回退只切到已验证兼容版本，保留新列/对象；涉及写入后的数据库恢复需先冻结并处理新增数据，不恢复旧审核写入口，不盲目回滚整台 ECS。
-
-模板：[Web 环境](../deploy/ecs/runtime.env.example)、[systemd](../deploy/ecs/competition-web.service.example)、[启动器](../deploy/ecs/start-runtime.mjs)、[暂存脚本](../deploy/ecs/stage-release.py)。
-
-返回[文档入口](./README.md) · [CI与构建](./CI与构建.md)。
+现网校准模板：[正式入口](../deploy/ecs/nginx/competition-main.conf)、[维护入口](../deploy/ecs/nginx/competition-maintenance.conf)、[静态公告](../deploy/ecs/nginx/maintenance.html)。两种入口必须二选一；先准备必要目录与权限，仅替换主站配置，经 nginx -t 后再经授权 reload，不能覆盖 MLflow 配置。这些是离线模板，不是自动安装器。

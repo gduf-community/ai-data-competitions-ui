@@ -1,6 +1,6 @@
 # 开发环境与 HTTP 边界
 
-2026-10-21 新增[阿里云迁移候选方案](阿里云ECS部署.md)：离线构建及独立 ECS 模板，未部署；原平台运行事实不变。
+2026-10-21 现网已迁至ECS，精确版本、资源事故和更新边界见[部署记录](阿里云ECS部署.md)；源码整合不等于生产发布。
 
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。变量来自 [.env.example](../.env.example)、[传输配置](../src/lib/web-transport.ts) 和 [proxy](../src/proxy.ts)。本文提供开发/联调方法，生产密钥与真实运行材料保存在受限环境。
 
@@ -86,10 +86,10 @@ API 应仅私网可达，Web 不直连数据库/对象存储管理端；入口�
 
 超时及服务器返回unconfirmed均提示“发送确认失败/结果未确认，邮件仍可能发出”，不承诺未发送、未送达或已撤销。服务器有独立30秒预算并取消provider请求；浏览器取消不是唯一保护，数据库清理仍是尽力执行。
 
-## 迁移分支通用上传适配（工作区待审查，未部署）
+## 当前部署的通用上传适配
 
 仅 `/api/uploads` 从 Web proxy matcher 排除；BFF继续执行真实方法能力、Host/Origin、客户端IP校验及服务token注入，用户Authorization仍不转发。API配对版本在该Route Handler内执行原transport校验，不能独立部署仅排除matcher的版本。头像/证书入口不变。
 
-上传专用Undici Agent只用于通用上传POST，单连接且每进程只允许一个正在等待响应的上传；并发返回503。`BFF_UPLOAD_TIMEOUT_SECONDS`默认1260，限制60至1800整数，需要重启生效；同时限制响应头等待及总时限，响应body空闲限时60秒、连接10秒。SSR读取仍15秒，未修改全局dispatcher。API的对应变量为`UPLOAD_TIMEOUT_SECONDS`，默认1200。该工作区尚未部署，真实低带宽长时限仍待验收。
+上传专用Undici Agent只用于通用上传POST，单连接且每进程只允许一个正在等待响应的上传；并发返回503。`BFF_UPLOAD_TIMEOUT_SECONDS`默认1260，限制60至1800整数，需要重启生效；同时限制响应头等待及总时限，响应body空闲限时60秒、连接10秒。SSR读取仍15秒，未修改全局dispatcher。API的对应变量为`UPLOAD_TIMEOUT_SECONDS`，默认1200。该逻辑已包含在已部署4fefbe6b配对中；合成慢存储与目标请求验收不等于未来任意真实网络负载保证。
 
-上传默认总时限：API UPLOAD_TIMEOUT_SECONDS=1200，Web BFF_UPLOAD_TIMEOUT_SECONDS=1260，外层上传专用读取时限建议至少1320秒，使API先取消存储、清理临时文件并释放槽，BFF随后兜底。自定义配置必须保留该先后顺序；不能沿用120秒外层超时。仅上传位置可关闭nginx请求缓冲并使用HTTP/1.1，避免额外整包落盘；本次未修改目标nginx。
+上传默认总时限：API UPLOAD_TIMEOUT_SECONDS=1200，Web BFF_UPLOAD_TIMEOUT_SECONDS=1260，外层上传专用读取时限建议至少1320秒，使API先取消存储、清理临时文件并释放槽，BFF随后兜底。自定义配置必须保留该先后顺序；不能沿用120秒外层超时。仅上传位置可关闭nginx请求缓冲并使用HTTP/1.1，避免额外整包落盘；当前正式nginx已采用该参数，准确配置与验收边界见[部署记录](./阿里云ECS部署.md)。

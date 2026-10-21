@@ -1,6 +1,6 @@
 # Web CI 与构建
 
-2026-10-21 新增[阿里云迁移候选方案](阿里云ECS部署.md)：离线构建及独立 ECS 模板，未部署；原平台运行事实不变。
+2026-10-21 现网已迁至ECS，精确版本、资源事故和更新边界见[部署记录](阿里云ECS部署.md)；源码整合不等于生产发布。
 
 源码核对：2026-10-15，Web `0b0d594952897ea1d90c39b7afb5b7430571f078`。工作流事实源为 [ci.yml](../.github/workflows/ci.yml)、命令为 [package.json](../package.json)，产物规则为 [package-runtime](../scripts/package-runtime.mjs)。本文描述现行配置，未将历史绿色 run 当作本次重新执行。
 

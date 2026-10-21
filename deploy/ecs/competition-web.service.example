@@ -1,29 +1,45 @@
-# TEMPLATE ONLY: no automatic install/restart. Check existing units, ports and capacity first.
+# Reviewed configuration template, not an export of the installed unit.
+# Node executable /usr/bin/node verified in the production handoff.
+# Pin release and reciprocal manifest together. No automatic install/restart.
 [Unit]
 Description=Competition web standalone
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
+DynamicUser=yes
 User=competition-web
-Group=competition-web
-WorkingDirectory=/opt/competition/web/current
+Slice=competition-apps.slice
+WorkingDirectory=/srv/competition-web/mail-pair-e19db6a6/releases/4fefbe6baf93e44c14b49818455b11d94b65d990
 EnvironmentFile=/etc/competition/web.env
-Environment=NODE_ENV=production
-Environment=NEXT_TELEMETRY_DISABLED=1
-ExecStart=/opt/competition/toolchain/node-v22.23.3/bin/node /opt/competition/web/current/ecs-start.mjs
+Environment=BFF_UPLOAD_TIMEOUT_SECONDS=1260
+# EnvironmentFile overrides Environment: reject duplicate NODE_OPTIONS/BFF_UPLOAD_TIMEOUT_SECONDS there.
+Environment=NODE_OPTIONS=--max-old-space-size=192
+ExecStart=/usr/bin/node /srv/competition-web/mail-pair-e19db6a6/releases/4fefbe6baf93e44c14b49818455b11d94b65d990/ecs-start.mjs
 Restart=on-failure
-RestartSec=10
+RestartSec=5
 TimeoutStopSec=30
 KillMode=control-group
+SuccessExitStatus=143
+OOMPolicy=stop
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/opt/competition/web/current/.next
-# Size limits require measurement alongside the existing workload before enabling.
+CPUQuota=50%
+MemoryAccounting=true
+CPUAccounting=true
+MemorySwapMax=0
+TasksMax=64
+MemoryHigh=384M
+MemoryMax=512M
+# system.control persistent overrides have higher precedence; verify effective values.
+StandardOutput=append:/opt/competition-staging/formal-service-logs-20261021/web.stdout
+StandardError=append:/opt/competition-staging/formal-service-logs-20261021/web.stderr
 
 [Install]
 WantedBy=multi-user.target
