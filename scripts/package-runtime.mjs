@@ -36,6 +36,7 @@ export function packageRuntime(root, unit, sha, repository, companion = "") {
     copyDirectory(path.join(next, "static"), path.join(serverDirectory, ".next/static"));
     if (fs.existsSync(path.join(root, "public"))) copyDirectory(path.join(root, "public"), path.join(serverDirectory, "public"));
   }
+  fs.copyFileSync(path.join(root, "deploy/ecs/start-runtime.mjs"), path.join(standalone, "ecs-start.mjs"));
   const pending = [standalone], links = [], visited = new Set();
   for (let i = 0; i < pending.length; i++) {
     if (visited.has(pending[i])) continue;

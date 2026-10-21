@@ -55,3 +55,5 @@ pnpm run ci
 [Project #2](https://github.com/orgs/gduf-community/projects/2)统一管理 [Web Issue](https://github.com/gduf-community/ai-data-competitions-ui/issues) 与 [API Issue](https://github.com/gduf-community/competition-Q-A-website/issues)。跨仓保留一个主任务，两侧分别交付 PR 并绑定精确 companion SHA，见[协作指南](./docs/开源协作指南.md)。
 
 Web 仅持有运行时服务凭据，不配置数据库、认证签名或对象存储管理密钥。示例和验证使用合成数据；旧 Mock 反向同步已退役。历史材料保留在[归档](./docs/archive/README.md)。
+
+实际 ECS 部署身份、配置与更新边界见 [ECS 部署记录](./docs/阿里云ECS部署.md)。
