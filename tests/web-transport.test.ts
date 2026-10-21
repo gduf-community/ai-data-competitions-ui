@@ -1,8 +1,50 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { forwardedHeaders, permittedPublicServerRead, permittedBrowserRequest, type TransportConfig, getTransportConfig } from "../src/lib/web-transport";
+import { forwardedHeaders, permittedPublicServerRead, permittedBrowserRequest, type TransportConfig, getTransportConfig, validOfficialAwardDownload } from "../src/lib/web-transport";
 
 const config: TransportConfig = {api:new URL("http://127.0.0.1:3001"),web:new URL("https://business.example.invalid"),business:true,clientIpHeader:undefined,serviceToken:"a".repeat(64)};
+
+test("official awards add exactly two trusted GET capabilities and validate the file protocol", () => {
+  const competitionId = "00000000-0000-4000-8000-000000000135";
+  const base = `/api/admin/official-awards/competitions/${competitionId}`;
+  for (const path of [base, base + '/export?format=xlsx&view=member']) for (const business of [true, false]) for (const method of ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE']) {
+    assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { method, headers: { host: config.web.host, origin: config.web.origin } }), { ...config, business }), business && method === 'GET');
+  }
+  for (const path of ['/api/admin/official-awards/imports', base + '/unknown', '/api/admin/official-awards/summary', '/api/admin/official-awards/' + competitionId]) assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { headers: { host: config.web.host } }), config), false);
+  const url = new URL(config.web.origin + base + '/export?format=xlsx&view=member');
+  const filename = `official-awards-${competitionId}-member.xlsx`;
+  const headers = new Headers({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}` });
+  assert.equal(validOfficialAwardDownload(url, headers), true);
+  for (const mime of ['application/octet-stream', 'application/json', 'text/html']) { const invalid = new Headers(headers); invalid.set('Content-Type', mime); assert.equal(validOfficialAwardDownload(url, invalid), false); }
+  for (const disposition of ['', 'inline', 'attachment; filename="../../evil.xlsx"', `attachment; filename="${filename}"`]) { const invalid = new Headers(headers); invalid.set('Content-Disposition', disposition); assert.equal(validOfficialAwardDownload(url, invalid), false); }
+});
+
+test("the BFF streams valid official files and rejects invalid successful file headers before body release", async () => {
+  const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: 'trusted', API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: 'x-real-ip' };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  Object.assign(process.env, values);
+  try {
+    const { GET } = await import('../src/app/api/[...path]/route');
+    const id = '00000000-0000-4000-8000-000000000135', filename = `official-awards-${id}-award.csv`;
+    const url = config.web.origin + `/api/admin/official-awards/competitions/${id}/export?format=csv&view=award`;
+    const bytes = new TextEncoder().encode('\uFEFF"合成名单"\r\n"甲"');
+    for (const valid of [true, false]) {
+      let cancelled = false;
+      globalThis.fetch = async (_url, init) => {
+        assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer ' + config.serviceToken);
+        return new Response(new ReadableStream({ start(controller) { controller.enqueue(bytes); }, cancel() { cancelled = true; }, pull(controller) { controller.close(); } }), { headers: { 'Content-Type': valid ? 'text/csv; charset=utf-8' : 'application/octet-stream', 'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}`, 'Cache-Control': 'public, max-age=3600' } });
+      };
+      const response = await GET(new Request(url, { headers: { host: config.web.host, 'x-real-ip': '127.0.0.1' } }));
+      assert.equal(response.status, valid ? 200 : 502); assert.ok(response.headers.get('cache-control')?.includes('private, no-store'));
+      if (valid) assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+      else { assert.equal(cancelled, true); assert.equal(response.headers.get('content-disposition'), null); assert.ok(!(await response.text()).includes('合成名单')); }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(previous)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
+});
 test("foreign authority cannot be promoted by browser forwarding headers",()=>{
   const request=new Request("https://business.example.invalid/api/applications",{method:"POST",headers:{host:config.web.host,origin:"https://attacker.example.invalid","x-forwarded-host":"business.example.invalid","x-forwarded-proto":"https"}});
   assert.equal(permittedBrowserRequest(request,config),false);
@@ -65,6 +107,43 @@ test("Web creates service authorization and rejects missing or malformed configu
       assert.throws(getTransportConfig,/API_SERVICE_TOKEN/);
     }
   } finally { if(previous===undefined) delete process.env.API_SERVICE_TOKEN; else process.env.API_SERVICE_TOKEN=previous; }
+});
+
+test("official downloads verify fragmented signatures, preserve bytes and propagate cancellation", async () => {
+  const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: "trusted", API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: "x-real-ip" };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  Object.assign(process.env, values);
+  const id = "10000000-0000-4000-8000-000000000001";
+  try {
+    const { GET } = await import("../src/app/api/[...path]/route");
+    for (const format of ["csv", "xlsx"]) {
+      const prefix = format === "csv" ? [239, 187, 191] : [80, 75, 3, 4];
+      const headers = { "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="official-awards-${id}-award.${format}"; filename*=UTF-8''official-awards-${id}-award.${format}`, "X-Request-Id": "synthetic-request" };
+      const request = (signal?: AbortSignal) => new Request(`${config.web.origin}/api/admin/official-awards/competitions/${id}/export?view=award&format=${format}`, { headers: { host: config.web.host }, signal });
+      for (const bytes of [prefix.concat([1, 2, 3]), [123, 34, 101, 34], [60, 104, 116, 109], prefix.slice(0, -1)]) {
+        globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { for (const byte of bytes) c.enqueue(Uint8Array.of(byte)); c.close(); } }), { headers });
+        const response = await GET(request());
+        if (bytes.length === prefix.length + 3) {
+          assert.equal(response.status, 200); assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], bytes);
+          assert.equal(response.headers.get("x-request-id"), "synthetic-request"); assert.match(response.headers.get("cache-control")!, /private, no-store/);
+        } else { assert.equal(response.status, 502); await response.text(); }
+      }
+      let canceled = false;
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.from(prefix)); }, cancel() { canceled = true; } }), { headers });
+      const response = await GET(request()); await response.body!.cancel(); assert.equal(canceled, true);
+      const controller = new AbortController(); canceled = false;
+      const reading = Promise.withResolvers<void>();
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, pull() { reading.resolve(); }, cancel() { canceled = true; } }), { headers });
+      const pending = GET(request(controller.signal));
+      await reading.promise; controller.abort();
+      await assert.rejects(pending); assert.equal(canceled, true);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(previous)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
 });
 
 test("the actual BFF rejects undeclared paths and methods before contacting the API", async () => {

@@ -54,7 +54,7 @@ test('Web relay forwards first state without waiting for terminal state',async()
  const source=readFileSync(new URL('../src/app/api/[...path]/route.ts',import.meta.url),'utf8').replace(/^import[^\n]*\n/gm,'').replace(/^export \{[^\n]*$/gm,'').replace(/\bexport /g,'');
  const relay=vm.runInNewContext(stripTypeScriptTypes(source)+'\n relay',{
  URL,Response,Headers,getTransportConfig:()=>({api:new URL('https://api.invalid'),web:new URL('https://web.invalid')}),
- hasBrowserApiCapability:()=>true,permittedBrowserRequest:()=>true,forwardedHeaders:()=>({}),fetch:async()=>upstream,
+ hasBrowserApiCapability:()=>true,permittedBrowserRequest:()=>true,validOfficialAwardDownload:()=>true,forwardedHeaders:()=>({}),fetch:async()=>upstream,
  });
  const response=await relay(new Request('https://web.invalid/api/auth/register/send-code',{method:'POST',body:'{}'}));
  const reader=response.body.getReader();assert.match(new TextDecoder().decode((await reader.read()).value),/sending/);
