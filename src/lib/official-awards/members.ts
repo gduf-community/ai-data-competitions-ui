@@ -185,24 +185,38 @@ export function mergeAdvisors(params: {
   drafts: Array<{ name: string; college: string }>;
   latest: Array<{ name: string; college: string | null }>;
 }): Array<{ name: string; college: string | null }> {
-  const baselineKeys = new Set(params.baseline.map(advisorKey));
-  const draftKeys = new Set(params.drafts.filter((d) => d.name.trim()).map((d) => advisorKey({ name: d.name.trim(), college: nullable(d.college) })));
-  const removed = new Set([...baselineKeys].filter((key) => !draftKeys.has(key)));
+  const draftByName = new Map(
+    params.drafts
+      .filter((draft) => draft.name.trim())
+      .map((draft) => [draft.name.trim(), { name: draft.name.trim(), college: nullable(draft.college) }]),
+  );
+  const baselineNames = new Set(params.baseline.map((advisor) => advisor.name));
+  const draftNames = new Set(draftByName.keys());
 
-  const result = params.latest
-    .filter((advisor) => !removed.has(advisorKey(advisor)))
-    .map((advisor) => ({ name: advisor.name, college: advisor.college }));
+  // 用户删除：基线里有、草稿里没有（按姓名判断，避免改学院被当成"删一个加一个"）。
+  const removedNames = new Set([...baselineNames].filter((name) => !draftNames.has(name)));
 
-  const existing = new Set(result.map(advisorKey));
-  for (const draft of params.drafts) {
-    if (!draft.name.trim()) continue;
-    const key = advisorKey({ name: draft.name.trim(), college: nullable(draft.college) });
-    if (existing.has(key) || baselineKeys.has(key)) continue;
-    existing.add(key);
-    result.push({ name: draft.name.trim(), college: nullable(draft.college) });
+  const result: Array<{ name: string; college: string | null }> = [];
+  const handled = new Set<string>();
+
+  for (const advisor of params.latest) {
+    if (removedNames.has(advisor.name)) continue;
+    const draft = draftByName.get(advisor.name);
+    // 同名老师视为同一条：用户在草稿里改了学院就更新，否则保留最新值。
+    result.push(draft ? { name: advisor.name, college: draft.college } : { name: advisor.name, college: advisor.college });
+    handled.add(advisor.name);
   }
+
+  // 用户新增的老师：名字既不在最新也不在基线里。
+  for (const draft of draftByName.values()) {
+    if (handled.has(draft.name) || baselineNames.has(draft.name)) continue;
+    result.push(draft);
+    handled.add(draft.name);
+  }
+
   return result;
 }
+
 type AwardLike = {
   levelCode: string;
   subTrack: string | null;
@@ -242,13 +256,20 @@ export function describeConcurrentChanges(baseline: AwardLike, latest: AwardLike
     if ((now.major ?? "") !== (member.major ?? "")) changes.push(`成员专业：${member.name} ${member.major ?? "空"} → ${now.major ?? "空"}`);
   }
 
-  const baselineAdvisors = new Set(baseline.advisors.map(advisorKey));
-  const latestAdvisors = new Set(latest.advisors.map(advisorKey));
-  for (const advisor of latest.advisors) {
-    if (!baselineAdvisors.has(advisorKey(advisor))) changes.push(`新增老师：${advisor.name}`);
+  const baselineAdvisorByName = new Map(baseline.advisors.map((advisor) => [advisor.name, advisor]));
+  const latestAdvisorByName = new Map(latest.advisors.map((advisor) => [advisor.name, advisor]));
+  for (const [name, advisor] of latestAdvisorByName) {
+    const before = baselineAdvisorByName.get(name);
+    if (!before) {
+      changes.push(`新增老师：${name}`);
+      continue;
+    }
+    if ((before.college ?? "") !== (advisor.college ?? "")) {
+      changes.push(`老师学院：${name} ${before.college ?? "空"} → ${advisor.college ?? "空"}`);
+    }
   }
-  for (const advisor of baseline.advisors) {
-    if (!latestAdvisors.has(advisorKey(advisor))) changes.push(`移除老师：${advisor.name}`);
+  for (const name of baselineAdvisorByName.keys()) {
+    if (!latestAdvisorByName.has(name)) changes.push(`移除老师：${name}`);
   }
   return changes;
 }

@@ -60,13 +60,13 @@ export function OfficialAwardCorrectionDialog({
   const concurrentChanges =
     conflict && baseline && award ? describeConcurrentChanges(baseline, award) : [];
 
+  // 「载入最新值」只覆盖业务字段，保留用户已经写好的更正原因。
   const loadFromAward = (row: OfficialAwardRow) => {
     setLevelCode(row.levelCode);
     setSubTrack(row.subTrack ?? "");
     setTeamName(row.teamName ?? "");
     setMembers(toDrafts(row.members));
     setAdvisors(row.advisors.map((advisor) => ({ name: advisor.name, college: advisor.college ?? "" })));
-    setReason("");
   };
 
   // 打开另一条记录时重置表单；409 回填时保留用户输入，只更新版本号。

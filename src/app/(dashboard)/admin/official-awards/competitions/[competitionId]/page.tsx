@@ -74,6 +74,18 @@ export default function OfficialAwardCompetitionPage() {
     setRefreshKey((value) => value + 1);
   };
 
+  // 切换赛事时清空与该赛事绑定的临时状态，避免把上一场的弹窗/展开带到新赛事。
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEditing(null);
+    setEditingBaseline(null);
+    setVoiding(null);
+    setConflict(false);
+    setConflictLost(false);
+    setConflictWait(null);
+    setExpanded([]);
+  }, [competitionId]);
+
   const toggleExpanded = (awardId: string) => {
     setExpanded((prev) => (prev.includes(awardId) ? prev.filter((id) => id !== awardId) : [...prev, awardId]));
   };

@@ -208,3 +208,23 @@ test("describeConcurrentChanges 汇总他人改动用于显式确认", () => {
   assert.ok(changes.some((change) => change.includes("新增老师：李老师")));
   assert.deepEqual(describeConcurrentChanges(baseline, baseline), []);
 });
+test("指导老师同名改学院视为更新，不会变成两条", () => {
+  const baseline = [{ name: "张老师", college: "计算机学院" }];
+  const latest = [{ name: "张老师", college: "计算机学院" }];
+  const merged = mergeAdvisors({ baseline, drafts: [{ name: "张老师", college: "数学与统计学院" }], latest });
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0], { name: "张老师", college: "数学与统计学院" });
+});
+
+test("describeConcurrentChanges 把老师改学院描述为修改而不是增删", () => {
+  const base = {
+    levelCode: "second",
+    subTrack: null,
+    teamName: null,
+    members: [] as Array<{ memberId: string; name: string; grade: string | null; college: string | null; major: string | null }>,
+    advisors: [{ name: "张老师", college: "计算机学院" }],
+  };
+  const latest = { ...base, advisors: [{ name: "张老师", college: "数学与统计学院" }] };
+  const changes = describeConcurrentChanges(base, latest);
+  assert.deepEqual(changes, ["老师学院：张老师 计算机学院 → 数学与统计学院"]);
+});
