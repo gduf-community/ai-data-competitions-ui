@@ -89,6 +89,7 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
         icon: BookOpenCheck,
       },
       { title: "奖状审核", url: "/admin/award-reviews", icon: ImageIcon },
+      { title: "官方获奖名单", url: "/admin/official-awards", capability: "canReadOfficialAwards", icon: Award },
     ],
   },
   {
@@ -163,8 +164,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {navGroups.filter(group => !group.capability || user.capabilities?.[group.capability] === true).map(group => {
-          const items = group.items.filter(item => !item.capability || user.capabilities?.[item.capability] === true);
+        {navGroups.map(group => {
+          const groupAllowed = !group.capability || user.capabilities?.[group.capability] === true;
+          // 分组权限不足时，只允许「官方获奖名单」这类自身带独立受限能力的条目继续展示；
+          // 不能因此把其他菜单一并放开（例如 canReadUserManagement 不应绕过业务管理分组）。
+          const items = group.items.filter(item => {
+            const itemAllowed = !item.capability || user.capabilities?.[item.capability] === true;
+            if (!itemAllowed) return false;
+            if (groupAllowed) return true;
+            return item.capability === "canReadOfficialAwards";
+          });
           return items.length ? <NavMain key={group.label} label={group.label} items={items} /> : null;
         })}
       </SidebarContent>

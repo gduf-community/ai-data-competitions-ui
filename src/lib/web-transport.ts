@@ -27,6 +27,8 @@ export function permittedPublicServerRead(pathname: string) {
     /^\/api\/questions(?:\/[^/]+)?$/.test(path);
 }
 // Browser capabilities are separate from server-only public DTO reads. Every method is explicit.
+// 官方获奖名单的动态段按 UUID 校验，锚定路径且只放开表中方法（#138 修订后的白名单）。
+const AWARD_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolean }> = [
   { path: /^\/api\/portal\/assets$/, methods: ["GET", "HEAD"], public: true },
   { path: /^\/api\/uploads$/, methods: ["GET", "HEAD", "POST"], public: true },
@@ -63,7 +65,10 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: /^\/api\/admin\/(?:users|award-certificates|notices)\/[A-Za-z0-9_-]+$/, methods: ["PATCH", "DELETE"] },
   { path: /^\/api\/admin\/hall-of-fame\/[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PUT", "DELETE"] },
   { path: /^\/api\/admin\/applications\/(?:export|[A-Za-z0-9_-]+)$/, methods: ["GET", "HEAD"] },
-  { path: /^\/api\/admin\/official-awards\/competitions\/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}(?:\/export)?$/, methods: ["GET"] },
+  { path: new RegExp(`^/api/admin/official-awards/competitions/${AWARD_UUID}$`), methods: ["GET"] },
+  { path: new RegExp(`^/api/admin/official-awards/competitions/${AWARD_UUID}/export$`), methods: ["GET"] },
+  { path: new RegExp(`^/api/admin/official-awards/${AWARD_UUID}$`), methods: ["PATCH"] },
+  { path: new RegExp(`^/api/admin/official-awards/${AWARD_UUID}/void$`), methods: ["POST"] },
   { path: /^\/api\/admin\/(?:applications|award-certificates|experience-posts)\/[A-Za-z0-9_-]+\/review$/, methods: ["POST"] },
   { path: /^\/api\/admin\/experience-posts\/invite$/, methods: ["POST"] },
   { path: /^\/api\/admin\/clubs\/[A-Za-z0-9_-]+\/contacts$/, methods: ["GET", "HEAD", "PUT"] },
