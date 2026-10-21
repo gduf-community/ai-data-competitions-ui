@@ -125,3 +125,15 @@ export function permittedBrowserRequest(request: Request, config: TransportConfi
   if (origin) return origin === config.web.origin;
   try { return new URL(request.headers.get("referer") || "").origin === config.web.origin; } catch { return false; }
 }
+
+/** Official-award downloads have a fixed file protocol, checked before relaying any bytes. */
+export function validOfficialAwardDownload(url: URL, headers: Headers) {
+  const match = url.pathname.match(/^\/api\/admin\/official-awards\/competitions\/([a-fA-F0-9-]{36})\/export$/);
+  if (!match) return true;
+  const format = url.searchParams.get("format"), view = url.searchParams.get("view");
+  if (!["csv", "xlsx"].includes(format ?? "") || !["award", "member"].includes(view ?? "")) return false;
+  const contentType = headers.get("content-type") ?? "";
+  if (format === "xlsx" ? contentType.toLowerCase() !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : !/^text\/csv;\s*charset=utf-8$/i.test(contentType)) return false;
+  const filename = `official-awards-${match[1]}-${view}.${format}`;
+  return headers.get("content-disposition") === `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}

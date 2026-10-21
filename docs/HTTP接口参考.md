@@ -1,5 +1,7 @@
 # Web HTTP 接口参考
 
+官方获奖导出在 BFF 转发前验证 MIME、规范 Content-Disposition 与起始签名（CSV UTF-8 BOM / XLSX ZIP local header）。仅预读签名所需前缀，原字节依序转发，失败或取消会取消上游；不读取整份文件，也不据此证明 ZIP 完整性或内容语义。
+
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，配套 API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
 
 ## 先选择调用入口
@@ -15,6 +17,18 @@
 **API 有一个路由，不代表浏览器可以访问它。** 例如 `/api/competitions`、`/api/questions` 和 `/api/homepage` 的 JSON 由 Web 服务端读取；浏览器通过页面导航取得 HTML/RSC。public 模式的浏览器例外只有素材读取、比赛官网跳转和通知打开跳转。
 
 `[id]`、`[slug]` 等是路径占位符，实际请求须编码 ID。表中的 GET 对应 BFF 通常同时允许 HEAD；源站如何生成 HEAD 由对应 GET/框架处理，不代表新增业务操作。OPTIONS 虽由 catch-all 导出，当前策略没有允许项，返回 404。
+
+## 官方获奖正式名单与文件流（API #135 配套）
+
+trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competitions/{competitionId}` 与 `/export`。competitionId为UUID；HEAD/写方法、导入/消歧/确认/汇总等其它路径均未开放，public仍404。API逐请求验证当前用户及同比赛有效授权，菜单或服务Token不授予用户权限。页面/向导由Web #136后续实现，本次只承接正式读取与文件传输。
+
+列表参数为year/level/subTrack/q/sort/cursor/limit；兼容awardYear/levelCode，但别名不能并用，重复/未知参数400。q是字面子串，`%/_/反斜线`不作为通配符。summary中的awardCount/memberCount/verifiedPersonCount/unverifiedMemberCount是当前筛选总量，rowCount是本页奖项数；items一奖一项，含明确学生与老师，老师不计学生人次。未知快照null、学号掩码，同名不推断人物身份。默认limit50、最多100；nextCursor/hasMore只支持按游标前进，换筛选从第一页重查，不提供任意页跳转。
+
+导出必填format=csv|xlsx和view=award|member，筛选/排序与列表一致，不接受cursor/limit。award一奖一行，member一学生一行且重复awardId；最多500奖项或5000学生，超限413、不截断。导出可含授权范围内完整学号，不含电话/邮箱；浏览器不要把具名结果或文件写入localStorage。空结果仍有固定表头；更正/撤销后查询与下载由同一有效集合生成。
+
+下载先检查状态、Content-Type和Content-Disposition，再消费Response.body/blob；JSON错误不能作为文件。CSV为`text/csv; charset=utf-8`、UTF-8 BOM；XLSX严格为`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，不接受application/octet-stream。固定文件名`official-awards-{competitionId}-{view}.{format}`，Disposition同时含quoted filename与UTF-8 filename*，API中和所有表格公式文本。BFF在任何文件字节转发前检查协议，MIME/文件名/Disposition异常502；合法文件原样流转并强制private/no-store，保留X-Request-Id。授权/持久审计失败503不出文件；401/403/400/413/429按状态呈现，不自动重试。
+
+本次没有新增环境变量、依赖、页面或数据库访问；开发与后续生产的BFF策略均受影响，生产未部署。两仓PR记录精确配对SHA与真实文件流回归；本地HTTP不等于完整浏览器或线上验收。
 
 ## 请求、会话与错误约定
 
