@@ -38,6 +38,7 @@ export default function OfficialAwardCompetitionPage() {
   const [editingBaseline, setEditingBaseline] = useState<OfficialAwardRow | null>(null);
   const [voiding, setVoiding] = useState<OfficialAwardRow | null>(null);
   const [conflict, setConflict] = useState(false);
+  const [conflictLost, setConflictLost] = useState(false);
   // 记录「冲突发生时列表的刷新代际」，只有真正拿到新一代响应才回填版本。
   const [conflictWait, setConflictWait] = useState<{ awardId: string; revision: number } | null>(null);
 
@@ -45,8 +46,14 @@ export default function OfficialAwardCompetitionPage() {
     if (!conflictWait) return;
     if (list.revision <= conflictWait.revision) return;
     const fresh = list.data?.items.find((item) => item.awardId === conflictWait.awardId);
-    if (!fresh) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!fresh) {
+      // 记录已离开当前筛选/页：不能冒充已回填，提示用户重新打开。
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setConflict(true);
+      setConflictLost(true);
+      setConflictWait(null);
+      return;
+    }
     setEditing((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setVoiding((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setConflict(true);
@@ -58,6 +65,7 @@ export default function OfficialAwardCompetitionPage() {
     setEditingBaseline(null);
     setVoiding(null);
     setConflict(false);
+    setConflictLost(false);
     setRefreshKey((value) => value + 1);
   };
 
@@ -216,6 +224,7 @@ export default function OfficialAwardCompetitionPage() {
             loading={list.loading}
             onCorrect={(row) => {
               setConflict(false);
+              setConflictLost(false);
               setEditingBaseline(row);
               setEditing(row);
             }}
@@ -223,6 +232,7 @@ export default function OfficialAwardCompetitionPage() {
             onToggle={toggleExpanded}
             onVoid={(row) => {
               setConflict(false);
+              setConflictLost(false);
               setVoiding(row);
             }}
             rows={list.rows}
@@ -240,6 +250,7 @@ export default function OfficialAwardCompetitionPage() {
             loading={list.loading}
             onCorrect={(row) => {
               setConflict(false);
+              setConflictLost(false);
               setEditingBaseline(row);
               setEditing(row);
             }}
@@ -247,6 +258,7 @@ export default function OfficialAwardCompetitionPage() {
             onToggle={toggleExpanded}
             onVoid={(row) => {
               setConflict(false);
+              setConflictLost(false);
               setVoiding(row);
             }}
             rows={list.rows}
@@ -264,10 +276,12 @@ export default function OfficialAwardCompetitionPage() {
         award={editing}
         baseline={editingBaseline}
         conflict={conflict}
+        conflictLost={conflictLost}
         onClose={() => {
           setEditing(null);
           setEditingBaseline(null);
           setConflict(false);
+          setConflictLost(false);
         }}
         onConflict={() => handleConflict(editing?.awardId ?? "")}
         onSubmitted={refreshAfterMutation}
@@ -279,6 +293,7 @@ export default function OfficialAwardCompetitionPage() {
         onClose={() => {
           setVoiding(null);
           setConflict(false);
+          setConflictLost(false);
         }}
         onConflict={() => handleConflict(voiding?.awardId ?? "")}
         onSubmitted={refreshAfterMutation}

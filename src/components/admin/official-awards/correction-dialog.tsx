@@ -22,7 +22,7 @@ import {
   type AwardLevelCode,
   type OfficialAwardRow,
 } from "@/lib/contracts/official-awards";
-import { mergeAdvisors, mergeThreeWay, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
+import { describeConcurrentChanges, mergeAdvisors, mergeThreeWay, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
 import { toast } from "@/lib/i18n/toast";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 
@@ -33,13 +33,23 @@ type Props = {
   baseline: OfficialAwardRow | null;
   award: OfficialAwardRow | null;
   conflict: boolean;
+  /** 冲突记录已离开当前筛选/页，无法自动回填最新版本。 */
+  conflictLost: boolean;
   onClose: () => void;
   onSubmitted: () => void;
   /** 409 后由父组件刷新列表并回填最新 award（保留用户输入）。 */
   onConflict: () => void;
 };
 
-export function OfficialAwardCorrectionDialog({ baseline, award, conflict, onClose, onSubmitted, onConflict }: Props) {
+export function OfficialAwardCorrectionDialog({
+  baseline,
+  award,
+  conflict,
+  conflictLost,
+  onClose,
+  onSubmitted,
+  onConflict,
+}: Props) {
   const [levelCode, setLevelCode] = useState<AwardLevelCode>("unclassified");
   const [subTrack, setSubTrack] = useState("");
   const [teamName, setTeamName] = useState("");
@@ -47,6 +57,8 @@ export function OfficialAwardCorrectionDialog({ baseline, award, conflict, onClo
   const [members, setMembers] = useState<MemberDraft[]>([]);
   const [advisors, setAdvisors] = useState<AdvisorDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const concurrentChanges =
+    conflict && baseline && award ? describeConcurrentChanges(baseline, award) : [];
 
   const loadFromAward = (row: OfficialAwardRow) => {
     setLevelCode(row.levelCode);
@@ -156,8 +168,20 @@ export function OfficialAwardCorrectionDialog({ baseline, award, conflict, onClo
 
         {conflict ? (
           <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <p>该记录已被他人更新，下方是【最新版本】；你的输入仍保留，请确认后重新提交，或选择载入最新值放弃修改。</p>
+            <p>
+              {conflictLost
+                ? "该记录已不在当前筛选结果中，无法自动回填最新版本。请关闭后清空筛选重新打开，核对后再提交。"
+                : "该记录已被他人更新。请核对下方「他人改动」后再提交；你的输入仍保留，也可选择载入最新值放弃修改。"}
+            </p>
+            {concurrentChanges.length > 0 ? (
+              <ul className="list-disc space-y-0.5 pl-4">
+                {concurrentChanges.map((change) => (
+                  <li key={change}>{change}</li>
+                ))}
+              </ul>
+            ) : null}
             <Button
+              disabled={conflictLost}
               size="sm"
               type="button"
               variant="outline"
@@ -326,7 +350,7 @@ export function OfficialAwardCorrectionDialog({ baseline, award, conflict, onClo
           <Button disabled={submitting} variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button disabled={submitting} onClick={() => void submit()}>
+          <Button disabled={submitting || conflictLost} onClick={() => void submit()}>
             {submitting ? "提交中…" : "提交更正"}
           </Button>
         </DialogFooter>

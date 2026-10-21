@@ -12,7 +12,14 @@ import {
   resetCursor,
   sameFilters,
 } from "../src/lib/official-awards/query";
-import { changedFields, diffMembers, mergeAdvisors, mergeThreeWay, toDrafts } from "../src/lib/official-awards/members";
+import {
+  changedFields,
+  describeConcurrentChanges,
+  diffMembers,
+  mergeAdvisors,
+  mergeThreeWay,
+  toDrafts,
+} from "../src/lib/official-awards/members";
 
 test("URL 解析与序列化可往返，且忽略未知参数", () => {
   const filters = parseFilters("?year=2026&level=second&subTrack=%E6%95%B0%E6%8D%AE%E6%8C%96%E6%8E%98&q=%E4%BD%95&page=3");
@@ -172,4 +179,32 @@ test("指导老师三方合并：他人新增保留，用户删除生效", () =>
     removed.map((advisor) => advisor.name),
     ["李老师（他人新增）"],
   );
+});
+test("describeConcurrentChanges 汇总他人改动用于显式确认", () => {
+  const baseline = {
+    levelCode: "second",
+    subTrack: "数据挖掘",
+    teamName: "A 队",
+    members: [{ memberId: "m-1", name: "甲", grade: "2024级", college: null, major: null }],
+    advisors: [{ name: "张老师", college: null }],
+  };
+  const latest = {
+    levelCode: "first",
+    subTrack: "数据挖掘",
+    teamName: "A 队",
+    members: [
+      { memberId: "m-1", name: "甲", grade: "2025级", college: null, major: null },
+      { memberId: "m-2", name: "乙", grade: null, college: null, major: null },
+    ],
+    advisors: [
+      { name: "张老师", college: null },
+      { name: "李老师", college: null },
+    ],
+  };
+  const changes = describeConcurrentChanges(baseline, latest);
+  assert.ok(changes.some((change) => change.includes("规范等级")));
+  assert.ok(changes.some((change) => change.includes("新增成员：乙")));
+  assert.ok(changes.some((change) => change.includes("成员年级：甲")));
+  assert.ok(changes.some((change) => change.includes("新增老师：李老师")));
+  assert.deepEqual(describeConcurrentChanges(baseline, baseline), []);
 });

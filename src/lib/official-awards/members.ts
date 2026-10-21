@@ -203,3 +203,52 @@ export function mergeAdvisors(params: {
   }
   return result;
 }
+type AwardLike = {
+  levelCode: string;
+  subTrack: string | null;
+  teamName: string | null;
+  members: MemberLike[];
+  advisors: Array<{ name: string; college: string | null }>;
+};
+
+/** 展示「他人改了什么」：只描述 baseline → latest 的变化，供用户显式确认。 */
+export function describeConcurrentChanges(baseline: AwardLike, latest: AwardLike): string[] {
+  const changes: string[] = [];
+  if (baseline.levelCode !== latest.levelCode) {
+    changes.push(`规范等级：${baseline.levelCode} → ${latest.levelCode}`);
+  }
+  if ((baseline.subTrack ?? "") !== (latest.subTrack ?? "")) {
+    changes.push(`赛道：${baseline.subTrack ?? "空"} → ${latest.subTrack ?? "空"}`);
+  }
+  if ((baseline.teamName ?? "") !== (latest.teamName ?? "")) {
+    changes.push(`团队：${baseline.teamName ?? "空"} → ${latest.teamName ?? "空"}`);
+  }
+
+  const baselineMembers = new Map(baseline.members.map((member) => [member.memberId, member]));
+  const latestMembers = new Map(latest.members.map((member) => [member.memberId, member]));
+
+  for (const [memberId, member] of latestMembers) {
+    if (!baselineMembers.has(memberId)) changes.push(`新增成员：${member.name}`);
+  }
+  for (const [memberId, member] of baselineMembers) {
+    const now = latestMembers.get(memberId);
+    if (!now) {
+      changes.push(`移除成员：${member.name}`);
+      continue;
+    }
+    if (now.name !== member.name) changes.push(`成员姓名：${member.name} → ${now.name}`);
+    if ((now.grade ?? "") !== (member.grade ?? "")) changes.push(`成员年级：${member.name} ${member.grade ?? "空"} → ${now.grade ?? "空"}`);
+    if ((now.college ?? "") !== (member.college ?? "")) changes.push(`成员学院：${member.name} ${member.college ?? "空"} → ${now.college ?? "空"}`);
+    if ((now.major ?? "") !== (member.major ?? "")) changes.push(`成员专业：${member.name} ${member.major ?? "空"} → ${now.major ?? "空"}`);
+  }
+
+  const baselineAdvisors = new Set(baseline.advisors.map(advisorKey));
+  const latestAdvisors = new Set(latest.advisors.map(advisorKey));
+  for (const advisor of latest.advisors) {
+    if (!baselineAdvisors.has(advisorKey(advisor))) changes.push(`新增老师：${advisor.name}`);
+  }
+  for (const advisor of baseline.advisors) {
+    if (!latestAdvisors.has(advisorKey(advisor))) changes.push(`移除老师：${advisor.name}`);
+  }
+  return changes;
+}
