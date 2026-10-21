@@ -3,6 +3,11 @@ on:
   pull_request:
   push:
   workflow_dispatch:
+    inputs:
+      companion_api_sha:
+        description: Exact 40-character API commit SHA for reciprocal runtime pairing
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -32,6 +37,9 @@ jobs:
       - run: pnpm run check:framework
       - run: pnpm run ci
       - name: Package web standalone runtime with source and lock digests
+        env:
+          # The shared packager reads this legacy variable for either unit.
+          COMPANION_WEB_SHA: ${{ inputs.companion_api_sha }}
         run: node scripts/package-runtime.mjs web
       - name: Upload immutable runtime and manifest
         id: runtime

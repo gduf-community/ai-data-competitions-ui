@@ -23,7 +23,9 @@ test("Web CI runs automatically for pull requests and every pushed branch", () =
   assert.match(trigger, /^  pull_request:$/m);
   assert.match(trigger, /^  push:$/m);
   assert.match(trigger, /^  workflow_dispatch:$/m);
-  assert.doesNotMatch(trigger, /branches:|paths:|inputs:|deploy:/);
+  assert.doesNotMatch(trigger, /branches:|paths:|deploy:/);
+  assert.match(trigger, /workflow_dispatch:\n    inputs:\n      companion_api_sha:/);
+  assert.match(workflow, /COMPANION_WEB_SHA: \$\{\{ inputs\.companion_api_sha \}\}/);
   assert.match(workflow, /WEB_RELEASE_MODE: public/);
   assert.match(workflow, /run: pnpm run ci/);
 });
@@ -31,6 +33,10 @@ test("Web CI runs automatically for pull requests and every pushed branch", () =
 test("runtime packaging produces verifiable payload and refuses environment contamination or external links", t => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),"competition-runtime-package-"));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  fs.mkdirSync(path.join(root,"deploy/ecs"),{recursive:true});
+  fs.writeFileSync(path.join(root,"deploy/ecs/start-runtime.mjs"),"// synthetic launcher");
+  fs.mkdirSync(path.join(root,"scripts"),{recursive:true});
+  fs.writeFileSync(path.join(root,"scripts/api-runtime-env.mjs"),"// synthetic validator");
   for(const role of ["web","api"]){
     const next=path.join(root,role==="web"?".next":"build/api/.next");
     const standalone=path.join(next,"standalone");
@@ -52,6 +58,7 @@ test("runtime packaging produces verifiable payload and refuses environment cont
     assert.equal(manifest.payloadSha256,createHash("sha256").update(bytes).digest("hex"));
     const listed=[];tar.t({file:path.join(root,"build/release/runtime.tar.gz"),sync:true,onentry:entry=>listed.push(entry.path)});
     assert.ok(listed.some(name=>name.endsWith("/server.js")));
+    assert.ok(listed.some(name=>name.endsWith("/ecs-start.mjs")));
     assert.throws(()=>packageRuntime(root,role,"bad",repo),/identity/);
     fs.writeFileSync(path.join(server,".env.local"),"synthetic contamination");
     assert.throws(()=>packageRuntime(root,role,candidate,repo),/Environment file/);

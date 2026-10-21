@@ -127,7 +127,7 @@ export function permittedBrowserRequest(request: Request, config: TransportConfi
 }
 
 /** Official-award downloads have a fixed file protocol, checked before relaying any bytes. */
-export function validOfficialAwardDownload(url: URL, headers: Headers) {
+export function validOfficialAwardDownload(url: URL, headers: Pick<Headers, "get">) {
   const match = url.pathname.match(/^\/api\/admin\/official-awards\/competitions\/([a-fA-F0-9-]{36})\/export$/);
   if (!match) return true;
   const format = url.searchParams.get("format"), view = url.searchParams.get("view");

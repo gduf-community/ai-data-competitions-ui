@@ -1,0 +1,5 @@
+# Equivalent budget drop-in for competition-web.service.d/90-memory-budget.conf.
+# Target persisted these values in system.control; inspect precedence before using this optional example.
+[Service]
+MemoryHigh=384M
+MemoryMax=512M
