@@ -20,12 +20,14 @@ import { fetchWithCsrf } from "@/lib/security/csrf-client";
 type Props = {
   award: OfficialAwardRow | null;
   conflict: boolean;
+  waiting: boolean;
+  conflictLost: boolean;
   onClose: () => void;
   onSubmitted: () => void;
   onConflict: () => void;
 };
 
-export function OfficialAwardVoidDialog({ award, conflict, onClose, onSubmitted, onConflict }: Props) {
+export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost, onClose, onSubmitted, onConflict }: Props) {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,7 +37,7 @@ export function OfficialAwardVoidDialog({ award, conflict, onClose, onSubmitted,
   }, [award?.awardId]);
 
   const submit = async () => {
-    if (!award) return;
+    if (!award || waiting || conflictLost) return;
     if (!reason.trim()) {
       toast.error("请填写撤销原因，便于审计追溯。");
       return;
@@ -49,7 +51,7 @@ export function OfficialAwardVoidDialog({ award, conflict, onClose, onSubmitted,
       });
       if (response.status === 409) {
         onConflict();
-        toast.error("版本冲突：记录已被他人更新，已加载最新版本，请核对后重新操作。");
+        toast.error("版本冲突：正在读取最新版本，请等待并核对后重新操作。");
         return;
       }
       if (!response.ok) {
@@ -76,7 +78,7 @@ export function OfficialAwardVoidDialog({ award, conflict, onClose, onSubmitted,
         </DialogHeader>
         {conflict ? (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            已加载最新版本（v{award?.version ?? "-"}），请确认后重新提交。
+            {conflictLost ? "无法在当前结果中取得最新记录，请关闭并清空筛选后重新打开。" : `已加载最新版本（v${award?.version ?? "-"}），请确认后重新提交。`}
           </p>
         ) : null}
         <div className="space-y-1.5">
@@ -92,7 +94,7 @@ export function OfficialAwardVoidDialog({ award, conflict, onClose, onSubmitted,
           <Button disabled={submitting} variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button className="text-rose-600" disabled={submitting} onClick={() => void submit()}>
+          <Button className="text-rose-600" disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
             {submitting ? "提交中…" : "确认撤销"}
           </Button>
         </DialogFooter>

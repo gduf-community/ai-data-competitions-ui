@@ -3,12 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AWARD_LEVEL_LABEL, type AwardLevelCode } from "@/lib/contracts/official-awards";
+import { AWARD_LEVEL_CODES, AWARD_LEVEL_LABEL } from "@/lib/contracts/official-awards";
 
 type Props = {
-  years: number[];
-  levels: AwardLevelCode[];
-  subTracks: string[];
   year: string;
   level: string;
   subTrack: string;
@@ -21,9 +18,6 @@ type Props = {
 
 /** 统一筛选工具条：桌面与移动共用同一份筛选控件与搜索框。 */
 export function OfficialAwardFilters({
-  years,
-  levels,
-  subTracks,
   year,
   level,
   subTrack,
@@ -38,19 +32,7 @@ export function OfficialAwardFilters({
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <div className="space-y-1.5">
           <Label className="text-xs font-normal text-muted-foreground">获奖年份</Label>
-          <Select value={year} onValueChange={onYearChange}>
-            <SelectTrigger aria-label="按获奖年份筛选" className="w-full">
-              <SelectValue placeholder="全部年份" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部年份</SelectItem>
-              {years.map((item) => (
-                <SelectItem key={item} value={String(item)}>
-                  {item} 年
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input aria-label="按获奖年份筛选" type="number" min={1950} max={2200} placeholder="全部年份" value={year === "all" ? "" : year} onChange={event => onYearChange(event.target.value || "all")} />
         </div>
 
         <div className="space-y-1.5">
@@ -61,7 +43,7 @@ export function OfficialAwardFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部等级</SelectItem>
-              {levels.map((code) => (
+              {AWARD_LEVEL_CODES.map((code) => (
                 <SelectItem key={code} value={code}>
                   {AWARD_LEVEL_LABEL[code]}
                 </SelectItem>
@@ -72,19 +54,7 @@ export function OfficialAwardFilters({
 
         <div className="space-y-1.5">
           <Label className="text-xs font-normal text-muted-foreground">赛道</Label>
-          <Select value={subTrack} onValueChange={onSubTrackChange}>
-            <SelectTrigger aria-label="按赛道筛选" className="w-full">
-              <SelectValue placeholder="全部赛道" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部赛道</SelectItem>
-              {subTracks.map((track) => (
-                <SelectItem key={track} value={track}>
-                  {track}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input aria-label="按赛道筛选" maxLength={120} placeholder="全部赛道" value={subTrack === "all" ? "" : subTrack} onChange={event => onSubTrackChange(event.target.value || "all")} />
         </div>
 
         <div className="col-span-2 space-y-1.5 xl:col-span-1">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { OfficialAwardListResponse } from "@/lib/contracts/official-awards";
+import { parseOfficialAwardList } from "@/lib/contracts/official-awards";
 
 export type AwardListKind = "ok" | "forbidden" | "notfound" | "error";
 
@@ -65,7 +66,8 @@ export function useOfficialAwardList(
           const payload = (await response.json().catch(() => ({}))) as { message?: string };
           throw new Error(payload.message ?? `加载获奖名单失败（HTTP ${response.status}）`);
         }
-        const payload = (await response.json()) as OfficialAwardListResponse;
+        const payload = parseOfficialAwardList(await response.json());
+        if (payload.competitionId !== competitionId) throw new Error("获奖名单响应不属于当前比赛。");
         if (!active) return;
         setResult({ kind: "ok", data: payload, message: "", identity });
         setRevision((value) => value + 1);
@@ -102,7 +104,6 @@ export function useOfficialAwardList(
     data,
     summary: data?.summary,
     permissions: data?.permissions,
-    competition: data?.competition,
     rows: data?.items ?? [],
   };
 }

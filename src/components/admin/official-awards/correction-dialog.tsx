@@ -22,11 +22,11 @@ import {
   type AwardLevelCode,
   type OfficialAwardRow,
 } from "@/lib/contracts/official-awards";
-import { describeConcurrentChanges, mergeAdvisors, mergeThreeWay, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
+import { buildAwardCorrection, describeConcurrentChanges, toDrafts, type MemberDraft } from "@/lib/official-awards/members";
 import { toast } from "@/lib/i18n/toast";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 
-type AdvisorDraft = { name: string; college: string };
+type AdvisorDraft = { advisorId?: string; name: string; college: string };
 
 type Props = {
   /** 打开弹窗时的基线版本，用于三方合并，避免把他人新增记录当成用户删除。 */
@@ -35,6 +35,7 @@ type Props = {
   conflict: boolean;
   /** 冲突记录已离开当前筛选/页，无法自动回填最新版本。 */
   conflictLost: boolean;
+  waiting: boolean;
   onClose: () => void;
   onSubmitted: () => void;
   /** 409 后由父组件刷新列表并回填最新 award（保留用户输入）。 */
@@ -46,6 +47,7 @@ export function OfficialAwardCorrectionDialog({
   award,
   conflict,
   conflictLost,
+  waiting,
   onClose,
   onSubmitted,
   onConflict,
@@ -66,7 +68,7 @@ export function OfficialAwardCorrectionDialog({
     setSubTrack(row.subTrack ?? "");
     setTeamName(row.teamName ?? "");
     setMembers(toDrafts(row.members));
-    setAdvisors(row.advisors.map((advisor) => ({ name: advisor.name, college: advisor.college ?? "" })));
+    setAdvisors(row.advisors.map((advisor) => ({ advisorId: advisor.advisorId, name: advisor.name, college: advisor.college ?? "" })));
   };
 
   // 打开另一条记录时重置表单；409 回填时保留用户输入，只更新版本号。
@@ -77,7 +79,7 @@ export function OfficialAwardCorrectionDialog({
     setSubTrack(award.subTrack ?? "");
     setTeamName(award.teamName ?? "");
     setMembers(toDrafts(award.members));
-    setAdvisors(award.advisors.map((advisor) => ({ name: advisor.name, college: advisor.college ?? "" })));
+    setAdvisors(award.advisors.map((advisor) => ({ advisorId: advisor.advisorId, name: advisor.name, college: advisor.college ?? "" })));
     setReason("");
   // 只在切换到另一条记录时重置表单；同一记录版本变化（409 回填）不覆盖用户输入。
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +94,7 @@ export function OfficialAwardCorrectionDialog({
   };
 
   const submit = async () => {
-    if (!award) return;
+    if (!award || waiting || conflictLost) return;
     if (!reason.trim()) {
       toast.error("请填写更正原因，便于审计追溯。");
       return;
@@ -109,27 +111,7 @@ export function OfficialAwardCorrectionDialog({
     // 三方合并：baseline = 打开时版本，latest = 当前最新版本，drafts = 用户输入。
     // 他人新增的成员/老师不会被当成"用户删除"，也不会被旧数组覆盖。
     const base = baseline ?? award;
-    const merged = mergeThreeWay({
-      baselineMembers: base.members,
-      drafts: members,
-      latestMembers: award.members,
-    });
-    const mergedAdvisors = mergeAdvisors({
-      baseline: base.advisors,
-      drafts: advisors,
-      latest: award.advisors,
-    });
-
-    const payload: AwardCorrectionPayload = {
-      expectedVersion: award.version,
-      reason: reason.trim(),
-      levelCode,
-      subTrack: subTrack.trim() || null,
-      teamName: teamName.trim() || null,
-      members: merged.members,
-      removedMemberIds: merged.removedMemberIds,
-      advisors: mergedAdvisors,
-    };
+    const payload: AwardCorrectionPayload = buildAwardCorrection(base, award, { levelCode, subTrack, teamName, reason, members, advisors });
 
     setSubmitting(true);
     try {
@@ -140,7 +122,7 @@ export function OfficialAwardCorrectionDialog({
       });
       if (response.status === 409) {
         onConflict();
-        toast.error("版本冲突：记录已被他人更新，已加载最新版本，请核对差异后再提交。");
+        toast.error("版本冲突：正在读取最新版本，请等待并核对差异后再提交。");
         return;
       }
       if (!response.ok) {
@@ -350,7 +332,7 @@ export function OfficialAwardCorrectionDialog({
           <Button disabled={submitting} variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button disabled={submitting || conflictLost} onClick={() => void submit()}>
+          <Button disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
             {submitting ? "提交中…" : "提交更正"}
           </Button>
         </DialogFooter>

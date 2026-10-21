@@ -1,4 +1,5 @@
 // 成员编辑：把「草稿 vs 原始成员」折算成 create / update / remove，避免整组替换丢身份。
+import type { AwardCorrectionPayload, AwardLevelCode, OfficialAwardRow } from "@/lib/contracts/official-awards";
 
 export type MemberLike = {
   memberId: string;
@@ -109,11 +110,6 @@ export function changedFields(
   return fields;
 }
 
-/** 指导老师的稳定键：没有 ID，用「姓名|学院」表达身份。 */
-export function advisorKey(advisor: { name: string; college: string | null }): string {
-  return `${advisor.name}|${advisor.college ?? ""}`;
-}
-
 /**
  * 三方合并：baseline（用户打开时的版本）、drafts（用户草稿）、latest（他人提交后的最新版本）。
  * 只把「baseline 有、草稿没有」的记录判为删除，绝不把他人新增的记录当成用户主动删除。
@@ -152,10 +148,10 @@ export function mergeThreeWay(params: {
       updated += 1;
       members.push({
         memberId: current.memberId,
-        name: draft.name.trim(),
-        grade: nullable(draft.grade),
-        college: nullable(draft.college),
-        major: nullable(draft.major),
+        name: draft.name.trim() !== base.name ? draft.name.trim() : current.name,
+        grade: nullable(draft.grade) !== base.grade ? nullable(draft.grade) : current.grade,
+        college: nullable(draft.college) !== base.college ? nullable(draft.college) : current.college,
+        major: nullable(draft.major) !== base.major ? nullable(draft.major) : current.major,
       });
     }
   }
@@ -181,40 +177,45 @@ export function mergeThreeWay(params: {
 
 /** 指导老师同样做三方合并，避免用旧数组覆盖他人新增。 */
 export function mergeAdvisors(params: {
-  baseline: Array<{ name: string; college: string | null }>;
-  drafts: Array<{ name: string; college: string }>;
-  latest: Array<{ name: string; college: string | null }>;
-}): Array<{ name: string; college: string | null }> {
-  const draftByName = new Map(
-    params.drafts
-      .filter((draft) => draft.name.trim())
-      .map((draft) => [draft.name.trim(), { name: draft.name.trim(), college: nullable(draft.college) }]),
-  );
-  const baselineNames = new Set(params.baseline.map((advisor) => advisor.name));
-  const draftNames = new Set(draftByName.keys());
+  baseline: Array<{ advisorId: string; name: string; college: string | null }>;
+  drafts: Array<{ advisorId?: string; name: string; college: string }>;
+  latest: Array<{ advisorId: string; name: string; college: string | null }>;
+}): Array<{ advisorId?: string; name: string; college: string | null }> {
+  const baseline = new Map(params.baseline.map(value => [value.advisorId, value]));
+  const drafts = new Map(params.drafts.filter(value => value.advisorId).map(value => [value.advisorId, value]));
+  const result = params.latest.filter(value => !baseline.has(value.advisorId) || drafts.has(value.advisorId)).map(value => {
+    const base = baseline.get(value.advisorId), draft = drafts.get(value.advisorId);
+    return { ...value, name: base && draft && draft.name.trim() !== base.name ? draft.name.trim() : value.name,
+      college: base && draft && nullable(draft.college) !== base.college ? nullable(draft.college) : value.college };
+  });
+  return [...result, ...params.drafts.filter(value => !value.advisorId).map(value => ({ name: value.name.trim(), college: nullable(value.college) }))];
+}
 
-  // 用户删除：基线里有、草稿里没有（按姓名判断，避免改学院被当成"删一个加一个"）。
-  const removedNames = new Set([...baselineNames].filter((name) => !draftNames.has(name)));
-
-  const result: Array<{ name: string; college: string | null }> = [];
-  const handled = new Set<string>();
-
-  for (const advisor of params.latest) {
-    if (removedNames.has(advisor.name)) continue;
-    const draft = draftByName.get(advisor.name);
-    // 同名老师视为同一条：用户在草稿里改了学院就更新，否则保留最新值。
-    result.push(draft ? { name: advisor.name, college: draft.college } : { name: advisor.name, college: advisor.college });
-    handled.add(advisor.name);
-  }
-
-  // 用户新增的老师：名字既不在最新也不在基线里。
-  for (const draft of draftByName.values()) {
-    if (handled.has(draft.name) || baselineNames.has(draft.name)) continue;
-    result.push(draft);
-    handled.add(draft.name);
-  }
-
-  return result;
+/** Convert user intent into the API's strict commands. Unedited concurrent fields survive. */
+export function buildAwardCorrection(base: OfficialAwardRow, latest: OfficialAwardRow, draft: {
+  levelCode: AwardLevelCode; subTrack: string; teamName: string; reason: string; members: MemberDraft[];
+  advisors: Array<{ advisorId?: string; name: string; college: string }>;
+}): AwardCorrectionPayload {
+  const merged = mergeThreeWay({ baselineMembers: base.members, drafts: draft.members, latestMembers: latest.members });
+  const members: AwardCorrectionPayload["members"] = merged.members.map(value => {
+    const current = latest.members.find(member => member.memberId === value.memberId);
+    if (!value.memberId) return { operation: "create", fields: { officialName: value.name, grade: value.grade, college: value.college, major: value.major } };
+    const fields: Extract<AwardCorrectionPayload["members"][number], { operation: "update" }>["fields"] = {};
+    if (value.name !== current?.name) fields.displayName = value.name;
+    for (const key of ["grade", "college", "major"] as const) if (value[key] !== current?.[key]) fields[key] = value[key];
+    return { operation: "update", memberId: value.memberId, fields };
+  });
+  for (const memberId of merged.removedMemberIds) if (latest.members.some(value => value.memberId === memberId)) members.push({ operation: "remove", memberId });
+  const advisors = mergeAdvisors({ baseline: base.advisors, drafts: draft.advisors, latest: latest.advisors }).map(value => {
+    const original = base.advisors.find(advisor => advisor.advisorId === value.advisorId);
+    return { decision: "manual" as const, ...(value.advisorId ? { advisorId: value.advisorId } : {}), displayName: value.name,
+      ...(!value.advisorId || (original && value.college !== original.college) ? { college: value.college } : {}) };
+  });
+  return { expectedVersion: latest.version, reason: draft.reason.trim(), fields: {
+    ...(draft.levelCode !== base.levelCode ? { levelCode: draft.levelCode } : {}),
+    ...(nullable(draft.subTrack) !== base.subTrack ? { subTrack: nullable(draft.subTrack) } : {}),
+    ...(nullable(draft.teamName) !== base.teamName ? { teamName: nullable(draft.teamName) } : {}),
+  }, members: members.filter(value => value.operation !== "update" || Object.keys(value.fields).length > 0), advisors };
 }
 
 type AwardLike = {
@@ -222,7 +223,7 @@ type AwardLike = {
   subTrack: string | null;
   teamName: string | null;
   members: MemberLike[];
-  advisors: Array<{ name: string; college: string | null }>;
+  advisors: Array<{ advisorId: string; name: string; college: string | null }>;
 };
 
 /** 展示「他人改了什么」：只描述 baseline → latest 的变化，供用户显式确认。 */
@@ -256,20 +257,22 @@ export function describeConcurrentChanges(baseline: AwardLike, latest: AwardLike
     if ((now.major ?? "") !== (member.major ?? "")) changes.push(`成员专业：${member.name} ${member.major ?? "空"} → ${now.major ?? "空"}`);
   }
 
-  const baselineAdvisorByName = new Map(baseline.advisors.map((advisor) => [advisor.name, advisor]));
-  const latestAdvisorByName = new Map(latest.advisors.map((advisor) => [advisor.name, advisor]));
-  for (const [name, advisor] of latestAdvisorByName) {
-    const before = baselineAdvisorByName.get(name);
+  const baselineAdvisorByName = new Map(baseline.advisors.map((advisor) => [advisor.advisorId, advisor]));
+  const latestAdvisorByName = new Map(latest.advisors.map((advisor) => [advisor.advisorId, advisor]));
+  for (const [id, advisor] of latestAdvisorByName) {
+    const name = advisor.name;
+    const before = baselineAdvisorByName.get(id);
     if (!before) {
       changes.push(`新增老师：${name}`);
       continue;
     }
+    if (before.name !== advisor.name) changes.push(`老师姓名：${before.name} → ${advisor.name}`);
     if ((before.college ?? "") !== (advisor.college ?? "")) {
       changes.push(`老师学院：${name} ${before.college ?? "空"} → ${advisor.college ?? "空"}`);
     }
   }
-  for (const name of baselineAdvisorByName.keys()) {
-    if (!latestAdvisorByName.has(name)) changes.push(`移除老师：${name}`);
+  for (const [id, advisor] of baselineAdvisorByName) {
+    if (!latestAdvisorByName.has(id)) changes.push(`移除老师：${advisor.name}`);
   }
   return changes;
 }

@@ -1,5 +1,6 @@
 // 官方获奖名单（#131 / #134 / #135 / #138）契约。
 // 正式事实一奖一行；成员与指导老师是快照子项，身份核实状态与来源逐项表达。
+import { z } from "zod";
 
 /** #131 规定的规范等级枚举；中文文案只用于展示，不作为 code 传输。 */
 export type AwardLevelCode =
@@ -55,6 +56,7 @@ export interface OfficialAwardMember {
 }
 
 export interface OfficialAwardAdvisor {
+  advisorId: string;
   name: string;
   college: string | null;
   source: AwardSource;
@@ -88,9 +90,8 @@ export interface OfficialAwardSummary {
   /** 获奖人次，包含未核实与匿名身份。 */
   memberCount: number;
   /** 已核实去重人数：COUNT(DISTINCT person_id)，仅统计 verified 且 personId 非空。 */
-  verifiedMemberCount: number;
-  /** 导入草稿待处理数，与正式事实分开呈现。 */
-  draftPending: number;
+  verifiedPersonCount: number;
+  unverifiedMemberCount: number;
 }
 
 export interface OfficialAwardPermissions {
@@ -99,26 +100,39 @@ export interface OfficialAwardPermissions {
   canVoid: boolean;
 }
 
-export interface OfficialAwardCompetition {
-  id: string;
-  title: string;
-  edition: string;
-  years: number[];
-  levels: AwardLevelCode[];
-  subTracks: string[];
-}
-
 export interface OfficialAwardListResponse {
-  competition: OfficialAwardCompetition;
+  competitionId: string;
   items: OfficialAwardRow[];
   nextCursor: string | null;
   hasMore: boolean;
   summary: OfficialAwardSummary;
   permissions: OfficialAwardPermissions;
-  lastUpdatedAt: string;
 }
 
-/** 更正时提交的成员输入：带 memberId 表示更新，不带表示新增；删除走 removedMemberIds。 */
+/** Public HTTP DTO validation and the single conversion to this page's display model. */
+export function parseOfficialAwardList(raw: unknown): OfficialAwardListResponse {
+  const source = z.enum(["official", "registration", "manual", "unknown"]);
+  const nullableText = z.string().nullable();
+  const payload = z.object({
+    competitionId: z.uuid(), rowCount: z.number().int().nonnegative(), hasMore: z.boolean(), nextCursor: nullableText,
+    permissions: z.object({ canExport: z.boolean(), canCorrect: z.boolean(), canVoid: z.boolean() }),
+    summary: z.object({ awardCount: z.number().int().nonnegative(), memberCount: z.number().int().nonnegative(), verifiedPersonCount: z.number().int().nonnegative(), unverifiedMemberCount: z.number().int().nonnegative() }),
+    items: z.array(z.object({ awardId: z.uuid(), competitionId: z.uuid(), originBatchId: z.uuid(), version: z.number().int().positive(),
+      awardYear: z.number().int().nullable(), levelRaw: nullableText, levelCode: z.enum(["special", "first", "second", "third", "excellence", "other", "unclassified"]),
+      subTrack: nullableText, teamName: nullableText, confirmedAt: z.iso.datetime(), status: z.enum(["confirmed", "voided"]),
+      members: z.array(z.object({ memberId: z.uuid(), personId: z.uuid().nullable(), displayName: z.string(), grade: nullableText, college: nullableText, major: nullableText, identityState: z.enum(["verified", "unverified"]), snapshotSource: source })),
+      advisors: z.array(z.object({ advisorId: z.uuid(), displayName: z.string(), college: nullableText, snapshotSource: source })),
+    })),
+  }).parse(raw);
+  if (payload.rowCount !== payload.items.length || payload.items.some(row => row.competitionId !== payload.competitionId)) throw new Error("获奖名单响应范围不一致。");
+  return { ...payload, items: payload.items.map(row => ({ ...row, memberCount: row.members.length,
+    members: row.members.map(member => ({ ...member, name: member.displayName, verification: member.identityState, source: member.snapshotSource })),
+    advisors: row.advisors.map(advisor => ({ ...advisor, name: advisor.displayName, source: advisor.snapshotSource })),
+    source: "official", sourceRef: row.originBatchId, voided: row.status === "voided", voidReason: null,
+  })) };
+}
+
+/** 页面内的成员草稿；HTTP 更正通过 buildAwardCorrection 转为严格命令。 */
 export interface AwardMemberInput {
   /** 已有成员必须回传稳定 ID；新增成员不发送该字段（不发假 ID）。 */
   memberId?: string;
@@ -132,19 +146,17 @@ export interface AwardMemberInput {
 export type AwardMemberPatch = AwardMemberInput;
 
 export interface AwardAdvisorPatch {
-  name: string;
-  college: string | null;
+  advisorId?: string;
+  decision: "manual";
+  displayName: string;
+  college?: string | null;
 }
 
 export interface AwardCorrectionPayload {
   expectedVersion: number;
   reason: string;
-  levelCode: AwardLevelCode;
-  subTrack: string | null;
-  teamName: string | null;
-  members: AwardMemberInput[];
-  /** 被移除的成员，按稳定 ID 表达，避免整组替换丢身份。 */
-  removedMemberIds: string[];
+  fields: { levelCode?: AwardLevelCode; subTrack?: string | null; teamName?: string | null };
+  members: Array<{ operation: "create"; fields: { officialName: string; grade: string | null; college: string | null; major: string | null } } | { operation: "update"; memberId: string; fields: { displayName?: string; grade?: string | null; college?: string | null; major?: string | null } } | { operation: "remove"; memberId: string }>;
   advisors: AwardAdvisorPatch[];
 }
 

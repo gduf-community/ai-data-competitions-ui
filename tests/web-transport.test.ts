@@ -10,7 +10,7 @@ test("official awards add exactly two trusted GET capabilities and validate the 
   for (const path of [base, base + '/export?format=xlsx&view=member']) for (const business of [true, false]) for (const method of ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE']) {
     assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { method, headers: { host: config.web.host, origin: config.web.origin } }), { ...config, business }), business && method === 'GET');
   }
-  for (const path of ['/api/admin/official-awards/imports', base + '/unknown', '/api/admin/official-awards/summary', '/api/admin/official-awards/' + competitionId]) assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { headers: { host: config.web.host } }), config), false);
+  for (const path of ['/api/admin/official-awards/imports', base + '/unknown', '/api/admin/official-awards/summary']) assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { headers: { host: config.web.host } }), config), false);
   const url = new URL(config.web.origin + base + '/export?format=xlsx&view=member');
   const filename = `official-awards-${competitionId}-member.xlsx`;
   const headers = new Headers({ 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}` });
@@ -134,9 +134,10 @@ test("official downloads verify fragmented signatures, preserve bytes and propag
       globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.from(prefix)); }, cancel() { canceled = true; } }), { headers });
       const response = await GET(request()); await response.body!.cancel(); assert.equal(canceled, true);
       const controller = new AbortController(); canceled = false;
-      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, cancel() { canceled = true; } }), { headers });
+      const reading = Promise.withResolvers<void>();
+      globalThis.fetch = async () => new Response(new ReadableStream({ start(c) { c.enqueue(Uint8Array.of(prefix[0])); }, pull() { reading.resolve(); }, cancel() { canceled = true; } }), { headers });
       const pending = GET(request(controller.signal));
-      await new Promise(resolve => setTimeout(resolve, 5)); controller.abort();
+      await reading.promise; controller.abort();
       await assert.rejects(pending); assert.equal(canceled, true);
     }
   } finally {

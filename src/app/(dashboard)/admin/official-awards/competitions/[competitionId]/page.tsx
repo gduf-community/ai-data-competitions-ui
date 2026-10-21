@@ -44,11 +44,14 @@ export default function OfficialAwardCompetitionPage() {
 
   useEffect(() => {
     if (!conflictWait) return;
+    if (!list.loading && list.kind !== "ok") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setConflict(true); setConflictLost(true); setConflictWait(null); return;
+    }
     if (list.revision <= conflictWait.revision) return;
     const fresh = list.data?.items.find((item) => item.awardId === conflictWait.awardId);
     if (!fresh) {
       // 记录已离开当前筛选/页：不能冒充已回填，提示用户重新打开。
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConflict(true);
       setConflictLost(true);
       setConflictWait(null);
@@ -58,7 +61,7 @@ export default function OfficialAwardCompetitionPage() {
     setVoiding((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setConflict(true);
     setConflictWait(null);
-  }, [conflictWait, list.data, list.revision]);
+  }, [conflictWait, list.data, list.revision, list.loading, list.kind]);
 
   const refreshAfterMutation = () => {
     setEditing(null);
@@ -90,7 +93,7 @@ export default function OfficialAwardCompetitionPage() {
     setExpanded((prev) => (prev.includes(awardId) ? prev.filter((id) => id !== awardId) : [...prev, awardId]));
   };
 
-  const summary = list.summary ?? { awardCount: 0, memberCount: 0, verifiedMemberCount: 0, draftPending: 0 };
+  const summary = list.summary ?? { awardCount: 0, memberCount: 0, verifiedPersonCount: 0, unverifiedMemberCount: 0 };
   const permissions = list.permissions;
   const exportReady = list.kind === "ok" && !list.loading && Boolean(list.data);
   // 失败/加载时不把 0 当成真实统计展示，避免误读。
@@ -125,12 +128,8 @@ export default function OfficialAwardCompetitionPage() {
       <div className="space-y-4 sm:space-y-6">
         <PageHeader
           eyebrow="官方获奖名单"
-          title={list.competition?.title ?? "获奖名单"}
-          description={
-            list.competition
-              ? `${list.competition.edition} · 一奖一行，展开可查看获奖成员与指导老师；已核实人数只按 person_id 去重。`
-              : "按奖项查看已确认的官方获奖事实。"
-          }
+          title="获奖名单"
+          description="一奖一行，展开查看成员与老师；已核实人数按稳定人物身份去重。"
           actions={
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <Select value={exportView} onValueChange={(value) => setExportView(value as ExportView)}>
@@ -195,35 +194,25 @@ export default function OfficialAwardCompetitionPage() {
             description="COUNT(DISTINCT person_id)，仅已核实"
             icon={<UserCheck className="size-4 text-muted-foreground" />}
             label="已核实去重人数"
-            value={stat(summary.verifiedMemberCount)}
+            value={stat(summary.verifiedPersonCount)}
           />
           <StatsCard
-            description="导入草稿，不计入正式事实"
+            description="正式名单中尚未核实稳定身份的成员"
             icon={<ClipboardList className="size-4 text-muted-foreground" />}
-            label="草稿待处理"
-            value={stat(summary.draftPending)}
+            label="未核实人次"
+            value={stat(summary.unverifiedMemberCount)}
           />
         </div>
-
-        {showStats && summary.draftPending > 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] leading-5 text-amber-800 sm:px-4 sm:py-3 sm:text-sm">
-            有 <strong>{summary.draftPending}</strong> 条导入草稿待处理，它们<strong>不计入</strong>上方正式事实统计；
-            请先在导入/补全流程中确认。
-          </div>
-        ) : null}
 
         <OfficialAwardFilters
           keyword={query.keyword}
           level={query.filters.level}
-          levels={list.competition?.levels ?? []}
           onKeywordChange={query.setKeyword}
           onLevelChange={query.setLevel}
           onSubTrackChange={query.setSubTrack}
           onYearChange={query.setYear}
           subTrack={query.filters.subTrack}
-          subTracks={list.competition?.subTracks ?? []}
           year={query.filters.year}
-          years={list.competition?.years ?? []}
         />
 
         <div className="hidden md:block">
@@ -289,6 +278,7 @@ export default function OfficialAwardCompetitionPage() {
         baseline={editingBaseline}
         conflict={conflict}
         conflictLost={conflictLost}
+        waiting={Boolean(conflictWait)}
         onClose={() => {
           setEditing(null);
           setEditingBaseline(null);
@@ -300,6 +290,8 @@ export default function OfficialAwardCompetitionPage() {
       />
 
       <OfficialAwardVoidDialog
+        waiting={Boolean(conflictWait)}
+        conflictLost={conflictLost}
         award={voiding}
         conflict={conflict}
         onClose={() => {

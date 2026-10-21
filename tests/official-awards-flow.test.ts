@@ -163,12 +163,12 @@ test("三方合并：用户修改与并发新增同时保留", () => {
 });
 
 test("指导老师三方合并：他人新增保留，用户删除生效", () => {
-  const baseline = [{ name: "张老师", college: "计算机学院" }];
+  const baseline = [{ advisorId: "a-1", name: "张老师", college: "计算机学院" }];
   const latest = [
-    { name: "张老师", college: "计算机学院" },
-    { name: "李老师（他人新增）", college: null },
+    { advisorId: "a-1", name: "张老师", college: "计算机学院" },
+    { advisorId: "a-2", name: "李老师（他人新增）", college: null },
   ];
-  const kept = mergeAdvisors({ baseline, drafts: [{ name: "张老师", college: "计算机学院" }], latest });
+  const kept = mergeAdvisors({ baseline, drafts: [{ advisorId: "a-1", name: "张老师", college: "计算机学院" }], latest });
   assert.deepEqual(
     kept.map((advisor) => advisor.name),
     ["张老师", "李老师（他人新增）"],
@@ -186,7 +186,7 @@ test("describeConcurrentChanges 汇总他人改动用于显式确认", () => {
     subTrack: "数据挖掘",
     teamName: "A 队",
     members: [{ memberId: "m-1", name: "甲", grade: "2024级", college: null, major: null }],
-    advisors: [{ name: "张老师", college: null }],
+    advisors: [{ advisorId: "a-1", name: "张老师", college: null }],
   };
   const latest = {
     levelCode: "first",
@@ -197,8 +197,8 @@ test("describeConcurrentChanges 汇总他人改动用于显式确认", () => {
       { memberId: "m-2", name: "乙", grade: null, college: null, major: null },
     ],
     advisors: [
-      { name: "张老师", college: null },
-      { name: "李老师", college: null },
+      { advisorId: "a-1", name: "张老师", college: null },
+      { advisorId: "a-2", name: "李老师", college: null },
     ],
   };
   const changes = describeConcurrentChanges(baseline, latest);
@@ -209,11 +209,11 @@ test("describeConcurrentChanges 汇总他人改动用于显式确认", () => {
   assert.deepEqual(describeConcurrentChanges(baseline, baseline), []);
 });
 test("指导老师同名改学院视为更新，不会变成两条", () => {
-  const baseline = [{ name: "张老师", college: "计算机学院" }];
-  const latest = [{ name: "张老师", college: "计算机学院" }];
-  const merged = mergeAdvisors({ baseline, drafts: [{ name: "张老师", college: "数学与统计学院" }], latest });
+  const baseline = [{ advisorId: "a-1", name: "张老师", college: "计算机学院" }];
+  const latest = [{ advisorId: "a-1", name: "张老师", college: "计算机学院" }];
+  const merged = mergeAdvisors({ baseline, drafts: [{ advisorId: "a-1", name: "张老师", college: "数学与统计学院" }], latest });
   assert.equal(merged.length, 1);
-  assert.deepEqual(merged[0], { name: "张老师", college: "数学与统计学院" });
+  assert.deepEqual(merged[0], { advisorId: "a-1", name: "张老师", college: "数学与统计学院" });
 });
 
 test("describeConcurrentChanges 把老师改学院描述为修改而不是增删", () => {
@@ -222,9 +222,9 @@ test("describeConcurrentChanges 把老师改学院描述为修改而不是增删
     subTrack: null,
     teamName: null,
     members: [] as Array<{ memberId: string; name: string; grade: string | null; college: string | null; major: string | null }>,
-    advisors: [{ name: "张老师", college: "计算机学院" }],
+    advisors: [{ advisorId: "a-1", name: "张老师", college: "计算机学院" }],
   };
-  const latest = { ...base, advisors: [{ name: "张老师", college: "数学与统计学院" }] };
+  const latest = { ...base, advisors: [{ advisorId: "a-1", name: "张老师", college: "数学与统计学院" }] };
   const changes = describeConcurrentChanges(base, latest);
   assert.deepEqual(changes, ["老师学院：张老师 计算机学院 → 数学与统计学院"]);
 });
