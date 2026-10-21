@@ -24,6 +24,24 @@ systemd 文件仅为 `.service.example` 模板：独立用户、独立 /opt/comp
 
 目标预置准确 Node 工具链至模板指定路径，不从系统其他业务的 Node 安装推定兼容。release 目录及所需 .next 缓存的用户权限需在安装时核实。模板不会自动创建用户、安装 unit、切换 current 或更新反代；这些步骤须由主线程在故障解除和容量验证后对精确版本协调执行。
 
+## 配对与 ownership 激活门禁
+
+激活前使用 API 运行包内 `verify-runtime-pair.mjs`（源码为 API 仓库 scripts 同名文件）做只读校验，传入两份 manifest 路径以及来自受信提交记录的 API/Web SHA。各 manifest 同目录须有对应 runtime.tar.gz：
+
+```sh
+node verify-runtime-pair.mjs API_MANIFEST WEB_MANIFEST TRUSTED_API_SHA TRUSTED_WEB_SHA
+```
+
+工具要求两份自身 SHA 与指定值相等、两侧 companionSha 双向对应、平台/架构一致，并流式核对两份包的 SHA256。任何一侧空 companion、旧 manifest 或摘要不符均阻断激活；不得只改 JSON 的 SHA 冒充新构建。验证不会暂存或启动服务。暂存完成也不表示通过此配对门禁。
+
+stage 保持文件0600、可执行文件/新建release根目录0700。如果 root 暂存，独立业务用户不能直接读取。先核实以下精确路径不是符号链接且未作为 current 使用，再仅对该 SHA 目录执行 ownership 移交（UNIT/SHA 替换为本业务的已验证值）：
+
+```sh
+chown -hRP --preserve-root competition-UNIT:competition-UNIT /opt/competition/UNIT/releases/EXACT_SHA
+```
+
+`-P` 不遍历目录符号链接，`-h` 不更改链接目标；不得把路径扩大到 /opt、其他 release 或现有服务。保留0600/0700，不执行 chmod -R 或放开所有人访问。另核实 /opt/competition/UNIT/releases 的父目录允许该业务用户 traverse。用该用户只读检查 ecs-start.mjs 与 manifest 可读、运行目录可遍历后才安装/启动 unit；root 所有的 /etc/competition/UNIT.env 保持0600，由 systemd读取，不移交给其他业务。具体 ownership/用户创建和 current 切换在主线程核准执行时完成，本次未执行。
+
 ## 切换门禁与回退
 
 先做备份恢复演练、对象清单/字节校验和权限核对，确认源数据库与 RDS PostgreSQL18 的完整业务结构、ICU 中文 collation；禁止不加区别重放含已退役 Geo 表的全量 SQL。新增迁移、搜索回填和社团切换由单一 release runner 独立审批执行，启动无迁移。腾讯补全 worker 不恢复，gduf-mlflow 及既有业务不动。
