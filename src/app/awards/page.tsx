@@ -6,7 +6,6 @@ import { PortalFooter } from "@/components/marketing/portal-footer";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getOptionalWebSession as auth } from "@/lib/web-session";
 import type { AwardGalleryRow } from "@/lib/contracts/profiles";
 import { listApprovedAwardsForGallery } from "@/lib/web-data";
 
@@ -100,23 +99,13 @@ function groupAwards(awards: AwardGalleryRow[]): YearGroup[] {
 }
 
 export default async function AwardsGalleryPage() {
-  const [session, awards] = await Promise.all([
-    auth(),
-    listApprovedAwardsForGallery(),
-  ]);
-
-  const currentUser = session?.user
-    ? {
-        name: session.user.name ?? "未命名用户",
-        role: session.user.role,
-      }
-    : null;
+  const awards = await listApprovedAwardsForGallery();
 
   const years = groupAwards(awards);
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
-      <PortalNavbar currentUser={currentUser} />
+      <PortalNavbar />
       <main className="mx-auto max-w-6xl px-4 py-12 md:px-6">
         <div className="space-y-10">
           <div className="space-y-2">
