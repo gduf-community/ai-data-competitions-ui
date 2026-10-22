@@ -17,5 +17,8 @@ export const getSessionUser = cache(async () => (await getWebSession())?.user ??
 // 受保护页仍需用 getWebSession 区分 401（匿名）与真实服务错误，不要改用此函数。
 export const getOptionalWebSession = cache(async () => {
   try { return await getWebSession(); }
-  catch { return null; }
+  catch (error) {
+    console.warn("[web-session] optional session unavailable", error instanceof WebApiError ? `HTTP ${error.status}` : error instanceof Error ? error.name : "unknown");
+    return null;
+  }
 });
