@@ -16,7 +16,37 @@ import { Button } from "@/components/ui/button";
 
 const DISMISSED_KEY = "dismissed_notice_popups";
 const PublishedNoticesContext = createContext<PublishedNoticeRecord[]>([]);
-export function NoticeProvider({ notices, children }: { notices: PublishedNoticeRecord[]; children: React.ReactNode }) {
+export function NoticeProvider({ children }: { children: React.ReactNode }) {
+  const [notices, setNotices] = useState<PublishedNoticeRecord[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+
+    async function loadNotices() {
+      try {
+        const response = await fetch("/api/notices/published?limit=20", {
+          cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json() as { notices: PublishedNoticeRecord[] };
+        if (!Array.isArray(payload.notices)) throw new Error("Invalid notices response");
+        if (active) setNotices(payload.notices);
+      } catch (error) {
+        if (!active) return;
+        console.warn("[notices] optional public fetch failed", error instanceof Error ? error.name : "unknown");
+        retry = setTimeout(() => { void loadNotices(); }, 30_000);
+      }
+    }
+    void loadNotices();
+    return () => {
+      active = false;
+      controller.abort();
+      if (retry) clearTimeout(retry);
+    };
+  }, []);
+
   return <PublishedNoticesContext value={notices}>{children}</PublishedNoticesContext>;
 }
 export function usePublishedNotices() { return useContext(PublishedNoticesContext); }

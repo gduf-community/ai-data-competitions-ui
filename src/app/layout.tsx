@@ -6,7 +6,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarConfigProvider } from "@/contexts/sidebar-context";
 import { NoticePopup, NoticeProvider } from "@/components/notifications/notice-popup";
-import { listPublishedNotices } from "@/lib/web-data";
 import { SecurityFetchProvider } from "@/components/security/security-fetch-provider";
 import { inter, mono } from "@/lib/fonts";
 import { normalizeLocale } from "@/lib/i18n";
@@ -29,14 +28,13 @@ export default async function RootLayout({
 }) {
   const requestHeaders = await headers();
   const locale = normalizeLocale(requestHeaders.get("accept-language"));
-  const notices = await listPublishedNotices(20);
 
   return (
     <html suppressHydrationWarning lang={locale} className={`${inter.variable} ${mono.variable} antialiased`}>
       <body className={inter.className}>
         <ThemeProvider defaultTheme="system" storageKey="nextjs-ui-theme">
           <SidebarConfigProvider>
-            <NoticeProvider notices={notices}>
+            <NoticeProvider>
               <SecurityFetchProvider />
               {children}
               <NoticePopup />

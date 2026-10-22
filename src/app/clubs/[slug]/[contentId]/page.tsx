@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 
-import { getWebSession as auth } from "@/lib/web-session";
 import { clubsData } from "@/lib/data/clubs";
 import { ClubContentDetail } from "@/components/clubs/club-content-detail";
 import { NewFooter } from "@/components/marketing/new-footer";
@@ -14,10 +13,7 @@ export default async function ClubContentDetailPage({
 }) {
   const { slug, contentId } = await params;
 
-  const [club, session] = await Promise.all([
-    Promise.resolve(clubsData.find((c) => c.id === slug) ?? null),
-    auth(),
-  ]);
+  const club = await Promise.resolve(clubsData.find((c) => c.id === slug) ?? null);
 
   if (!club) {
     notFound();
@@ -28,14 +24,11 @@ export default async function ClubContentDetailPage({
     notFound();
   }
 
-  const currentUser = session?.user
-    ? { name: session.user.name ?? "未命名用户", role: session.user.role }
-    : null;
 
 
   return (
     <div className="relative min-h-screen bg-background">
-      <NewNavbar currentUser={currentUser} />
+      <NewNavbar />
       <main>
         <ClubContentDetail
           clubSlug={slug}

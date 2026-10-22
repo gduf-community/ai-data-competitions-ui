@@ -6,7 +6,7 @@ import { Section } from "@/components/marketing/section";
 import { NotificationsReadSync } from "@/components/notifications/notifications-read-sync";
 import { RichTextContent } from "@/components/shared/rich-text-content";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { listPublishedNotices } from "@/lib/web-data";
 import { formatNoticeDate } from "@/lib/notice-format";
 
