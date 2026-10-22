@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -14,12 +14,13 @@ import { CompetitionStatusBadge } from "@/components/competitions/competition-st
 import { Button } from "@/components/ui/button";
 import Glow from "@/components/ui/glow";
 import type { UserRole } from "@/lib/types";
+import { fetchClientSessionUser } from "@/lib/auth/client-session";
 import type { PublicCompetitionSummary as Competition } from "@/lib/contracts/public-portal";
 import { formatRegistrationWindow } from "@/lib/competition-date";
 
 interface NewHeroProps {
   featuredCompetitions: Competition[];
-  currentUser: { name: string; role: UserRole } | null;
+  currentUser?: { name: string; role: UserRole } | null;
 }
 
 function canAccessAdmin(role: UserRole) {
@@ -41,10 +42,20 @@ const heroVars = {
 
 export function NewHero({ featuredCompetitions, currentUser }: NewHeroProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
+  const [clientUser, setClientUser] = useState<{ name: string; role: UserRole } | null>(null);
+  const resolvedUser = currentUser === undefined ? clientUser : currentUser;
+  useEffect(() => {
+    if (currentUser !== undefined) return;
+    let active = true;
+    void fetchClientSessionUser().then(user => {
+      if (active) setClientUser(user ? { name: user.name, role: user.role } : null);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [currentUser]);
   const [primaryCompetition, ...rest] = featuredCompetitions;
   const secondaryCards = rest.slice(0, 2);
-  const secondaryActionHref = currentUser ? "/me/applications" : "/notifications";
-  const secondaryActionLabel = currentUser ? "查看我的报名" : "查看通知公告";
+  const secondaryActionHref = resolvedUser ? "/me/applications" : "/notifications";
+  const secondaryActionLabel = resolvedUser ? "查看我的报名" : "查看通知公告";
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -132,7 +143,7 @@ export function NewHero({ featuredCompetitions, currentUser }: NewHeroProps) {
               >
                 <Link href={secondaryActionHref}>{secondaryActionLabel}</Link>
               </Button>
-              {currentUser && canAccessAdmin(currentUser.role) && (
+              {resolvedUser && canAccessAdmin(resolvedUser.role) && (
                 <Button
                   size="lg"
                   variant="ghost"
