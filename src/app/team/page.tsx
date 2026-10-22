@@ -4,7 +4,7 @@ import { NewFooter } from "@/components/marketing/new-footer";
 import { NewNavbar } from "@/components/marketing/new-navbar";
 import { Section } from "@/components/marketing/section";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { cn } from "@/lib/utils";
 
 const founders = [

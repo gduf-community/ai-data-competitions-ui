@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { clubsData } from "@/lib/data/clubs";
 import { ClubContentDetail } from "@/components/clubs/club-content-detail";
 import { NewFooter } from "@/components/marketing/new-footer";

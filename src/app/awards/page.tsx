@@ -6,7 +6,7 @@ import { PortalFooter } from "@/components/marketing/portal-footer";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import type { AwardGalleryRow } from "@/lib/contracts/profiles";
 import { listApprovedAwardsForGallery } from "@/lib/web-data";
 

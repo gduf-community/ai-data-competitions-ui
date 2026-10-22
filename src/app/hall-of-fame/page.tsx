@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { PortalFooter } from "@/components/marketing/portal-footer";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { getHallOfFameEntries } from "@/lib/web-data";
 
 export default async function HallOfFamePage() {

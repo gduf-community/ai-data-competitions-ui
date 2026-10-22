@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { clubsData } from "@/lib/data/clubs";
 import { normalizeLocale, type AppLocale } from "@/lib/i18n";
 import { ClubContentTabs } from "@/components/clubs/club-content-tabs";

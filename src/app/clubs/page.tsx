@@ -1,5 +1,5 @@
 import { clubsData } from "@/lib/data/clubs";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { ClubsActivityGallery } from "@/components/marketing/clubs-activity-gallery";
 import { ClubsDetailSwitcher } from "@/components/marketing/clubs-detail-switcher";
 import { ClubsHero } from "@/components/marketing/clubs-hero";

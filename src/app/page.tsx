@@ -4,7 +4,7 @@ import { NewFooter } from "@/components/marketing/new-footer";
 import { HonorShowcase } from "@/components/marketing/honor-showcase";
 import { NewHero } from "@/components/marketing/new-hero";
 import { NewNavbar } from "@/components/marketing/new-navbar";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { getHomepagePortalData } from "@/lib/web-data";
 
 export default async function HomePage() {

@@ -8,7 +8,7 @@ import { NewNavbar } from "@/components/marketing/new-navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { getVisibleAwardById } from "@/lib/web-data";
 
 interface AwardDetailPageProps {
