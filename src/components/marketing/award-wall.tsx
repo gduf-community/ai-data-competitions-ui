@@ -68,7 +68,11 @@ function AwardCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-between px-3 py-2 text-xs text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
             <span>查看奖状详情</span>
-            <span>{award.userName}</span>
+            <span>
+              {award.memberNames.length > 0
+                ? award.memberNames.join("、")
+                : award.userName}
+            </span>
           </div>
         </div>
       </Link>
@@ -79,7 +83,11 @@ function AwardCard({
         {award.awardLevel ? (
           <p className="text-xs text-primary">{award.awardLevel}</p>
         ) : null}
-        <p className="text-xs text-muted-foreground">{award.userName}</p>
+        <p className="text-xs text-muted-foreground">
+          {award.memberNames.length > 0
+            ? award.memberNames.join("、")
+            : award.userName}
+        </p>
       </div>
     </motion.div>
   );

@@ -91,7 +91,10 @@ export default async function AwardDetailPage({
                     variant="outline"
                     className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
                   >
-                    获奖人：{award.userName}
+                    获奖人：
+                    {award.memberNames.length > 0
+                      ? award.memberNames.join("、")
+                      : award.userName}
                   </Badge>
                   <Badge
                     variant="outline"

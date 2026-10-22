@@ -20,6 +20,7 @@ interface AwardReviewDialogProps {
   awardTitle: string;
   awardLevel?: string | null;
   applicantName: string;
+  memberNames?: string[];
   imageUrl: string;
   onAction: (action: "approve" | "reject", comment: string) => Promise<void>;
 }
@@ -30,6 +31,7 @@ export function AwardReviewDialog({
   awardTitle,
   awardLevel,
   applicantName,
+  memberNames = [],
   imageUrl,
   onAction,
 }: AwardReviewDialogProps) {
@@ -66,6 +68,10 @@ export function AwardReviewDialog({
               <span>提交人：{applicantName}</span>
               {awardLevel ? <span>获奖等级：{awardLevel}</span> : null}
             </div>
+            <p className="text-xs text-slate-500">
+              参赛成员：
+              {memberNames.length > 0 ? memberNames.join("、") : applicantName}
+            </p>
           </div>
           {imageUrl ? (
             <DirectUploadImage

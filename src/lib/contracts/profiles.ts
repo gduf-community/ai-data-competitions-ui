@@ -5,6 +5,7 @@ export interface AwardShowcaseRow {
   id: string;
   userId: string;
   userName: string;
+  memberNames: string[];
   competitionId: string;
   competitionTitle: string;
   awardLevel: string | null;
@@ -15,6 +16,7 @@ export interface PublicAwardDetail {
   id: string;
   userId: string;
   userName: string;
+  memberNames: string[];
   competitionId: string;
   competitionTitle: string;
   awardLevel: string | null;
@@ -27,6 +29,7 @@ export interface AwardGalleryRow {
   id: string;
   userId: string;
   userName: string;
+  memberNames: string[];
   competitionId: string;
   competitionTitle: string;
   competitionYear: number;
@@ -51,10 +54,26 @@ export interface AwardForReviewRow {
   reviewComment: string | null;
   displayOrder: number;
   createdAt: string;
+  memberNames: string[];
+}
+
+export interface AwardMemberRow {
+  userId: string;
+  name: string;
+  college: string | null;
+}
+
+export interface AwardMemberCandidate {
+  id: string;
+  name: string;
+  college: string | null;
+  emailMasked: string | null;
+  studentNoMasked: string | null;
 }
 
 export interface MyAwardRow {
   id: string;
+  userId: string;
   competitionId: string;
   competitionTitle: string;
   awardLevel: string | null;
@@ -65,6 +84,8 @@ export interface MyAwardRow {
   reviewComment: string | null;
   displayOrder: number;
   createdAt: string;
+  role: "owner" | "member";
+  members: AwardMemberRow[];
 }
 
 export type HallOfFameStatus = "invited" | "candidate" | "active" | "hidden";

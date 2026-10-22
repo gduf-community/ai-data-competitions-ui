@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, Plus, Trash2 } from "lucide-react";
+import { ImageIcon, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
+import { AwardMemberPicker } from "@/components/profile/award-member-picker";
 import { CompetitionPicker } from "@/components/competitions/competition-picker";
 import { DirectUploadImage } from "@/components/shared/direct-upload-image";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { compressImage } from "@/lib/image/compress";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
-import type { MyAwardRow } from "@/lib/contracts/profiles";
+import type {
+  AwardMemberCandidate,
+  AwardMemberRow,
+  MyAwardRow,
+} from "@/lib/contracts/profiles";
 
 const statusConfig: Record<
   string,
@@ -50,6 +55,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     title: string;
   } | null>(null);
   const [awardLevel, setAwardLevel] = useState("");
+  const [members, setMembers] = useState<AwardMemberRow[]>([]);
+  const [manageAward, setManageAward] = useState<MyAwardRow | null>(null);
+  const [manageMembers, setManageMembers] = useState<AwardMemberRow[]>([]);
+  const [managing, setManaging] = useState(false);
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0];
@@ -77,6 +86,9 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       if (awardLevel) {
         body.append("awardLevel", awardLevel);
       }
+      for (const member of members) {
+        body.append("memberIds", member.userId);
+      }
 
       const res = await fetch("/api/me/award-certificates", {
         method: "POST",
@@ -92,6 +104,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       setShowUpload(false);
       setCompetition(null);
       setAwardLevel("");
+      setMembers([]);
       if (fileRef.current) {
         fileRef.current.value = "";
       }
@@ -121,6 +134,86 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       toast.error(error instanceof Error ? error.message : "撤销失败");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  function openManage(award: MyAwardRow) {
+    setManageAward(award);
+    setManageMembers(award.members);
+  }
+
+  function handleUploadAddMember(candidate: AwardMemberCandidate) {
+    setMembers((prev) =>
+      prev.some((member) => member.userId === candidate.id)
+        ? prev
+        : [
+            ...prev,
+            {
+              userId: candidate.id,
+              name: candidate.name,
+              college: candidate.college,
+            },
+          ],
+    );
+  }
+
+  function handleUploadRemoveMember(userId: string) {
+    setMembers((prev) => prev.filter((member) => member.userId !== userId));
+  }
+
+  async function handleAddMember(candidate: AwardMemberCandidate) {
+    if (!manageAward) {
+      return;
+    }
+    setManaging(true);
+    try {
+      const res = await fetchWithCsrf(
+        `/api/me/award-certificates/${manageAward.id}/members`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberIds: [candidate.id] }),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "添加失败" }));
+        throw new Error(err.message);
+      }
+      const data = (await res.json()) as { members?: AwardMemberRow[] };
+      if (data.members) {
+        setManageMembers(data.members);
+      }
+      toast.success("已添加获奖成员");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "添加失败");
+    } finally {
+      setManaging(false);
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    if (!manageAward) {
+      return;
+    }
+    setManaging(true);
+    try {
+      const res = await fetchWithCsrf(
+        `/api/me/award-certificates/${manageAward.id}/members/${userId}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "移除失败" }));
+        throw new Error(err.message);
+      }
+      const data = (await res.json()) as { members?: AwardMemberRow[] };
+      if (data.members) {
+        setManageMembers(data.members);
+      }
+      toast.success("已移除获奖成员");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "移除失败");
+    } finally {
+      setManaging(false);
     }
   }
 
@@ -172,6 +265,15 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                       审核备注：{award.reviewComment}
                     </p>
                   ) : null}
+                  {award.role === "member" ? (
+                    <p className="text-xs text-primary">作为获奖成员关联</p>
+                  ) : null}
+                  {award.members.length > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      获奖成员：
+                      {award.members.map((member) => member.name).join("、")}
+                    </p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">
                     {new Date(award.createdAt).toLocaleDateString("zh-CN")}
                   </p>
@@ -180,16 +282,29 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                       是否展示到首页作品墙由管理员单独决定。
                     </p>
                   ) : null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    disabled={isDeleting}
-                    onClick={() => void handleDelete(award.id)}
-                  >
-                    <Trash2 className="mr-1 size-3.5" />
-                    {isDeleting ? "撤销中..." : "撤销奖状"}
-                  </Button>
+                  {award.role === "owner" ? (
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => openManage(award)}
+                      >
+                        <Users className="mr-1 size-3.5" />
+                        管理获奖成员
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled={isDeleting}
+                        onClick={() => void handleDelete(award.id)}
+                      >
+                        <Trash2 className="mr-1 size-3.5" />
+                        {isDeleting ? "撤销中..." : "撤销奖状"}
+                      </Button>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             );
@@ -221,6 +336,15 @@ export function MyAwardList({ awards }: MyAwardListProps) {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="award-members">获奖成员（如有）</Label>
+              <AwardMemberPicker
+                members={members}
+                onAdd={handleUploadAddMember}
+                onRemove={handleUploadRemoveMember}
+                disabled={uploading}
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="award-file">
                 奖状图片（PNG/JPG/WebP，≤5MB，上传前会自动压缩）
               </Label>
@@ -242,6 +366,43 @@ export function MyAwardList({ awards }: MyAwardListProps) {
             </Button>
             <Button onClick={handleUpload} disabled={uploading}>
               {uploading ? "上传中..." : "提交"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={manageAward !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManageAward(null);
+            router.refresh();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>管理获奖成员</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {manageAward ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  为「{manageAward.competitionTitle}」添加或移除获奖成员。
+                </p>
+                <AwardMemberPicker
+                  members={manageMembers}
+                  onAdd={(candidate) => void handleAddMember(candidate)}
+                  onRemove={(userId) => void handleRemoveMember(userId)}
+                  disabled={managing}
+                  ownerId={manageAward.userId}
+                />
+              </>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageAward(null)}>
+              完成
             </Button>
           </DialogFooter>
         </DialogContent>

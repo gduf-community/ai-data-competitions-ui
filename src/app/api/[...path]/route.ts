@@ -1,3 +1,4 @@
+// Browser capability policy lives in web-transport.ts; recompile chain on policy edits.
 import { relayUpload } from "@/lib/upload-relay";
 import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability, validOfficialAwardDownload } from "@/lib/web-transport";
 export const dynamic = "force-dynamic";
