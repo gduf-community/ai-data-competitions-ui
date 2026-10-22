@@ -80,12 +80,28 @@ export default async function AwardDetailPage({
                       {award.awardLevel}
                     </Badge>
                   ) : null}
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
-                  >
-                    获奖人：{award.userName}
-                  </Badge>
+                  {(award.memberNames.length > 0
+                    ? award.memberNames
+                    : [award.userName]
+                  )
+                    .slice(0, 6)
+                    .map((name) => (
+                      <Badge
+                        key={name}
+                        variant="outline"
+                        className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
+                      >
+                        获奖人：{name}
+                      </Badge>
+                    ))}
+                  {award.memberNames.length > 6 ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
+                    >
+                      +{award.memberNames.length - 6} 人
+                    </Badge>
+                  ) : null}
                   <Badge
                     variant="outline"
                     className="rounded-full border-slate-200 bg-slate-50 text-slate-700"

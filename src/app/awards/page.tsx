@@ -166,8 +166,10 @@ export default async function AwardsGalleryPage() {
                                   <p className="line-clamp-1 text-sm font-medium text-slate-900">
                                     {award.competitionTitle}
                                   </p>
-                                  <p className="text-xs text-slate-500">
-                                    {award.userName}
+                                  <p className="text-xs text-slate-500 line-clamp-1">
+                                    {award.memberNames.length > 0
+                                      ? award.memberNames.join("、")
+                                      : award.userName}
                                   </p>
                                 </CardContent>
                               </Card>

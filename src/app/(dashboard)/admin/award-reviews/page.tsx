@@ -30,6 +30,7 @@ interface AwardCertificate {
   reviewComment: string | null;
   displayOrder: number;
   createdAt: string;
+  memberNames: string[];
 }
 
 const statusLabels: Record<string, string> = {
@@ -262,6 +263,12 @@ export default function AdminAwardReviewsPage() {
                     <div className="space-y-1 text-xs text-slate-600">
                       <p>比赛 ID：{award.competitionId}</p>
                       {award.awardLevel ? <p>获奖等级：{award.awardLevel}</p> : null}
+                      <p className="line-clamp-2 break-words">
+                        参赛成员：
+                        {award.memberNames.length > 0
+                          ? award.memberNames.join("、")
+                          : award.userName}
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -385,6 +392,7 @@ export default function AdminAwardReviewsPage() {
           awardTitle={reviewTarget?.competitionTitle ?? ""}
           awardLevel={reviewTarget?.awardLevel}
           applicantName={reviewTarget?.userName ?? ""}
+          memberNames={reviewTarget?.memberNames ?? []}
           imageUrl={reviewTarget?.imageLargeUrl ?? reviewTarget?.imageUrl ?? ""}
           onAction={handleReview}
         />
