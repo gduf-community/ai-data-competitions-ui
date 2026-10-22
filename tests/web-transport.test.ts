@@ -81,9 +81,21 @@ test("preview relays versioned assets and public legacy references without admit
 });
 
 test("public DTOs, SQL and unknown endpoints are never browser capabilities in either release", () => {
-  const paths = ["/api/competitions", "/api/homepage", "/api/notices/published", "/api/portal/competitions/id", "/api/awards", "/api/awards/id", "/api/hall-of-fame", "/api/profiles/id", "/api/clubs/id/contents", "/api/questions", "/api/questions/id", "/api/admin/analytics/schema", "/api/admin/analytics/sql/run", "/api/admin/analytics/sql/validate", "/api/admin/unknown", "/api/health", "/api/web/access", "/api/security/events/server", "/api/auth/unknown"];
+  const paths = ["/api/competitions", "/api/homepage", "/api/portal/competitions/id", "/api/awards", "/api/awards/id", "/api/hall-of-fame", "/api/profiles/id", "/api/clubs/id/contents", "/api/questions", "/api/questions/id", "/api/admin/analytics/schema", "/api/admin/analytics/sql/run", "/api/admin/analytics/sql/validate", "/api/admin/unknown", "/api/health", "/api/web/access", "/api/security/events/server", "/api/auth/unknown"];
   for (const business of [false, true]) for (const pathname of paths) for (const method of ["GET", "HEAD", "OPTIONS", "POST"]) {
     assert.equal(permittedBrowserRequest(new Request(config.web.origin+pathname, {method, headers:{host:config.web.host,origin:config.web.origin}}), {...config,business}), false, method+" "+pathname);
+  }
+});
+
+test("explicit public notice capability is read-only and does not open nearby DTOs", () => {
+  for (const business of [false, true]) for (const method of ["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"]) {
+    const request = new Request(config.web.origin + "/api/notices/published?limit=20", {
+      method, headers: { host: config.web.host, origin: config.web.origin },
+    });
+    assert.equal(permittedBrowserRequest(request, { ...config, business }), method === "GET" || method === "HEAD", method);
+  }
+  for (const path of ["/api/notices", "/api/notices/draft", "/api/notices/published/1", "/api/notices/published-extra"]) {
+    assert.equal(permittedBrowserRequest(new Request(config.web.origin + path, { headers: {host: config.web.host} }), config), false, path);
   }
 });
 
