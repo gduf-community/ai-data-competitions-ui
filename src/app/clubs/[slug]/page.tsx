@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { cookies, headers } from "next/headers";
 
-import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { clubsData } from "@/lib/data/clubs";
 import { normalizeLocale, type AppLocale } from "@/lib/i18n";
 import { ClubContentTabs } from "@/components/clubs/club-content-tabs";
@@ -22,10 +21,7 @@ export default async function ClubDetailPage({
 }) {
   const { slug } = await params;
 
-  const [club, session] = await Promise.all([
-    Promise.resolve(clubsData.find((c) => c.id === slug) ?? null),
-    auth(),
-  ]);
+  const club = await Promise.resolve(clubsData.find((c) => c.id === slug) ?? null);
 
   if (!club) {
     notFound();
@@ -40,9 +36,6 @@ export default async function ClubDetailPage({
       listPublishedClubContents(slug, "event_summary", CONTENT_LIST_LIMIT),
     ]);
 
-  const currentUser = session?.user
-    ? { name: session.user.name ?? "未命名用户", role: session.user.role }
-    : null;
 
 
   const locale: AppLocale = normalizeLocale(
@@ -52,7 +45,7 @@ export default async function ClubDetailPage({
 
   return (
     <div className="relative min-h-screen bg-background">
-      <NewNavbar currentUser={currentUser} />
+      <NewNavbar />
       <main>
         <ClubDetailHero club={club} contacts={contacts} />
         <section className="py-6 sm:py-10">
