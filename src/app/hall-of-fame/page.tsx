@@ -6,25 +6,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { PortalFooter } from "@/components/marketing/portal-footer";
-import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { getHallOfFameEntries } from "@/lib/web-data";
 
 export default async function HallOfFamePage() {
-  const [session, entries] = await Promise.all([
-    auth(),
-    getHallOfFameEntries(),
-  ]);
+  const entries = await getHallOfFameEntries();
 
-  const currentUser = session?.user
-    ? {
-        name: session.user.name ?? "未命名用户",
-        role: session.user.role,
-      }
-    : null;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
-      <PortalNavbar currentUser={currentUser} />
+      <PortalNavbar />
       <main className="mx-auto max-w-5xl px-4 py-12 md:px-6">
         <div className="space-y-8">
           <div className="space-y-2">
