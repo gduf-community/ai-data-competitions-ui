@@ -159,7 +159,12 @@ test("我的奖状行契约拒绝 role=admin、缺失 members 与非 UUID 主键
   };
   expectReject(myAwardRowSchema, { ...base, role: "admin", members: [] }, "role");
   expectReject(myAwardRowSchema, { ...base, id: "not-a-uuid", members: [] }, "id");
-  expectReject(myAwardRowSchema, { ...base, competitionId: "not-a-uuid", members: [] }, "competitionId");
+  // 历史 competitionId 允许非 UUID（后端 varchar(64)），仅拒绝空字符串。
+  assert.equal(
+    myAwardRowSchema.parse({ ...base, competitionId: "legacy-id", members: [] }).competitionId,
+    "legacy-id",
+  );
+  expectReject(myAwardRowSchema, { ...base, competitionId: "", members: [] }, "competitionId");
   expectReject(myAwardRowSchema, base, "members");
 });
 
@@ -172,7 +177,12 @@ test("公开展示行契约：解析、剥离未知字段、memberNames 锁定�
 
   expectReject(awardShowcaseRowSchema, showcaseRowFixture({ id: "not-a-uuid" }), "id");
   expectReject(awardShowcaseRowSchema, showcaseRowFixture({ userId: "not-a-uuid" }), "userId");
-  expectReject(awardShowcaseRowSchema, showcaseRowFixture({ competitionId: "bad" }), "competitionId");
+  // 历史 competitionId 允许非 UUID（后端 varchar(64)），仅拒绝空字符串。
+  assert.equal(
+    awardShowcaseRowSchema.parse(showcaseRowFixture({ competitionId: "legacy-id" })).competitionId,
+    "legacy-id",
+  );
+  expectReject(awardShowcaseRowSchema, showcaseRowFixture({ competitionId: "" }), "competitionId");
   expectReject(awardShowcaseRowSchema, showcaseRowFixture({ memberNames: "王五、张三" }), "memberNames");
   expectReject(awardShowcaseRowSchema, showcaseRowFixture({ memberNames: [1, 2] }), "memberNames");
 });

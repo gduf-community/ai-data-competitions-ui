@@ -8,7 +8,7 @@ export const awardShowcaseRowSchema = z.object({
   userId: z.string().uuid(),
   userName: z.string(),
   memberNames: z.array(z.string()),
-  competitionId: z.string().uuid(),
+  competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
   awardLevel: z.string().nullable(),
   imageUrl: z.string(),
@@ -71,7 +71,7 @@ export const awardMembersResponseSchema = z.object({
 export const myAwardRowSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
-  competitionId: z.string().uuid(),
+  competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
   awardLevel: z.string().nullable(),
   imageUrl: z.string(),
