@@ -66,9 +66,9 @@ function AwardCard({
         <div className="relative aspect-[4/3] overflow-hidden">
           <AwardWallImage src={award.imageUrl} alt={award.competitionTitle} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-          <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-between px-3 py-2 text-xs text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-            <span>查看奖状详情</span>
-            <span>
+          <div className="absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-between gap-2 px-3 py-2 text-xs text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <span className="shrink-0">查看奖状详情</span>
+            <span className="min-w-0 flex-1 text-right line-clamp-2 break-words">
               {award.memberNames.length > 0
                 ? award.memberNames.join("、")
                 : award.userName}
@@ -83,7 +83,7 @@ function AwardCard({
         {award.awardLevel ? (
           <p className="text-xs text-primary">{award.awardLevel}</p>
         ) : null}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground line-clamp-2 break-words">
           {award.memberNames.length > 0
             ? award.memberNames.join("、")
             : award.userName}

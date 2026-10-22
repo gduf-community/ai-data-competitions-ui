@@ -68,7 +68,7 @@ export function AwardReviewDialog({
               <span>提交人：{applicantName}</span>
               {awardLevel ? <span>获奖等级：{awardLevel}</span> : null}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 line-clamp-2 break-words">
               参赛成员：
               {memberNames.length > 0 ? memberNames.join("、") : applicantName}
             </p>

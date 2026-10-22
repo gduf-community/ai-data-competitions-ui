@@ -6,6 +6,7 @@ import { Check, Loader2, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { memberSearchResponseSchema } from "@/lib/contracts/profiles";
 import type {
   AwardMemberCandidate,
   AwardMemberRow,
@@ -32,6 +33,12 @@ export function AwardMemberPicker({
   const [searched, setSearched] = React.useState(false);
   const [error, setError] = React.useState("");
 
+  // 竞态防护：每次查找中止上一次请求并递增序号，过期响应不再写入任何状态，
+  // 避免快速连续搜索时旧结果覆盖新结果。
+  const abortRef = React.useRef<AbortController | null>(null);
+  const requestIdRef = React.useRef(0);
+  React.useEffect(() => () => abortRef.current?.abort(), []);
+
   const selectedIds = new Set(members.map((member) => member.userId));
 
   async function search() {
@@ -41,25 +48,43 @@ export function AwardMemberPicker({
       return;
     }
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const seq = ++requestIdRef.current;
     setSearching(true);
     setError("");
     try {
       const res = await fetch(
         "/api/me/award-certificates/member-search?q=" +
           encodeURIComponent(keyword.slice(0, 120)),
-        { cache: "no-store" },
+        { cache: "no-store", signal: controller.signal },
       );
+      if (seq !== requestIdRef.current) {
+        return;
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { message?: string };
         throw new Error(body.message || "查找失败");
       }
-      const data = (await res.json()) as { users: AwardMemberCandidate[] };
-      setResults(data.users ?? []);
+      const parsed = memberSearchResponseSchema.safeParse(await res.json());
+      if (!parsed.success) {
+        throw new Error("查找失败");
+      }
+      if (seq !== requestIdRef.current) {
+        return;
+      }
+      setResults(parsed.data.users);
       setSearched(true);
     } catch (err) {
+      if (seq !== requestIdRef.current || controller.signal.aborted) {
+        return;
+      }
       setError(err instanceof Error ? err.message : "查找失败");
     } finally {
-      setSearching(false);
+      if (seq === requestIdRef.current) {
+        setSearching(false);
+      }
     }
   }
 
@@ -68,7 +93,14 @@ export function AwardMemberPicker({
       <div className="flex gap-2">
         <Input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          maxLength={120}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            // 关键词变化后旧结果不再对应新查询，立即清空防止误添加。
+            setResults([]);
+            setSearched(false);
+            setError("");
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();

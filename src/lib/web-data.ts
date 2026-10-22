@@ -6,9 +6,13 @@ import type { PublicCompetitionDetail, PublicCompetitionSummary } from "@/lib/co
 import type { ApplicationDetailForReview, ApplicationForEdit, ApplicationAuditLog } from "@/lib/contracts/applications";
 import type { PublishedNoticeRecord } from "@/lib/contracts/portal";
 import type { PublicClubContent, ClubContentSummaryRow, ClubContactRow } from "@/lib/contracts/clubs";
-import type { AwardGalleryRow, PublicAwardDetail, AwardShowcaseRow, PublicHallOfFameEntry, PublicProfile, PublicExperiencePost, ExperiencePostRow, PublishedExperiencePostByCompetitionRow, MyAwardRow, MeProfileData, TitleInfo } from "@/lib/contracts/profiles";
+import { awardGalleryRowSchema, awardShowcaseRowSchema, myAwardRowSchema, publicAwardDetailSchema } from "@/lib/contracts/profiles";
+import type { PublicHallOfFameEntry, PublicProfile, PublicExperiencePost, ExperiencePostRow, PublishedExperiencePostByCompetitionRow, MeProfileData, TitleInfo } from "@/lib/contracts/profiles";
 const id = encodeURIComponent;
-export const getHomepagePortalData = cache(() => readAPI<{ featuredCompetitions: PublicCompetitionSummary[]; awardShowcaseEntries: AwardShowcaseRow[]; hallOfFameEntries: PublicHallOfFameEntry[] }>("/api/homepage"));
+export const getHomepagePortalData = cache(async () => {
+  const payload = await readAPI<{ featuredCompetitions: PublicCompetitionSummary[]; awardShowcaseEntries: unknown[]; hallOfFameEntries: PublicHallOfFameEntry[] }>("/api/homepage");
+  return { ...payload, awardShowcaseEntries: payload.awardShowcaseEntries.map((row) => awardShowcaseRowSchema.parse(row)) };
+});
 export async function getPublicCompetition(competitionId: string) { return (await readOptionalAPI<{competition: PublicCompetitionDetail}>("/api/portal/competitions/" + id(competitionId)))?.competition ?? null; }
 export async function getCompetitionById(competitionId: string) { return (await readOptionalAPI<{competition: Competition}>("/api/competitions/" + id(competitionId)))?.competition ?? null; }
 const applicationRead = cache((applicationId: string) => readOptionalAPI<{application: ApplicationDetailForReview; logs: ApplicationAuditLog[]; editData: ApplicationForEdit | null}>("/api/me/applications/" + id(applicationId)));
@@ -19,7 +23,7 @@ export async function listApplicationsVisibleToUser() { return (await readAPI<{a
 const profileRead = cache(() => readAPI<{data: MeProfileData; titles: TitleInfo[]}>("/api/me/profile"));
 export async function getMeProfile() { return (await profileRead()).data; }
 export async function resolveUserTitles() { return (await profileRead()).titles; }
-export async function listMyAwards() { return (await readAPI<{awards: MyAwardRow[]}>("/api/me/award-certificates")).awards; }
+export async function listMyAwards() { return (await readAPI<{awards: unknown[]}>("/api/me/award-certificates")).awards.map((row) => myAwardRowSchema.parse(row)); }
 type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] };
 function experience(row: Wire<ExperiencePostRow>): ExperiencePostRow { return {...row, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt), publishedAt: row.publishedAt ? new Date(row.publishedAt) : null}; }
 export async function listMyExperiencePosts() { return (await readAPI<{data: Wire<ExperiencePostRow>[]}>("/api/me/experience-posts")).data.map(experience); }
@@ -28,8 +32,8 @@ export async function getForUser() { return (await readAPI<{entry: {tag: string;
 export async function getHallOfFameEntries() { return (await readAPI<{entries: PublicHallOfFameEntry[]}>("/api/hall-of-fame")).entries; }
 export async function getPublicProfile(userId: string) { return (await readOptionalAPI<{profile: PublicProfile}>("/api/profiles/" + id(userId)))?.profile ?? null; }
 export async function getPublishedExperiencePost(userId: string, postId: string) { return (await readOptionalAPI<{post: PublicExperiencePost}>("/api/profiles/" + id(userId) + "/experiences/" + id(postId)))?.post ?? null; }
-export async function listApprovedAwardsForGallery() { return (await readAPI<{awards: AwardGalleryRow[]}>("/api/awards")).awards; }
-export async function getVisibleAwardById(awardId: string) { return (await readOptionalAPI<{award: PublicAwardDetail}>("/api/awards/" + id(awardId)))?.award ?? null; }
+export async function listApprovedAwardsForGallery() { return (await readAPI<{awards: unknown[]}>("/api/awards")).awards.map((row) => awardGalleryRowSchema.parse(row)); }
+export async function getVisibleAwardById(awardId: string) { const payload = await readOptionalAPI<{award: unknown}>("/api/awards/" + id(awardId)); return payload ? publicAwardDetailSchema.parse(payload.award) : null; }
 export async function listPublishedNotices(limit: number) { return (await readAPI<{notices: PublishedNoticeRecord[]}>("/api/notices/published?limit=" + limit)).notices; }
 export const getCompetitionShowcase = cache((competitionId: string) => readAPI<{posts: PublishedExperiencePostByCompetitionRow[]; entries: PublicHallOfFameEntry[]}>("/api/competitions/" + id(competitionId) + "/showcase"));
 export async function listPublishedPostsByCompetition(competitionId: string, limit: number) { return (await getCompetitionShowcase(competitionId)).posts.slice(0, limit); }

@@ -263,7 +263,7 @@ export default function AdminAwardReviewsPage() {
                     <div className="space-y-1 text-xs text-slate-600">
                       <p>比赛 ID：{award.competitionId}</p>
                       {award.awardLevel ? <p>获奖等级：{award.awardLevel}</p> : null}
-                      <p>
+                      <p className="line-clamp-2 break-words">
                         参赛成员：
                         {award.memberNames.length > 0
                           ? award.memberNames.join("、")

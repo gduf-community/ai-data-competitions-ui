@@ -1,43 +1,30 @@
+import { z } from "zod";
 
 export type AwardStatus = "pending" | "approved" | "rejected";
 
-export interface AwardShowcaseRow {
-  id: string;
-  userId: string;
-  userName: string;
-  memberNames: string[];
-  competitionId: string;
-  competitionTitle: string;
-  awardLevel: string | null;
-  imageUrl: string;
-}
+// 奖状公开展示契约：memberNames 仅包含随奖状审核核验（verified）的成员。
+export const awardShowcaseRowSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  userName: z.string(),
+  memberNames: z.array(z.string()),
+  competitionId: z.string().uuid(),
+  competitionTitle: z.string(),
+  awardLevel: z.string().nullable(),
+  imageUrl: z.string(),
+});
+export type AwardShowcaseRow = z.infer<typeof awardShowcaseRowSchema>;
 
-export interface PublicAwardDetail {
-  id: string;
-  userId: string;
-  userName: string;
-  memberNames: string[];
-  competitionId: string;
-  competitionTitle: string;
-  awardLevel: string | null;
-  imageUrl: string;
-  imageLargeUrl: string | null;
-  createdAt: string;
-}
+export const publicAwardDetailSchema = awardShowcaseRowSchema.extend({
+  imageLargeUrl: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type PublicAwardDetail = z.infer<typeof publicAwardDetailSchema>;
 
-export interface AwardGalleryRow {
-  id: string;
-  userId: string;
-  userName: string;
-  memberNames: string[];
-  competitionId: string;
-  competitionTitle: string;
-  competitionYear: number;
-  awardLevel: string | null;
-  imageUrl: string;
-  imageLargeUrl: string | null;
-  createdAt: string;
-}
+export const awardGalleryRowSchema = publicAwardDetailSchema.extend({
+  competitionYear: z.number(),
+});
+export type AwardGalleryRow = z.infer<typeof awardGalleryRowSchema>;
 
 export interface AwardForReviewRow {
   id: string;
@@ -57,36 +44,47 @@ export interface AwardForReviewRow {
   memberNames: string[];
 }
 
-export interface AwardMemberRow {
-  userId: string;
-  name: string;
-  college: string | null;
-}
+export const awardMemberRowSchema = z.object({
+  userId: z.string().uuid(),
+  name: z.string(),
+  college: z.string().nullable(),
+});
+export type AwardMemberRow = z.infer<typeof awardMemberRowSchema>;
 
-export interface AwardMemberCandidate {
-  id: string;
-  name: string;
-  college: string | null;
-  emailMasked: string | null;
-  studentNoMasked: string | null;
-}
+export const awardMemberCandidateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  college: z.string().nullable(),
+  emailMasked: z.string().nullable(),
+  studentNoMasked: z.string().nullable(),
+});
+export type AwardMemberCandidate = z.infer<typeof awardMemberCandidateSchema>;
 
-export interface MyAwardRow {
-  id: string;
-  userId: string;
-  competitionId: string;
-  competitionTitle: string;
-  awardLevel: string | null;
-  imageUrl: string;
-  imageLargeUrl: string | null;
-  status: string;
-  showOnHomepage: boolean;
-  reviewComment: string | null;
-  displayOrder: number;
-  createdAt: string;
-  role: "owner" | "member";
-  members: AwardMemberRow[];
-}
+export const memberSearchResponseSchema = z.object({
+  users: z.array(awardMemberCandidateSchema),
+});
+
+export const awardMembersResponseSchema = z.object({
+  members: z.array(awardMemberRowSchema),
+});
+
+export const myAwardRowSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  competitionId: z.string().uuid(),
+  competitionTitle: z.string(),
+  awardLevel: z.string().nullable(),
+  imageUrl: z.string(),
+  imageLargeUrl: z.string().nullable(),
+  status: z.string(),
+  showOnHomepage: z.boolean(),
+  reviewComment: z.string().nullable(),
+  displayOrder: z.number(),
+  createdAt: z.string(),
+  role: z.enum(["owner", "member"]),
+  members: z.array(awardMemberRowSchema),
+});
+export type MyAwardRow = z.infer<typeof myAwardRowSchema>;
 
 export type HallOfFameStatus = "invited" | "candidate" | "active" | "hidden";
 

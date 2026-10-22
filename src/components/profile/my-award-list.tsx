@@ -22,11 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { compressImage } from "@/lib/image/compress";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { awardMembersResponseSchema } from "@/lib/contracts/profiles";
 import type {
   AwardMemberCandidate,
   AwardMemberRow,
   MyAwardRow,
 } from "@/lib/contracts/profiles";
+
+const MAX_AWARD_MEMBERS = 20;
 
 const statusConfig: Record<
   string,
@@ -70,6 +73,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       toast.error("请选择比赛");
       return;
     }
+    if (members.length > MAX_AWARD_MEMBERS) {
+      toast.error(`获奖成员不能超过 ${MAX_AWARD_MEMBERS} 人。`);
+      return;
+    }
 
     setUploading(true);
     try {
@@ -90,7 +97,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
         body.append("memberIds", member.userId);
       }
 
-      const res = await fetch("/api/me/award-certificates", {
+      const res = await fetchWithCsrf("/api/me/award-certificates", {
         method: "POST",
         body,
       });
@@ -143,6 +150,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
   }
 
   function handleUploadAddMember(candidate: AwardMemberCandidate) {
+    if (members.length >= MAX_AWARD_MEMBERS) {
+      toast.error(`获奖成员不能超过 ${MAX_AWARD_MEMBERS} 人。`);
+      return;
+    }
     setMembers((prev) =>
       prev.some((member) => member.userId === candidate.id)
         ? prev
@@ -165,6 +176,11 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     if (!manageAward) {
       return;
     }
+    if (manageMembers.length >= MAX_AWARD_MEMBERS) {
+      toast.error(`获奖成员不能超过 ${MAX_AWARD_MEMBERS} 人。`);
+      return;
+    }
+    const wasApproved = manageAward.status === "approved";
     setManaging(true);
     try {
       const res = await fetchWithCsrf(
@@ -179,11 +195,15 @@ export function MyAwardList({ awards }: MyAwardListProps) {
         const err = await res.json().catch(() => ({ message: "添加失败" }));
         throw new Error(err.message);
       }
-      const data = (await res.json()) as { members?: AwardMemberRow[] };
-      if (data.members) {
-        setManageMembers(data.members);
+      const data = awardMembersResponseSchema.parse(await res.json());
+      setManageMembers(data.members);
+      if (wasApproved) {
+        // 已通过奖状变更名单 → 退回待审核：同步本地状态，关闭弹窗后刷新仍一致。
+        setManageAward((prev) => (prev ? { ...prev, status: "pending" } : prev));
+        toast.success("成员已更新，奖状将重新进入审核。");
+      } else {
+        toast.success("已添加获奖成员");
       }
-      toast.success("已添加获奖成员");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "添加失败");
     } finally {
@@ -195,6 +215,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     if (!manageAward) {
       return;
     }
+    const wasApproved = manageAward.status === "approved";
     setManaging(true);
     try {
       const res = await fetchWithCsrf(
@@ -205,11 +226,14 @@ export function MyAwardList({ awards }: MyAwardListProps) {
         const err = await res.json().catch(() => ({ message: "移除失败" }));
         throw new Error(err.message);
       }
-      const data = (await res.json()) as { members?: AwardMemberRow[] };
-      if (data.members) {
-        setManageMembers(data.members);
+      const data = awardMembersResponseSchema.parse(await res.json());
+      setManageMembers(data.members);
+      if (wasApproved) {
+        setManageAward((prev) => (prev ? { ...prev, status: "pending" } : prev));
+        toast.success("成员已更新，奖状将重新进入审核。");
+      } else {
+        toast.success("已移除获奖成员");
       }
-      toast.success("已移除获奖成员");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "移除失败");
     } finally {
@@ -269,7 +293,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     <p className="text-xs text-primary">作为获奖成员关联</p>
                   ) : null}
                   {award.members.length > 0 ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                       获奖成员：
                       {award.members.map((member) => member.name).join("、")}
                     </p>
@@ -390,6 +414,11 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                 <p className="text-sm text-muted-foreground">
                   为「{manageAward.competitionTitle}」添加或移除获奖成员。
                 </p>
+                {manageAward.status === "approved" ? (
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    该奖状已通过审核。修改成员名单将重新进入审核，奖状会暂时从展示墙隐藏。
+                  </p>
+                ) : null}
                 <AwardMemberPicker
                   members={manageMembers}
                   onAdd={(candidate) => void handleAddMember(candidate)}
