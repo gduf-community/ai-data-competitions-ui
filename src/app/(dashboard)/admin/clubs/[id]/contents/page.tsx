@@ -31,7 +31,7 @@ export default async function ManageClubContentsPage({
   const contents: ClubContentRow[] = await listManagedClubContents(clubSlug);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 lg:px-6">
       <PageHeader
         eyebrow="社团管理"
         title={club.name}
