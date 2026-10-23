@@ -317,7 +317,7 @@ export function SecuritySituationOverview({
                 highRiskTimeline.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-lg border border-border/60 p-3"
+                    className="min-w-0 rounded-lg border border-border/60 p-3"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant={riskVariant(item.riskLevel)}>
@@ -327,7 +327,7 @@ export function SecuritySituationOverview({
                         {formatDateTime(item.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm">{item.path ?? "-"}</p>
+                    <p className="mt-2 text-sm break-all">{item.path ?? "-"}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.maskedIp} · {formatRegion(item)}
                     </p>
