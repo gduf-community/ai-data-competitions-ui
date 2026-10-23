@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, Plus, Trash2, Users } from "lucide-react";
+import { CircleAlert, ImageIcon, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
 import { AwardMemberPicker } from "@/components/profile/award-member-picker";
@@ -20,9 +20,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { compressImage } from "@/lib/image/compress";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 import { awardMembersResponseSchema } from "@/lib/contracts/profiles";
+import {
+  AWARD_LEVEL_OPTIONS,
+  AWARD_SCOPE_OPTIONS,
+  displayAwardLevel,
+} from "@/lib/award-level";
 import type {
   AwardMemberCandidate,
   AwardMemberRow,
@@ -57,11 +74,17 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     id: string;
     title: string;
   } | null>(null);
+  const [awardScope, setAwardScope] = useState("");
   const [awardLevel, setAwardLevel] = useState("");
+  const [awardLevelText, setAwardLevelText] = useState("");
   const [members, setMembers] = useState<AwardMemberRow[]>([]);
   const [manageAward, setManageAward] = useState<MyAwardRow | null>(null);
   const [manageMembers, setManageMembers] = useState<AwardMemberRow[]>([]);
   const [managing, setManaging] = useState(false);
+  const [manageScope, setManageScope] = useState("");
+  const [manageLevel, setManageLevel] = useState("");
+  const [manageLevelText, setManageLevelText] = useState("");
+  const [savingLevel, setSavingLevel] = useState(false);
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0];
@@ -71,6 +94,14 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     }
     if (!competition) {
       toast.error("请选择比赛");
+      return;
+    }
+    if (!awardScope) {
+      toast.error("请选择范围");
+      return;
+    }
+    if (!awardLevel) {
+      toast.error("请选择获奖等级");
       return;
     }
     if (members.length > MAX_AWARD_MEMBERS) {
@@ -90,8 +121,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       const body = new FormData();
       body.append("file", compressedFile);
       body.append("competitionId", competition.id);
-      if (awardLevel) {
-        body.append("awardLevel", awardLevel);
+      body.append("awardScope", awardScope);
+      body.append("awardLevel", awardLevel);
+      if (awardLevelText.trim()) {
+        body.append("awardLevelText", awardLevelText.trim());
       }
       for (const member of members) {
         body.append("memberIds", member.userId);
@@ -110,7 +143,9 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       toast.success("奖状已上传，等待管理员审核");
       setShowUpload(false);
       setCompetition(null);
+      setAwardScope("");
       setAwardLevel("");
+      setAwardLevelText("");
       setMembers([]);
       if (fileRef.current) {
         fileRef.current.value = "";
@@ -147,6 +182,9 @@ export function MyAwardList({ awards }: MyAwardListProps) {
   function openManage(award: MyAwardRow) {
     setManageAward(award);
     setManageMembers(award.members);
+    setManageScope(award.awardScope ?? "");
+    setManageLevel(award.awardLevel ?? "");
+    setManageLevelText(award.awardLevelText ?? "");
   }
 
   function handleUploadAddMember(candidate: AwardMemberCandidate) {
@@ -241,6 +279,53 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     }
   }
 
+  async function handleSaveLevel() {
+    if (!manageAward) {
+      return;
+    }
+    if (!manageScope) {
+      toast.error("请选择范围");
+      return;
+    }
+    if (!manageLevel) {
+      toast.error("请选择获奖等级");
+      return;
+    }
+    const willReReview = manageAward.status !== "pending";
+    setSavingLevel(true);
+    try {
+      const res = await fetchWithCsrf(
+        `/api/me/award-certificates/${manageAward.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            awardScope: manageScope,
+            awardLevel: manageLevel,
+            awardLevelText: manageLevelText.trim() || undefined,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "保存失败" }));
+        throw new Error(err.message);
+      }
+      if (willReReview) {
+        setManageAward((prev) =>
+          prev ? { ...prev, status: "pending", showOnHomepage: false } : prev,
+        );
+        toast.success("获奖等级已更新，奖状将重新进入审核。");
+      } else {
+        toast.success("获奖等级已更新");
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存失败");
+    } finally {
+      setSavingLevel(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -281,8 +366,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     </span>
                     <Badge variant={config.variant}>{config.label}</Badge>
                   </div>
-                  {award.awardLevel ? (
-                    <p className="text-xs text-primary">{award.awardLevel}</p>
+                  {displayAwardLevel(award) ? (
+                    <p className="text-xs text-primary">
+                      {displayAwardLevel(award)}
+                    </p>
                   ) : null}
                   {award.reviewComment ? (
                     <p className="text-xs text-slate-500">
@@ -315,7 +402,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                         onClick={() => openManage(award)}
                       >
                         <Users className="mr-1 size-3.5" />
-                        管理获奖成员
+                        管理奖状
                       </Button>
                       <Button
                         variant="outline"
@@ -351,12 +438,87 @@ export function MyAwardList({ awards }: MyAwardListProps) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="award-level">获奖等级（选填）</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="award-scope">范围</Label>
+                  <Select
+                    value={awardScope}
+                    onValueChange={setAwardScope}
+                    disabled={uploading}
+                    required
+                  >
+                    <SelectTrigger id="award-scope">
+                      <SelectValue placeholder="请选择范围" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AWARD_SCOPE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="award-level">获奖等级</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                          aria-label="获奖等级说明"
+                        >
+                          <CircleAlert className="size-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        若获奖为金银铜，则分别对应一二三等奖；否则，选择“其他”。
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    value={awardLevel}
+                    onValueChange={setAwardLevel}
+                    disabled={uploading}
+                    required
+                  >
+                    <SelectTrigger id="award-level">
+                      <SelectValue placeholder="请选择获奖等级" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AWARD_LEVEL_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {displayAwardLevel({
+                awardScope,
+                awardLevel,
+                awardLevelText,
+              }) ? (
+                <p className="text-xs text-muted-foreground">
+                  将显示为：
+                  {displayAwardLevel({
+                    awardScope,
+                    awardLevel,
+                    awardLevelText,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="award-level-text">显示奖项等级（选填）</Label>
               <Input
-                id="award-level"
-                value={awardLevel}
-                onChange={(event) => setAwardLevel(event.target.value)}
-                placeholder="如：国家级一等奖"
+                id="award-level-text"
+                value={awardLevelText}
+                onChange={(event) => setAwardLevelText(event.target.value)}
+                placeholder="留空则使用上方组合结果"
+                disabled={uploading}
               />
             </div>
             <div className="grid gap-2">
@@ -406,26 +568,111 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>管理获奖成员</DialogTitle>
+            <DialogTitle>管理奖状</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {manageAward ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  为「{manageAward.competitionTitle}」添加或移除获奖成员。
+                  管理「{manageAward.competitionTitle}」的获奖等级与获奖成员。
                 </p>
-                {manageAward.status === "approved" ? (
-                  <p className="rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                    该奖状已通过审核。修改成员名单将重新进入审核，奖状会暂时从展示墙隐藏。
-                  </p>
-                ) : null}
-                <AwardMemberPicker
-                  members={manageMembers}
-                  onAdd={(candidate) => void handleAddMember(candidate)}
-                  onRemove={(userId) => void handleRemoveMember(userId)}
-                  disabled={managing}
-                  ownerId={manageAward.userId}
-                />
+                <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="manage-scope">范围</Label>
+                      <Select
+                        value={manageScope}
+                        onValueChange={setManageScope}
+                        disabled={savingLevel}
+                        required
+                      >
+                        <SelectTrigger id="manage-scope">
+                          <SelectValue placeholder="请选择范围" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AWARD_SCOPE_OPTIONS.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="manage-level">获奖等级</Label>
+                      <Select
+                        value={manageLevel}
+                        onValueChange={setManageLevel}
+                        disabled={savingLevel}
+                        required
+                      >
+                        <SelectTrigger id="manage-level">
+                          <SelectValue placeholder="请选择获奖等级" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AWARD_LEVEL_OPTIONS.map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="manage-level-text">显示奖项等级（选填）</Label>
+                    <Input
+                      id="manage-level-text"
+                      value={manageLevelText}
+                      onChange={(event) => setManageLevelText(event.target.value)}
+                      placeholder="留空则使用上方组合结果"
+                      disabled={savingLevel}
+                    />
+                  </div>
+                  {displayAwardLevel({
+                    awardScope: manageScope,
+                    awardLevel: manageLevel,
+                    awardLevelText: manageLevelText,
+                  }) ? (
+                    <p className="text-xs text-muted-foreground">
+                      将显示为：
+                      {displayAwardLevel({
+                        awardScope: manageScope,
+                        awardLevel: manageLevel,
+                        awardLevelText: manageLevelText,
+                      })}
+                    </p>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={savingLevel || !manageScope || !manageLevel}
+                    onClick={() => void handleSaveLevel()}
+                  >
+                    {savingLevel ? "保存中..." : "保存获奖等级"}
+                  </Button>
+                  {manageAward.status !== "pending" ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      保存后奖状将重新进入审核。
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">获奖成员</p>
+                  {manageAward.status === "approved" ? (
+                    <p className="text-xs text-muted-foreground">
+                      修改成员名单后，该奖状将重新进入审核。
+                    </p>
+                  ) : null}
+                  <AwardMemberPicker
+                    members={manageMembers}
+                    onAdd={(candidate) => void handleAddMember(candidate)}
+                    onRemove={(userId) => void handleRemoveMember(userId)}
+                    disabled={managing}
+                    ownerId={manageAward.userId}
+                  />
+                </div>
               </>
             ) : null}
           </div>

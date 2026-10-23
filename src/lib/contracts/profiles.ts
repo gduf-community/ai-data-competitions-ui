@@ -10,7 +10,9 @@ export const awardShowcaseRowSchema = z.object({
   memberNames: z.array(z.string()),
   competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
+  awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
+  awardLevelText: z.string().nullable(),
   imageUrl: z.string(),
 });
 export type AwardShowcaseRow = z.infer<typeof awardShowcaseRowSchema>;
@@ -33,7 +35,9 @@ export interface AwardForReviewRow {
   userImage: string | null;
   competitionId: string;
   competitionTitle: string;
+  awardScope: string | null;
   awardLevel: string | null;
+  awardLevelText: string | null;
   imageUrl: string;
   imageLargeUrl: string | null;
   status: string;
@@ -73,7 +77,9 @@ export const myAwardRowSchema = z.object({
   userId: z.string().uuid(),
   competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
+  awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
+  awardLevelText: z.string().nullable(),
   imageUrl: z.string(),
   imageLargeUrl: z.string().nullable(),
   status: z.string(),

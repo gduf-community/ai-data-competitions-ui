@@ -7,6 +7,7 @@ import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWebSession as auth } from "@/lib/web-session";
+import { displayAwardLevel } from "@/lib/award-level";
 import type { AwardGalleryRow } from "@/lib/contracts/profiles";
 import { listApprovedAwardsForGallery } from "@/lib/web-data";
 
@@ -57,7 +58,7 @@ function groupAwards(awards: AwardGalleryRow[]): YearGroup[] {
   >();
 
   for (const award of awards) {
-    const level = award.awardLevel?.trim() || "未标注等级";
+    const level = displayAwardLevel(award) || "未标注等级";
     let competitions = years.get(award.competitionYear);
     if (!competitions) {
       competitions = new Map();

@@ -57,11 +57,23 @@ export function AwardReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle>审核奖状</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {imageUrl ? (
+            <DirectUploadImage
+              src={imageUrl}
+              alt={awardTitle}
+              className="aspect-[4/3] overflow-hidden rounded-lg border border-border"
+              imgClassName="object-contain bg-black/5"
+            />
+          ) : null}
+        </div>
+
+        <div className="shrink-0 space-y-4 border-t border-border pt-4">
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-900">{awardTitle}</p>
             <div className="flex flex-wrap gap-2 text-xs text-slate-500">
@@ -73,26 +85,19 @@ export function AwardReviewDialog({
               {memberNames.length > 0 ? memberNames.join("、") : applicantName}
             </p>
           </div>
-          {imageUrl ? (
-            <DirectUploadImage
-              src={imageUrl}
-              alt={awardTitle}
-              className="aspect-[4/3] overflow-hidden rounded-lg border border-border"
-              imgClassName="object-contain bg-black/5"
-            />
-          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="award-comment">审核意见</Label>
             <Textarea
               id="award-comment"
               value={comment}
               onChange={(event) => setComment(event.target.value)}
-              rows={3}
+              rows={2}
               placeholder="选填"
             />
           </div>
         </div>
-        <DialogFooter className="flex gap-2">
+
+        <DialogFooter className="shrink-0">
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
