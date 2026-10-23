@@ -1,10 +1,11 @@
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Award, Calendar, Trophy } from "lucide-react";
+import { Award, Calendar, Trophy } from "lucide-react";
 
-import { NewFooter } from "@/components/marketing/new-footer";
-import { NewNavbar } from "@/components/marketing/new-navbar";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
+import { PortalFooter } from "@/components/marketing/portal-footer";
+import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,26 +19,24 @@ export default async function AwardDetailPage({
   params,
 }: AwardDetailPageProps) {
   const { id } = await params;
-  const award = await getVisibleAwardById(id);
+  const [award, session] = await Promise.all([
+    getVisibleAwardById(id),
+    auth(),
+  ]);
 
   if (!award) {
     notFound();
   }
 
+  const currentUser = session?.user
+    ? { name: session.user.name ?? "未命名用户", role: session.user.role }
+    : null;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f6ef_0%,#fcfbf8_45%,#f3efe5_100%)]">
-      <NewNavbar />
-      <main className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">
+      <PortalNavbar currentUser={currentUser} />
+      <main className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
         <div className="space-y-6">
-          <Link
-            href="/awards"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-900"
-          >
-            <ArrowLeft className="size-4" />
-            返回荣誉展示
-          </Link>
-
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
             <Card className="overflow-hidden border-slate-200/70 bg-white/92 shadow-sm">
               <CardContent className="p-0">
@@ -130,7 +129,7 @@ export default async function AwardDetailPage({
           </div>
         </div>
       </main>
-      <NewFooter />
+      <PortalFooter />
     </div>
   );
 }
