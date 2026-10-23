@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
 
+import { Logo } from "@/components/logo";
 import { DashedLine } from "@/components/ui/dashed-line";
 
 export function NewFooter() {
@@ -10,9 +10,7 @@ export function NewFooter() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Trophy className="size-4" />
-              </div>
+              <Logo size={32} />
               <span className="text-sm font-semibold">学院竞赛中心</span>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
