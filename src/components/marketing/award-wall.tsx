@@ -12,6 +12,7 @@ import {
 import { Award } from "lucide-react";
 
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
+import { displayAwardLevel } from "@/lib/award-level";
 import type { AwardShowcaseRow } from "@/lib/contracts/profiles";
 
 interface AwardWallProps {
@@ -80,8 +81,10 @@ function AwardCard({
         <p className="line-clamp-1 text-sm font-medium text-foreground">
           {award.competitionTitle}
         </p>
-        {award.awardLevel ? (
-          <p className="text-xs text-primary">{award.awardLevel}</p>
+        {displayAwardLevel(award) ? (
+          <p className="text-xs text-primary">
+            {displayAwardLevel(award)}
+          </p>
         ) : null}
         <p className="text-xs text-muted-foreground line-clamp-2 break-words">
           {award.memberNames.length > 0

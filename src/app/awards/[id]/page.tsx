@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWebSession as auth } from "@/lib/web-session";
+import { displayAwardLevel } from "@/lib/award-level";
 import { getVisibleAwardById } from "@/lib/web-data";
 
 interface AwardDetailPageProps {
@@ -78,13 +79,13 @@ export default async function AwardDetailPage({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {award.awardLevel ? (
+                  {displayAwardLevel(award) ? (
                     <Badge
                       variant="secondary"
                       className="rounded-full bg-amber-50 text-amber-800 hover:bg-amber-50"
                     >
                       <Award className="size-3" />
-                      {award.awardLevel}
+                      {displayAwardLevel(award)}
                     </Badge>
                   ) : null}
                   {(award.memberNames.length > 0
