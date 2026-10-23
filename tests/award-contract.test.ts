@@ -46,6 +46,7 @@ function showcaseRowFixture(overrides: Record<string, unknown> = {}) {
     awardScope: "国家级",
     awardLevel: "一等奖",
     awardLevelText: null,
+    awardYear: 2025,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     ...overrides,
   };
@@ -123,6 +124,7 @@ test("我的奖状行契约：owner/member 角色、members 数组、日期与�
     awardScope: "国家级",
     awardLevel: "一等奖",
     awardLevelText: null,
+    awardYear: 2025,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     imageLargeUrl: null,
     status: "approved",
@@ -154,6 +156,7 @@ test("我的奖状行契约拒绝 role=admin、缺失 members 与非 UUID 主键
     awardScope: null,
     awardLevel: null,
     awardLevelText: null,
+    awardYear: null,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     imageLargeUrl: null,
     status: "pending",

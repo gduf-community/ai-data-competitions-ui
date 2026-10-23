@@ -17,6 +17,13 @@ export const AWARD_LEVEL_OPTIONS = [
 export type AwardScope = (typeof AWARD_SCOPE_OPTIONS)[number];
 export type AwardLevel = (typeof AWARD_LEVEL_OPTIONS)[number];
 
+// 获奖年份选项：从当前年份往前推至 2000 年，供上传/编辑时选择。
+const CURRENT_YEAR = new Date().getFullYear();
+export const AWARD_YEAR_OPTIONS = Array.from(
+  { length: CURRENT_YEAR - 2000 + 1 },
+  (_, index) => CURRENT_YEAR - index,
+);
+
 /** 「其他」一律视为空值；其余保留原文（含「级」字）。 */
 function normalizeAwardPart(value: string | null | undefined): string {
   const text = (value ?? "").trim();

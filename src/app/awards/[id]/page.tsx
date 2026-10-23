@@ -88,6 +88,15 @@ export default async function AwardDetailPage({
                       {displayAwardLevel(award)}
                     </Badge>
                   ) : null}
+                  {award.awardYear != null ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
+                    >
+                      <Calendar className="size-3" />
+                      年份：{award.awardYear}
+                    </Badge>
+                  ) : null}
                   {(award.memberNames.length > 0
                     ? award.memberNames
                     : [award.userName]

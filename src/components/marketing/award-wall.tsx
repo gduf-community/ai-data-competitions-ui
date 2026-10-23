@@ -86,6 +86,11 @@ function AwardCard({
             {displayAwardLevel(award)}
           </p>
         ) : null}
+        {award.awardYear != null ? (
+          <p className="text-xs text-muted-foreground">
+            年份：{award.awardYear}
+          </p>
+        ) : null}
         <p className="text-xs text-muted-foreground line-clamp-2 break-words">
           {award.memberNames.length > 0
             ? award.memberNames.join("、")

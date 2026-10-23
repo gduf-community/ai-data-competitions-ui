@@ -27,6 +27,7 @@ interface AwardCertificate {
   awardScope: string | null;
   awardLevel: string | null;
   awardLevelText: string | null;
+  awardYear: number | null;
   imageUrl: string;
   imageLargeUrl: string | null;
   status: string;
@@ -108,6 +109,7 @@ export default function AdminAwardReviewsPage() {
   const [deletingAwardId, setDeletingAwardId] = useState<string | null>(null);
   const [scopeFilters, setScopeFilters] = useState<string[]>([]);
   const [levelFilters, setLevelFilters] = useState<string[]>([]);
+  const [yearFilters, setYearFilters] = useState<string[]>([]);
   const [competitionFilters, setCompetitionFilters] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [gridColumns, setGridColumns] = useState(3);
@@ -171,6 +173,11 @@ export default function AdminAwardReviewsPage() {
 
   function handleLevelFiltersChange(next: string[]) {
     setLevelFilters(next);
+    setPage(1);
+  }
+
+  function handleYearFiltersChange(next: string[]) {
+    setYearFilters(next);
     setPage(1);
   }
 
@@ -297,6 +304,16 @@ export default function AdminAwardReviewsPage() {
     label: level,
   }));
 
+  const yearOptions = Array.from(
+    new Set(
+      awards
+        .map((award) => award.awardYear)
+        .filter((year): year is number => year != null),
+    ),
+  )
+    .sort((left, right) => right - left)
+    .map((year) => ({ value: String(year), label: `${year} 年` }));
+
   const visibleAwards = awards.filter((award) => {
     if (
       scopeFilters.length > 0 &&
@@ -307,6 +324,12 @@ export default function AdminAwardReviewsPage() {
     if (
       levelFilters.length > 0 &&
       !levelFilters.includes(award.awardLevel ?? "")
+    ) {
+      return false;
+    }
+    if (
+      yearFilters.length > 0 &&
+      (award.awardYear == null || !yearFilters.includes(String(award.awardYear)))
     ) {
       return false;
     }
@@ -439,7 +462,7 @@ export default function AdminAwardReviewsPage() {
             className="w-full"
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
             <MultiSelectFilter
               value={scopeFilters}
               options={scopeOptions}
@@ -452,6 +475,13 @@ export default function AdminAwardReviewsPage() {
               options={levelOptions}
               placeholder="选择等级"
               onChange={handleLevelFiltersChange}
+              className="w-full"
+            />
+            <MultiSelectFilter
+              value={yearFilters}
+              options={yearOptions}
+              placeholder="选择年份"
+              onChange={handleYearFiltersChange}
               className="w-full"
             />
           </div>
@@ -492,6 +522,9 @@ export default function AdminAwardReviewsPage() {
 
                     <div className="space-y-1 text-xs text-slate-600">
                       <p>比赛 ID：{award.competitionId}</p>
+                      {award.awardYear != null ? (
+                        <p>年份：{award.awardYear}</p>
+                      ) : null}
                       {award.awardScope ? (
                         <p>范围：{award.awardScope}</p>
                       ) : null}
@@ -503,6 +536,7 @@ export default function AdminAwardReviewsPage() {
                           显示奖项等级：{displayAwardLevel(award)}
                         </p>
                       ) : null}
+
                       <p className="line-clamp-2 break-words">
                         参赛成员：
                         {award.memberNames.length > 0
@@ -630,7 +664,10 @@ export default function AdminAwardReviewsPage() {
             if (!open) setReviewTarget(null);
           }}
           awardTitle={reviewTarget?.competitionTitle ?? ""}
-          awardLevel={displayAwardLevel(reviewTarget ?? {})}
+          awardScope={reviewTarget?.awardScope ?? null}
+          awardLevel={reviewTarget?.awardLevel ?? null}
+          displayLevel={displayAwardLevel(reviewTarget ?? {})}
+          awardYear={reviewTarget?.awardYear ?? null}
           applicantName={reviewTarget?.userName ?? ""}
           memberNames={reviewTarget?.memberNames ?? []}
           imageUrl={reviewTarget?.imageLargeUrl ?? reviewTarget?.imageUrl ?? ""}

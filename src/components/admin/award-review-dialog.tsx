@@ -18,7 +18,10 @@ interface AwardReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   awardTitle: string;
+  awardScope?: string | null;
   awardLevel?: string | null;
+  displayLevel?: string | null;
+  awardYear?: number | null;
   applicantName: string;
   memberNames?: string[];
   imageUrl: string;
@@ -29,7 +32,10 @@ export function AwardReviewDialog({
   open,
   onOpenChange,
   awardTitle,
+  awardScope,
   awardLevel,
+  displayLevel,
+  awardYear,
   applicantName,
   memberNames = [],
   imageUrl,
@@ -76,9 +82,14 @@ export function AwardReviewDialog({
         <div className="shrink-0 space-y-4 border-t border-border pt-4">
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-900">{awardTitle}</p>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+            <div className="grid grid-cols-3 gap-2 text-xs text-slate-500">
+              <span>范围：{awardScope || "—"}</span>
+              <span>等级：{awardLevel || "—"}</span>
+              <span>年份：{awardYear != null ? awardYear : "—"}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
               <span>提交人：{applicantName}</span>
-              {awardLevel ? <span>获奖等级：{awardLevel}</span> : null}
+              <span>获奖等级：{displayLevel || "—"}</span>
             </div>
             <p className="text-xs text-slate-500 line-clamp-2 break-words">
               参赛成员：

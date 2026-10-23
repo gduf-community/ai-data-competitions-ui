@@ -13,6 +13,7 @@ export const awardShowcaseRowSchema = z.object({
   awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
   awardLevelText: z.string().nullable(),
+  awardYear: z.number().int().nullable(),
   imageUrl: z.string(),
 });
 export type AwardShowcaseRow = z.infer<typeof awardShowcaseRowSchema>;
@@ -38,6 +39,7 @@ export interface AwardForReviewRow {
   awardScope: string | null;
   awardLevel: string | null;
   awardLevelText: string | null;
+  awardYear: number | null;
   imageUrl: string;
   imageLargeUrl: string | null;
   status: string;
@@ -80,6 +82,7 @@ export const myAwardRowSchema = z.object({
   awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
   awardLevelText: z.string().nullable(),
+  awardYear: z.number().int().nullable(),
   imageUrl: z.string(),
   imageLargeUrl: z.string().nullable(),
   status: z.string(),
