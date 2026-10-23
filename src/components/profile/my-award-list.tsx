@@ -38,6 +38,7 @@ import { awardMembersResponseSchema } from "@/lib/contracts/profiles";
 import {
   AWARD_LEVEL_OPTIONS,
   AWARD_SCOPE_OPTIONS,
+  AWARD_YEAR_OPTIONS,
   displayAwardLevel,
 } from "@/lib/award-level";
 import type {
@@ -77,6 +78,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
   const [awardScope, setAwardScope] = useState("");
   const [awardLevel, setAwardLevel] = useState("");
   const [awardLevelText, setAwardLevelText] = useState("");
+  const [awardYear, setAwardYear] = useState("");
   const [members, setMembers] = useState<AwardMemberRow[]>([]);
   const [manageAward, setManageAward] = useState<MyAwardRow | null>(null);
   const [manageMembers, setManageMembers] = useState<AwardMemberRow[]>([]);
@@ -84,6 +86,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
   const [manageScope, setManageScope] = useState("");
   const [manageLevel, setManageLevel] = useState("");
   const [manageLevelText, setManageLevelText] = useState("");
+  const [manageYear, setManageYear] = useState("");
   const [savingLevel, setSavingLevel] = useState(false);
 
   async function handleUpload() {
@@ -102,6 +105,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     }
     if (!awardLevel) {
       toast.error("请选择获奖等级");
+      return;
+    }
+    if (!awardYear) {
+      toast.error("请选择获奖年份");
       return;
     }
     if (members.length > MAX_AWARD_MEMBERS) {
@@ -123,6 +130,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       body.append("competitionId", competition.id);
       body.append("awardScope", awardScope);
       body.append("awardLevel", awardLevel);
+      body.append("awardYear", awardYear);
       if (awardLevelText.trim()) {
         body.append("awardLevelText", awardLevelText.trim());
       }
@@ -146,6 +154,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       setAwardScope("");
       setAwardLevel("");
       setAwardLevelText("");
+      setAwardYear("");
       setMembers([]);
       if (fileRef.current) {
         fileRef.current.value = "";
@@ -185,6 +194,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
     setManageScope(award.awardScope ?? "");
     setManageLevel(award.awardLevel ?? "");
     setManageLevelText(award.awardLevelText ?? "");
+    setManageYear(award.awardYear != null ? String(award.awardYear) : "");
   }
 
   function handleUploadAddMember(candidate: AwardMemberCandidate) {
@@ -291,6 +301,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       toast.error("请选择获奖等级");
       return;
     }
+    if (!manageYear) {
+      toast.error("请选择获奖年份");
+      return;
+    }
     const willReReview = manageAward.status !== "pending";
     setSavingLevel(true);
     try {
@@ -302,6 +316,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
           body: JSON.stringify({
             awardScope: manageScope,
             awardLevel: manageLevel,
+            awardYear: Number(manageYear),
             awardLevelText: manageLevelText.trim() || undefined,
           }),
         },
@@ -359,17 +374,26 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   className="aspect-[4/3]"
                   imgClassName="object-cover"
                 />
-                <CardContent className="space-y-2 p-4">
+                <CardContent className="mt-auto space-y-2 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium">
                       {award.competitionTitle}
                     </span>
                     <Badge variant={config.variant}>{config.label}</Badge>
                   </div>
-                  {displayAwardLevel(award) ? (
-                    <p className="text-xs text-primary">
-                      {displayAwardLevel(award)}
-                    </p>
+                  {displayAwardLevel(award) || award.awardYear != null ? (
+                    <div className="space-y-0.5">
+                      {displayAwardLevel(award) ? (
+                        <p className="text-xs text-primary">
+                          {displayAwardLevel(award)}
+                        </p>
+                      ) : null}
+                      {award.awardYear != null ? (
+                        <p className="text-xs text-muted-foreground">
+                          年份：{award.awardYear}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
                   {award.reviewComment ? (
                     <p className="text-xs text-slate-500">
@@ -388,11 +412,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   <p className="text-xs text-muted-foreground">
                     {new Date(award.createdAt).toLocaleDateString("zh-CN")}
                   </p>
-                  {award.status === "approved" ? (
-                    <p className="text-xs text-muted-foreground">
-                      是否展示到首页作品墙由管理员单独决定。
-                    </p>
-                  ) : null}
+
                   {award.role === "owner" ? (
                     <div className="space-y-2">
                       <Button
@@ -496,6 +516,40 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   </Select>
                 </div>
               </div>
+
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="award-year">获奖年份</Label>
+              <Select
+                value={awardYear}
+                onValueChange={setAwardYear}
+                disabled={uploading}
+                required
+              >
+                <SelectTrigger id="award-year">
+                  <SelectValue placeholder="请选择获奖年份" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AWARD_YEAR_OPTIONS.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year} 年
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="award-level-text">
+                显示奖项等级（选填，最多 20 字）
+              </Label>
+              <Input
+                id="award-level-text"
+                value={awardLevelText}
+                onChange={(event) => setAwardLevelText(event.target.value)}
+                placeholder="留空则使用下方组合结果"
+                maxLength={20}
+                disabled={uploading}
+              />
               {displayAwardLevel({
                 awardScope,
                 awardLevel,
@@ -510,16 +564,6 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   })}
                 </p>
               ) : null}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="award-level-text">显示奖项等级（选填）</Label>
-              <Input
-                id="award-level-text"
-                value={awardLevelText}
-                onChange={(event) => setAwardLevelText(event.target.value)}
-                placeholder="留空则使用上方组合结果"
-                disabled={uploading}
-              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="award-members">获奖成员（如有）</Label>
@@ -574,7 +618,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
             {manageAward ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  管理「{manageAward.competitionTitle}」的获奖等级与获奖成员。
+                  管理「{manageAward.competitionTitle}」的获奖年份、等级与获奖成员。
                 </p>
                 <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -582,7 +626,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                       <Label htmlFor="manage-scope">范围</Label>
                       <Select
                         value={manageScope}
-                        onValueChange={setManageScope}
+                        onValueChange={(value) => {
+                          setManageScope(value);
+                          setManageLevelText("");
+                        }}
                         disabled={savingLevel}
                         required
                       >
@@ -602,7 +649,10 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                       <Label htmlFor="manage-level">获奖等级</Label>
                       <Select
                         value={manageLevel}
-                        onValueChange={setManageLevel}
+                        onValueChange={(value) => {
+                          setManageLevel(value);
+                          setManageLevelText("");
+                        }}
                         disabled={savingLevel}
                         required
                       >
@@ -620,12 +670,35 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     </div>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="manage-level-text">显示奖项等级（选填）</Label>
+                    <Label htmlFor="manage-year">获奖年份</Label>
+                    <Select
+                      value={manageYear}
+                      onValueChange={setManageYear}
+                      disabled={savingLevel}
+                      required
+                    >
+                      <SelectTrigger id="manage-year">
+                        <SelectValue placeholder="请选择获奖年份" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AWARD_YEAR_OPTIONS.map((year) => (
+                          <SelectItem key={year} value={String(year)}>
+                            {year} 年
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="manage-level-text">
+                      显示奖项等级（选填，最多 20 字）
+                    </Label>
                     <Input
                       id="manage-level-text"
                       value={manageLevelText}
                       onChange={(event) => setManageLevelText(event.target.value)}
-                      placeholder="留空则使用上方组合结果"
+                      placeholder="留空则使用下方组合结果"
+                      maxLength={20}
                       disabled={savingLevel}
                     />
                   </div>
@@ -647,7 +720,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     variant="outline"
                     size="sm"
                     className="w-full"
-                    disabled={savingLevel || !manageScope || !manageLevel}
+                    disabled={savingLevel || !manageScope || !manageLevel || !manageYear}
                     onClick={() => void handleSaveLevel()}
                   >
                     {savingLevel ? "保存中..." : "保存获奖等级"}

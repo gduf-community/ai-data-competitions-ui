@@ -178,6 +178,11 @@ export default async function AwardsGalleryPage() {
                                   <p className="line-clamp-1 text-sm font-medium text-slate-900">
                                     {award.competitionTitle}
                                   </p>
+                                  {award.awardYear != null ? (
+                                    <p className="text-xs text-slate-500">
+                                      年份：{award.awardYear}
+                                    </p>
+                                  ) : null}
                                   <p className="text-xs text-slate-500 line-clamp-1">
                                     {award.memberNames.length > 0
                                       ? award.memberNames.join("、")
