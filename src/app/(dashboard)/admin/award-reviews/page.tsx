@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface AwardCertificate {
   id: string;
@@ -228,7 +229,7 @@ export default function AdminAwardReviewsPage() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
         ) : awards.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -329,7 +330,7 @@ export default function AdminAwardReviewsPage() {
                           />
                         </div>
 
-                        <Button
+                        <Button loading={isSavingShowcase}
                           variant="outline"
                           size="sm"
                           className="w-full"
@@ -355,7 +356,7 @@ export default function AdminAwardReviewsPage() {
                         >
                           审核
                         </Button>
-                        <Button
+                        <Button loading={isDeletingAward}
                           variant="destructive"
                           size="sm"
                           className="flex-1"
@@ -366,7 +367,7 @@ export default function AdminAwardReviewsPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button
+                      <Button loading={isDeletingAward}
                         variant="destructive"
                         size="sm"
                         className="w-full"

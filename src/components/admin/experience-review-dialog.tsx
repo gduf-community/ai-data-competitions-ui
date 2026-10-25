@@ -105,14 +105,14 @@ export function ExperienceReviewDialog({
           </Button>
           {postStatus === "pending_review" && (
             <>
-              <Button
+              <Button loading={submitting}
                 variant="destructive"
                 onClick={() => handleAction("reject")}
                 disabled={submitting}
               >
                 驳回
               </Button>
-              <Button
+              <Button loading={submitting}
                 onClick={() => handleAction("approve")}
                 disabled={submitting}
               >
@@ -121,7 +121,7 @@ export function ExperienceReviewDialog({
             </>
           )}
           {postStatus === "published" && (
-            <Button
+            <Button loading={submitting}
               variant="destructive"
               onClick={() => handleAction("offline")}
               disabled={submitting}

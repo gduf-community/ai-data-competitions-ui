@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw, Search, X } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ import {
   getSituationReasonLabel,
 } from "@/lib/security/security-display";
 import type { SecurityEventView, SecurityListPayload } from "@/lib/security/types";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 type EventFilterState = {
   eventType: string;
@@ -225,7 +226,7 @@ export function SecurityEventTable() {
             disabled={loading}
           >
             {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
             ) : (
               <RefreshCw className="mr-2 size-4" />
             )}
@@ -322,7 +323,7 @@ export function SecurityEventTable() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button
+          <Button loading={loading}
             size="sm"
             onClick={() => {
               setAppliedFilters(filters);

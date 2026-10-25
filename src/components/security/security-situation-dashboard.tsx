@@ -2,7 +2,7 @@
 import { matchSearchText, parseSearchQuery } from "@/lib/search";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Copy, ListFilter, Loader2, RefreshCw } from "lucide-react";
+import { Copy, ListFilter, RefreshCw } from "lucide-react";
 
 import { toast } from "@/lib/i18n/toast";
 import type { SituationAccessLogView } from "@/lib/security/types";
@@ -23,6 +23,7 @@ import { calculateSituationMetrics } from "./security-situation-presentation";
 import { useSituationData } from "./use-situation-data";
 import { useSituationControls, SecuritySituationControls } from "./security-situation-controls";
 import { SecuritySituationOverview } from "./security-situation-overview";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 export function SecuritySituationDashboard({
   showMapSection = true,
@@ -172,7 +173,7 @@ export function SecuritySituationDashboard({
           以 24 小时窗口观察访问态势，支持实时日志筛选、告警追踪和策略联动。
         </p>
         <Button variant="outline" size="sm" onClick={() => void reload()} disabled={loading}>
-          {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+          {loading ? <EulerBridgeLoader size={16} tone="inherit" className="mr-2" /> : <RefreshCw className="mr-2 size-4" />}
           刷新数据
         </Button>
       </div>

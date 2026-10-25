@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Expand, Loader2, Minimize2 } from "lucide-react";
+import { Expand, Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import {
   reportSecurityUiIssue,
 } from "@/lib/security/security-ui-monitor";
 import type { SituationMapPointView } from "@/lib/security/types";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 const SERVER_COORD: [number, number] = [113.2644, 23.1291];
 
@@ -411,7 +412,7 @@ function AttackMapCanvas({
 
       {!mapReady && !mapError ? (
         <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-slate-200">
-          <Loader2 className="size-4 animate-spin" />
+          <EulerBridgeLoader size={16} tone="inherit" />
           地图加载中...
         </div>
       ) : null}

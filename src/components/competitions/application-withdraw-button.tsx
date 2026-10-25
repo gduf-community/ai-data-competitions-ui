@@ -44,7 +44,7 @@ export function ApplicationWithdrawButton({
   }
 
   return (
-    <Button
+    <Button loading={submitting}
       type="button"
       variant="outline"
       size="sm"

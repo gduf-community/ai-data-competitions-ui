@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ApplicationRecord } from "@/lib/types";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 const statusText: Record<ApplicationRecord["status"], string> = {
   draft: "草稿",
@@ -312,7 +313,7 @@ export default function AdminApplicationsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
+            <Button loading={loading}
               onClick={() => {
                 setLoading(true);
                 setRefreshKey((value) => value + 1);
@@ -350,7 +351,7 @@ export default function AdminApplicationsPage() {
 
         {loading ? (
           <div className="rounded-xl border border-dashed border-border/60 p-8 text-sm text-muted-foreground">
-            加载报名数据中...
+            <LoadingStatus>加载报名数据中...</LoadingStatus>
           </div>
         ) : (
           <AdminDataTable
