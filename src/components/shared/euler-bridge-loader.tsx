@@ -56,8 +56,20 @@ export function EulerBridgeLoader({ className }: { className?: string }) {
       length += sectionLength;
       // Arc-length samples keep both speed and the four emission points exact.
       const samples = Array.from({ length: 257 }, (_, i) => path.getPointAtLength(sectionLength * i / 256));
+      const color = curves[index].color;
+      const particles = Array.from(group.querySelectorAll("circle"), (node, particleIndex) => {
+        const tail = particleIndex / (particleCount - 1);
+        const fade = Math.pow(1 - tail, 0.56);
+        // Keep initialized particles under their source node until the first frame.
+        node.setAttribute("cx", samples[0].x.toFixed(3));
+        node.setAttribute("cy", samples[0].y.toFixed(3));
+        node.setAttribute("r", (0.35 + fade * 1.2).toFixed(3));
+        node.setAttribute("opacity", (0.04 + fade * 0.96).toFixed(3));
+        node.setAttribute("fill", color);
+        return { node, tailOffset: tail * trailSpan, color };
+      });
       return { group, samples, length: sectionLength, offset, color: curves[index].color,
-        particles: Array.from(group.querySelectorAll("circle")) };
+        particles };
     });
     let frame = 0;
     let previousTime: number | undefined;
@@ -71,21 +83,20 @@ export function EulerBridgeLoader({ className }: { className?: string }) {
       rotor.setAttribute("transform", `rotate(${(elapsed % rotationDurationMs) / rotationDurationMs * 360} 50 50)`);
       for (const trail of sections) {
         const progress = elapsed / durationMs + trail.offset / length;
-        trail.particles.forEach((particle, index) => {
-          const tail = index / (particleCount - 1);
-          const position = ((progress - tail * trailSpan) % 1 + 1) % 1;
+        trail.particles.forEach(particle => {
+          const position = ((progress - particle.tailOffset) % 1 + 1) % 1;
           const distance = position * length;
           const section = sections.find(item => distance < item.offset + item.length) ?? sections[sections.length - 1];
           const sample = Math.max(0, Math.min(256, (distance - section.offset) / section.length * 256));
           const start = Math.min(255, Math.floor(sample));
           const weight = sample - start;
           const a = section.samples[start], b = section.samples[start + 1];
-          const fade = Math.pow(1 - tail, 0.56);
-          particle.setAttribute("cx", (a.x + (b.x - a.x) * weight).toFixed(3));
-          particle.setAttribute("cy", (a.y + (b.y - a.y) * weight).toFixed(3));
-          particle.setAttribute("r", (0.35 + fade * 1.2).toFixed(3));
-          particle.setAttribute("opacity", (0.04 + fade * 0.96).toFixed(3));
-          particle.setAttribute("fill", section.color);
+          particle.node.setAttribute("cx", (a.x + (b.x - a.x) * weight).toFixed(3));
+          particle.node.setAttribute("cy", (a.y + (b.y - a.y) * weight).toFixed(3));
+          if (particle.color !== section.color) {
+            particle.node.setAttribute("fill", section.color);
+            particle.color = section.color;
+          }
         });
       }
       frame = requestAnimationFrame(render);
