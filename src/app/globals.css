@@ -168,6 +168,22 @@
   }
 }
 
+.euler-bridge-loader {
+  --euler-bridge-ink: #0a284c;
+  --euler-bridge-bronze: #b48746;
+}
+
+.dark .euler-bridge-loader {
+  --euler-bridge-ink: #8bafd3;
+  --euler-bridge-bronze: #d4ad72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .euler-bridge-loader path {
+    opacity: 1;
+  }
+}
+
 /* Ensure consistent font rendering across different DPI levels */
 @media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
   body {
