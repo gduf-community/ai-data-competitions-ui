@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requestJSON } from "@/lib/http-client";
 import { confirmI18n } from "@/lib/i18n/client";
 import type { ClubContentRow } from "@/lib/contracts/clubs";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 const STATUS_CONFIG: Record<
   string,
@@ -112,6 +113,7 @@ export function ClubContentManageList({
             return (
               <Card key={item.id}>
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  {isLoading ? <LoadingStatus>处理中…</LoadingStatus> : null}
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="secondary" className="text-xs">

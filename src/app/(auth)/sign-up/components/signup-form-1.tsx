@@ -318,7 +318,7 @@ export function SignupForm1({
                         </FormItem>
                       )}
                     />
-                    <Button
+                    <Button loading={sendingCode}
                       type="button"
                       variant="outline"
                       className="md:self-end"
@@ -412,7 +412,7 @@ export function SignupForm1({
                     )}
                   />
 
-                  <Button
+                  <Button loading={submitting}
                     type="submit"
                     className="w-full cursor-pointer"
                     disabled={submitting}

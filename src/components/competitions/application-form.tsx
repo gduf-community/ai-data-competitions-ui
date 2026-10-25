@@ -793,12 +793,12 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
             />
 
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={submitting}>
+              <Button loading={submitting} type="submit" disabled={submitting}>
                 {submitting ? tt("提交中...") : isEditMode ? tt("保存修改") : tt("提交报名")}
               </Button>
               {isEditMode ? null : (
                 <>
-                  <Button
+                  <Button loading={submitting}
                     type="button"
                     variant="outline"
                     onClick={saveDraft}
@@ -806,7 +806,7 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
                   >
                     {tt("暂存草稿")}
                   </Button>
-                  <Button
+                  <Button loading={submitting}
                     type="button"
                     variant="outline"
                     onClick={restoreDraft}
@@ -814,7 +814,7 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
                   >
                     {tt("恢复草稿")}
                   </Button>
-                  <Button
+                  <Button loading={submitting}
                     type="button"
                     variant="outline"
                     onClick={clearDraft}

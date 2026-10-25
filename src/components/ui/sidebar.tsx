@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader"
 import {
   Tooltip,
   TooltipContent,
@@ -621,15 +622,12 @@ function SidebarMenuSkeleton({
     <div
       data-slot="sidebar-menu-skeleton"
       data-sidebar="menu-skeleton"
+      role="status"
+      aria-label="正在加载菜单"
       className={cn("flex h-8 items-center gap-2 rounded-md px-2", className)}
       {...props}
     >
-      {showIcon && (
-        <Skeleton
-          className="size-4 rounded-md"
-          data-sidebar="menu-skeleton-icon"
-        />
-      )}
+      <EulerBridgeLoader size={16} tone="inherit" className={showIcon ? undefined : "order-last ml-auto"} />
       <Skeleton
         className="h-4 max-w-(--skeleton-width) flex-1"
         data-sidebar="menu-skeleton-text"

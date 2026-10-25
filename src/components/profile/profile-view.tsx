@@ -185,7 +185,7 @@ export function ProfileView({ initialData, titles }: ProfileViewProps) {
                 <X className="mr-1 size-4" />
                 取消
               </Button>
-              <Button type="submit" size="sm" disabled={submitting}>
+              <Button loading={submitting} type="submit" size="sm" disabled={submitting}>
                 <Save className="mr-1 size-4" />
                 {submitting ? "保存中…" : "保存"}
               </Button>

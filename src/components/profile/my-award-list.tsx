@@ -8,6 +8,7 @@ import { toast } from "@/lib/i18n/toast";
 import { AwardMemberPicker } from "@/components/profile/award-member-picker";
 import { CompetitionPicker } from "@/components/competitions/competition-picker";
 import { DirectUploadImage } from "@/components/shared/direct-upload-image";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -317,7 +318,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                         <Users className="mr-1 size-3.5" />
                         管理获奖成员
                       </Button>
-                      <Button
+                      <Button loading={isDeleting}
                         variant="outline"
                         size="sm"
                         className="w-full"
@@ -388,7 +389,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
             >
               取消
             </Button>
-            <Button onClick={handleUpload} disabled={uploading}>
+            <Button loading={uploading} onClick={handleUpload} disabled={uploading}>
               {uploading ? "上传中..." : "提交"}
             </Button>
           </DialogFooter>
@@ -426,6 +427,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   disabled={managing}
                   ownerId={manageAward.userId}
                 />
+                {managing ? <LoadingStatus>正在更新获奖成员…</LoadingStatus> : null}
               </>
             ) : null}
           </div>

@@ -332,7 +332,7 @@ export function OfficialAwardCorrectionDialog({
           <Button disabled={submitting} variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
+          <Button loading={submitting} disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
             {submitting ? "提交中…" : "提交更正"}
           </Button>
         </DialogFooter>

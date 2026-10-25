@@ -75,7 +75,7 @@ export function AskQuestionForm({
         />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={isPending}>
+      <Button loading={isPending} type="submit" disabled={isPending}>
         {isPending ? "提交中…" : "发布问题"}
       </Button>
     </form>

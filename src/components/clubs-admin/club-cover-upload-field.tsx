@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
 import { Button } from "@/components/ui/button";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 interface ClubCoverUploadFieldProps {
   clubId: string;
@@ -97,7 +98,7 @@ export function ClubCoverUploadField({
         <LazyFillImage src={value} alt={label} fallbackText="暂无封面图" />
         {uploading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-            <Loader2 className="size-6 animate-spin text-white" />
+            <EulerBridgeLoader size={24} tone="inherit" className="text-white" />
           </div>
         ) : null}
         {value && !uploading ? (
@@ -112,6 +113,7 @@ export function ClubCoverUploadField({
         ) : null}
       </div>
       <Button
+        loading={uploading}
         type="button"
         variant="outline"
         size="sm"

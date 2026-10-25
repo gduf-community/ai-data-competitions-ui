@@ -45,7 +45,7 @@ export function ApplicationList({ applications }: ApplicationListProps) {
         <div key={application.id} className="relative group">
           <ApplicationStatusTimeline application={application} />
           {!application.readOnly ? (
-            <Button
+            <Button loading={deletingId === application.id}
               variant="ghost"
               size="icon"
               className="absolute top-3 right-3 size-8 opacity-0 group-hover:opacity-100 transition-opacity"

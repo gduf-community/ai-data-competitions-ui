@@ -110,7 +110,7 @@ function HallOfFameProfileForm({
               取消
             </Button>
           ) : null}
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button loading={submitting} onClick={handleSubmit} disabled={submitting}>
             <Save className="mr-1 size-4" />
             {submitting ? "提交中..." : actionLabel}
           </Button>
@@ -233,7 +233,7 @@ export function HallOfFameStatusCard({
               {entry.bio}
             </p>
           ) : null}
-          <Button
+          <Button loading={withdrawing}
             variant="outline"
             size="sm"
             disabled={withdrawing}
@@ -279,7 +279,7 @@ export function HallOfFameStatusCard({
                 查看公开页
               </Link>
             </Button>
-            <Button
+            <Button loading={withdrawing}
               variant="destructive"
               size="sm"
               disabled={withdrawing}

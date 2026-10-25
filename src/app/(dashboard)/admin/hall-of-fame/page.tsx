@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/lib/i18n/toast";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface HallOfFameEntry {
   id: string;
@@ -189,7 +190,7 @@ export default function AdminHallOfFamePage() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
         ) : entries.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">

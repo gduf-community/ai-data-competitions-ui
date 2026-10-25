@@ -443,7 +443,7 @@ export function ClubContentEditor({
 
           {form.formState.errors.root ? <p role="alert" className="text-sm text-destructive">{form.formState.errors.root.message} 编辑内容已保留。</p> : null}
           <div className="flex gap-2">
-            <Button
+            <Button loading={submitting}
               type="button"
               variant="outline"
               disabled={submitting || coverUploading}
@@ -453,7 +453,7 @@ export function ClubContentEditor({
               {submitting ? "保存中..." : initialStatus === "published" ? "保存并更新公开内容" : "保存"}
             </Button>
             {canSubmitAfterSave ? (
-              <Button
+              <Button loading={submitting}
                 type="button"
                 disabled={submitting || coverUploading}
                 onClick={event => { void form.handleSubmit(values => save(values, true))(event); }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ import type {
   SecurityActionView,
   SecurityListPayload,
 } from "@/lib/security/types";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 function formatDateTime(value: string | null) {
   if (!value) return "未设置";
@@ -511,7 +512,7 @@ export function SecurityActionTable() {
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={() => void createAction()} disabled={acting !== null}>
+            <Button loading={acting === "create"} onClick={() => void createAction()} disabled={acting !== null}>
               创建处置动作
             </Button>
           </div>
@@ -528,7 +529,7 @@ export function SecurityActionTable() {
           </div>
           <Button variant="outline" size="sm" onClick={() => void fetchActions()} disabled={loading}>
             {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
             ) : (
               <RefreshCw className="mr-2 size-4" />
             )}
@@ -576,7 +577,7 @@ export function SecurityActionTable() {
                         <Button variant="ghost" size="sm" onClick={() => void openDetail(item.id)}>
                           查看详情
                         </Button>
-                        <Button
+                        <Button loading={acting === `execute:${item.id}`}
                           variant="ghost"
                           size="sm"
                           disabled={
@@ -589,7 +590,7 @@ export function SecurityActionTable() {
                         >
                           立即执行
                         </Button>
-                        <Button
+                        <Button loading={acting === `rollback:${item.id}`}
                           variant="ghost"
                           size="sm"
                           disabled={

@@ -178,6 +178,11 @@
   --euler-bridge-bronze: #d4ad72;
 }
 
+.euler-bridge-loader[data-tone="inherit"] {
+  --euler-bridge-ink: currentColor;
+  --euler-bridge-bronze: currentColor;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .euler-bridge-loader path {
     opacity: 1;

@@ -314,7 +314,7 @@ export function ExperiencePostEditor({
           </Card>
 
           <div className="flex gap-2">
-            <Button
+            <Button loading={submitting}
               type="button"
               variant="outline"
               disabled={submitting}
@@ -323,7 +323,7 @@ export function ExperiencePostEditor({
               <Save className="mr-1 size-4" />
               {submitting ? "保存中..." : "保存草稿"}
             </Button>
-            <Button
+            <Button loading={submitting}
               type="button"
               disabled={submitting}
               onClick={form.handleSubmit((values) => save(values, true))}

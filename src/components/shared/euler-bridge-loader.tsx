@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -36,12 +36,17 @@ const nodes = [
   { x: 7.856, y: 49.482, color: "var(--euler-bridge-ink)" },
 ];
 
-const particleCount = 32;
 const durationMs = 4600;
 const rotationDurationMs = 20000;
 const trailSpan = 0.16;
 
-export function EulerBridgeLoader({ className }: { className?: string }) {
+export function EulerBridgeLoader({ className, size = 96, tone = "brand" }: {
+  className?: string;
+  size?: number;
+  tone?: "brand" | "inherit";
+}) {
+  const compact = size <= 24;
+  const particleCount = compact ? 8 : 32;
   const svgRef = useRef<SVGSVGElement>(null);
   const rotorRef = useRef<SVGGElement>(null);
 
@@ -63,7 +68,7 @@ export function EulerBridgeLoader({ className }: { className?: string }) {
         // Keep initialized particles under their source node until the first frame.
         node.setAttribute("cx", samples[0].x.toFixed(3));
         node.setAttribute("cy", samples[0].y.toFixed(3));
-        node.setAttribute("r", (0.35 + fade * 1.2).toFixed(3));
+        node.setAttribute("r", (0.35 + fade * (compact ? 2.4 : 1.2)).toFixed(3));
         node.setAttribute("opacity", (0.04 + fade * 0.96).toFixed(3));
         node.setAttribute("fill", color);
         return { node, tailOffset: tail * trailSpan, color };
@@ -124,23 +129,36 @@ export function EulerBridgeLoader({ className }: { className?: string }) {
       motion.removeEventListener("change", syncAnimation);
       document.removeEventListener("visibilitychange", syncAnimation);
     };
-  }, []);
+  }, [compact, particleCount]);
 
   return (
-    <svg ref={svgRef} viewBox="0 0 100 100" width={96} height={96}
-      className={cn("euler-bridge-loader size-24 shrink-0", className)} aria-hidden="true" focusable="false">
+    <svg ref={svgRef} viewBox="0 0 100 100" width={size} height={size} data-tone={tone}
+      className={cn("euler-bridge-loader shrink-0", className)} aria-hidden="true" focusable="false">
       <g ref={rotorRef} data-rotor="" transform="rotate(0 50 50)">
         {curves.map(curve => (
           <g key={curve.name} data-curve={curve.name} fill={curve.color}>
-            <path d={curve.path} fill="none" stroke={curve.color} strokeWidth={2.1}
-              strokeLinecap="round" strokeLinejoin="round" opacity={0.35} />
+            <path d={curve.path} fill="none" stroke={curve.color} strokeWidth={compact ? 3.2 : 2.1}
+              strokeLinecap="round" strokeLinejoin="round" opacity={compact ? 0.5 : 0.35} />
             <g data-particles="" className="motion-reduce:hidden">
               {Array.from({ length: particleCount }, (_, i) => <circle key={i} cx={0} cy={0} r={0} opacity={0} />)}
             </g>
           </g>
         ))}
-        {nodes.map((node, i) => <circle key={i} cx={node.x} cy={node.y} r={3.1} fill={node.color} />)}
+        {nodes.map((node, i) => <circle key={i} cx={node.x} cy={node.y} r={compact ? 4 : 3.1} fill={node.color} />)}
       </g>
     </svg>
+  );
+}
+
+export function LoadingStatus({ children = "正在加载…", className, size = 16 }: {
+  children?: ReactNode;
+  className?: string;
+  size?: number;
+}) {
+  return (
+    <span role="status" className={cn("inline-flex items-center gap-2", className)}>
+      <EulerBridgeLoader size={size} />
+      {children}
+    </span>
   );
 }
