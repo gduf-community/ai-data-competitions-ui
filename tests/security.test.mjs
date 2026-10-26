@@ -63,6 +63,18 @@ test("security inheritance checks each HTTP method and changed helper closure", 
   assert.ok(checkInheritance(files, policy, {}, "api").some(message => /#GET: authentication/.test(message)));
 });
 
+test("barrel re-exports retain HTTP methods, guards and transitive invalidation", () => {
+  const { files } = fixture();
+  files.set("src/app/api/implementation.ts", files.get(entry));
+  files.set("src/app/api/barrel.ts", 'export * from "./implementation";');
+  files.set(entry, 'export * from "../barrel";');
+  const graph = sourceGraph(files);
+  assert.deepEqual(graph.entries.get(entry).methods, ["POST"]);
+  assert.ok(graph.witnesses(entry, "POST").get(guard)?.has("authentication"));
+  files.set("src/lib/security/api-guard.ts", "export function withApiGuard(){throw new Error('changed');}");
+  assert.notEqual(sourceGraph(files).entries.get(entry).digest, graph.entries.get(entry).digest);
+});
+
 test("security inheritance rejects missing tests, skipped evidence and Server Actions", () => {
   for (const replacement of ["", `test(${JSON.stringify(negative.name)},{skip:true},()=>{});`, `test(${JSON.stringify(negative.name)},{skip:"later"},()=>{});`]) {
     const { files, policy } = fixture(); files.set(negative.file, replacement);

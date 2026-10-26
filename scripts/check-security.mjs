@@ -55,7 +55,7 @@ export function sourceGraph(files) {
   for (const [name, text] of files) {
     if (!code.test(name) || name.startsWith("tests/")) continue;
     const ast = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true);
-    const imports = new Map(), exports = new Map(), declarations = new Map(), dependencies = new Set();
+    const imports = new Map(), exports = new Map(), declarations = new Map(), dependencies = new Set(), stars = [];
     let serverAction = false;
     const imported = (node, local, symbol) => {
       const target = resolve(name, node.moduleSpecifier.text);
@@ -69,6 +69,17 @@ export function sourceGraph(files) {
         if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) imported(node, clause.namedBindings.name.text, "*");
         for (const item of clause?.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements : []) imported(node, item.name.text, (item.propertyName ?? item.name).text);
         const target = resolve(name, node.moduleSpecifier.text); if (target) dependencies.add(target);
+      }
+      if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        const target = resolve(name, node.moduleSpecifier.text);
+        if (target) {
+          dependencies.add(target);
+          if (!node.exportClause) stars.push(target);
+          else if (ts.isNamespaceExport(node.exportClause)) {
+            imports.set(node.exportClause.name.text, { file: target, symbol: "*" });
+            exports.set(node.exportClause.name.text, node.exportClause.name.text);
+          }
+        }
       }
       if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) for (const item of node.exportClause.elements) {
         if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) imported(node, item.name.text, (item.propertyName ?? item.name).text);
@@ -88,7 +99,18 @@ export function sourceGraph(files) {
       ts.forEachChild(node, visit);
     }
     visit(ast);
-    modules.set(name, { ast, imports, exports, declarations, dependencies, serverAction });
+    modules.set(name, { ast, imports, exports, declarations, dependencies, stars, serverAction });
+  }
+  // Expand barrel exports after parsing all files, including chains and cycles.
+  for (let pass = 0; pass < modules.size; pass++) {
+    let changed = false;
+    for (const sourceModule of modules.values()) for (const target of sourceModule.stars) for (const symbol of modules.get(target)?.exports.keys() ?? []) {
+      if (symbol === "default" || sourceModule.exports.has(symbol)) continue;
+      sourceModule.exports.set(symbol, symbol);
+      sourceModule.imports.set(symbol, { file: target, symbol });
+      changed = true;
+    }
+    if (!changed) break;
   }
   function closure(entry, visited = new Set()) {
     if (visited.has(entry)) return visited;

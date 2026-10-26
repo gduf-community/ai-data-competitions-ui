@@ -51,7 +51,7 @@
   "reviews": [
     {
       "entry": "scripts/check-security.mjs",
-      "sha256": "8b011c3ff961b71a6c50248d5f66077bd6a243515c5cd57ca71b3db12245e527",
+      "sha256": "458a6da7862ae028355ab0509efb84d9f9dc8245c9482909798e11d04f955323",
       "controls": {
         "authentication": "not-applicable: CI-only read-only tooling; runner identity is repository read access and never a production user session.",
         "authorization": "not-applicable: CI tooling has no business object authority or production credentials; repository reviewers authorize policy changes.",
