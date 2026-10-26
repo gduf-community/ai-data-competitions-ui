@@ -73,7 +73,7 @@ const competition: Competition = {
 const values = {
   ...createDefaultApplicationValues(),
   applicantName: "学生",
-  studentId: "20260001",
+  studentId: "202600001",
   college: "金融学院",
   major: "金融学",
   grade: "2026",
@@ -85,7 +85,7 @@ const values = {
     {
       ...createEmptyTeamMember(),
       name: "成员",
-      studentId: "20260002",
+      studentId: "202600002",
       college: "金融学院",
       major: "金融学",
       grade: "2026",

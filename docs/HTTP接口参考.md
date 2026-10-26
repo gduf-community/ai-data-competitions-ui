@@ -1,5 +1,14 @@
 # Web HTTP 接口参考
 
+## API #162 第一阶段配套（2026-10-26）
+
+学生注册、本人资料提供的学号与报名申请人/队员表单均要求恰好 9 位 ASCII 字母/数字，拒绝前后空格、换行和特殊字符；资料空值/未提供保留原可选语义。API 是最终校验边界，教师注册、历史数据、身份和唯一性规则不变。
+
+通知 GET `/api/notices/[id]/open` 仅检查有效性并跳转，不再保存已读或点击。显式已读继续 POST `/api/me/notices/read`，Web 复用 requestJSON 自动附加 CSRF/Origin 所需头，keepalive 保留导航时的请求机会。导航链接与公开 BFF 白名单保持原路径/方法。
+
+密码重置后所有旧 Cookie（包括其他设备）失效，需要重新登录。安全中心 SSE 最多 60 秒并按既有客户端重连，API 持续复核权限/账号/会话版本和到期时间；每进程每用户最多 2 条、总计 50 条。统计响应保留 DTO，但不返回具名用户意向；数据规模/超时或忙碌返回 503/Retry-After，不展示截断统计。精确 API 实现和迁移见 [API 认证模块](https://github.com/gduf-community/competition-Q-A-website/blob/main/docs/modules/认证与会话.md)。生产未部署，须与 API 0037 迁移后配对验收。
+
+
 官方获奖名单通过 `parseOfficialAwardList` 验证 API 的 competitionId/items/rowCount/summary/hasMore/nextCursor/permissions；成员 displayName/identityState/snapshotSource 转换为页面字段，已核实人数读取 verifiedPersonCount。接口没有赛事 facets、草稿数或 lastUpdatedAt，页面不伪造这些数据；年份/赛道支持直接输入，等级使用规范枚举。操作权限仅来自 API 的 permissions，每次写入仍由 API 复核。
 
 更正 PATCH 使用 `{expectedVersion,reason,fields,members,advisors}`，成员为 operation=create/update/remove 命令；更新只发送用户实际更改的字段，新增用 officialName，展示名更新用 displayName。老师的完整目标列表使用 decision=manual/displayName，既有老师保留 advisorId，新老师省略 ID；省略未修改的学院可保留服务端快照。409 等到新响应返回后再启用提交，基线/草稿/最新版三方比较保留并发新增与未改字段，同名老师按 ID 区分。

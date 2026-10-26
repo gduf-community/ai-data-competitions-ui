@@ -49,7 +49,7 @@ const signupFormSchema = z
     college: z.string().trim().min(2, "请输入学院"),
     className: z.string().trim().min(2, "请输入班级"),
     grade: z.string().trim().min(1, "请输入年级"),
-    studentId: z.string().regex(/^[A-Za-z0-9]{6,12}$/, "学号格式不正确（6-12位字母或数字）"),
+    studentId: z.string().length(9, "学号须为恰好9位字母或数字").regex(/^[A-Za-z0-9]{9}$/, "学号须为恰好9位字母或数字"),
     email: z.string().trim().toLowerCase().email("请输入有效邮箱"),
     verificationCode: z.string().trim().regex(/^\d{6}$/, "请输入 6 位邮箱验证码"),
     password: z
