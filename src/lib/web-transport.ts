@@ -35,6 +35,7 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: /^\/api\/uploads$/, methods: ["GET", "HEAD", "POST"], public: true },
   { path: /^\/api\/competitions\/[A-Za-z0-9_-]+\/official-link$/, methods: ["GET", "HEAD"], public: true },
   { path: /^\/api\/notices\/[A-Za-z0-9_-]+\/open$/, methods: ["GET", "HEAD"], public: true },
+  { path: /^\/api\/notices\/[A-Za-z0-9_-]+\/open$/, methods: ["POST"] },
   { path: /^\/api\/auth\/(?:csrf|session|providers|signin|error)$/, methods: ["GET", "HEAD"] },
   { path: /^\/api\/auth\/(?:callback\/credentials|signout)$/, methods: ["POST"] },
   { path: /^\/api\/auth\/(?:register(?:\/(?:teacher|send-code))?|forgot-password|reset-password)$/, methods: ["POST"] },

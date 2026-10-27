@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "unit": "web",
+  "baseline": {
+    "apply-open-source-docs.ps1": "152dfc7e7a61140dc0fe0985f7de81b111dad13f578c9ad3301d0fecf9eb55aa",
+    "deploy/ecs/start-runtime.mjs": "428c769767d52712f27227476dc9aae05cd7ec577abe66b183b056ea6db9fb77",
+    "eslint.config.mjs": "d179db224727a167d47c6d29753b34906a00f24d1ab6e4fbe023056ce9390c02",
+    "next.config.ts": "d0363005a98756dfac367f1e041ccb11e0aa3dd63917fd644e4df489b7fb5de3",
+    "postcss.config.mjs": "e6e7c7354d29223a21d0fa6010f04c55e8d5dbe7d0f75528062e069808c13180",
+    "public/vendor/echarts-maps/china.js": "d7b5a9c137f7519ed8499ecb6ec6beb8a8c206dd205256d0ef34906987603085",
+    "public/vendor/echarts-maps/world.js": "2d109e9eaca728c3a08d692dfe33b77cc3a966241891052db4c24477fa0aaeae",
+    "scripts/check-framework.mjs": "a439f355bed7713b8ea8557fbc245896d04b22c333f966f70f4ed77cc6292882",
+    "scripts/check-web-boundaries.mjs": "c38901ede396e987638c847716c0949dd4ac76496615e04b5b0ce45909c49d91",
+    "scripts/package-runtime.mjs": "bdd93a8f28adab89bdb02adb38ac63f4c81b06a6fbcc92fcd23ced08fa40b32f",
+    "scripts/release-ecs.mjs": "63db13189d665ca91817e783bbaa1fb675b5bf5da332af8d57e02376b4b28f97",
+    "src/app/api/[...path]/route.ts": "8fbfef729a3f5cfe0cac85e0e4c74366a599a8ac33346e6bda7c886d7fb123fb",
+    "src/proxy.ts": "9a195540e5261d98efd435b7943dde7393c3e04f73e3bf0a64336ec196b381bc"
+  },
+  "regressionMatrix": {
+    "anonymous": [
+      {
+        "file": "tests/http-client.test.ts",
+        "name": "session absence and service failure remain distinguishable"
+      }
+    ],
+    "origin": [
+      {
+        "file": "tests/web-transport.test.ts",
+        "name": "interaction paths allow only their declared methods and preserve origin checks"
+      }
+    ],
+    "public-trusted": [
+      {
+        "file": "tests/web-transport.test.ts",
+        "name": "public preview cannot forward cookies or access private reads and writes"
+      }
+    ],
+    "upload-download": [
+      {
+        "file": "tests/web-transport.test.ts",
+        "name": "official downloads verify fragmented signatures, preserve bytes and propagate cancellation"
+      }
+    ],
+    "sensitive-data": [
+      {
+        "file": "tests/web-boundaries.test.ts",
+        "name": "service credential transport cannot enter a client graph through a re-export"
+      }
+    ]
+  },
+  "reviews": [
+    {
+      "entry": "scripts/check-security.mjs",
+      "sha256": "0f20c887b4bd9830ab45e2afb95d5168c6cb4e6bb82dc2d1d27cb56b1fcc4c74",
+      "controls": {
+        "authentication": "not-applicable: CI-only read-only tooling; runner identity is repository read access and never a production user session.",
+        "authorization": "not-applicable: CI tooling has no business object authority or production credentials; repository reviewers authorize policy changes.",
+        "currentPermissions": "not-applicable: No persisted business grants are consumed; workflow permissions are independently constrained and tested.",
+        "origin": "not-applicable: No HTTP entry or browser cookies are accepted; the input is a local checkout on an isolated runner.",
+        "rateLimit": "not-applicable: No public request endpoint exists; the workflow uses an explicit ten-minute execution timeout and bounded subprocess output.",
+        "schema": "not-applicable: This read-only CI tool has no HTTP payload Schema; its policy and scanner report checks are covered by dedicated unit tests.",
+        "bodyLimit": "not-applicable: No HTTP body is consumed; git source reads use a 32 MiB subprocess output limit and only repository-tracked source paths.",
+        "responseLimit": "not-applicable: No business response or export is emitted; the gate prints finding identifiers and status without source snippets.",
+        "cache": "not-applicable: The scanner has no shared data cache; PR checkout does not persist repository credentials or production data.",
+        "sensitiveData": "not-applicable: The tool emits finding identifiers and statuses, not business records or credential values; no PII transformation occurs.",
+        "audit": "not-applicable: This scanner does not mutate auditable business state; it reports its outcomes through ordinary CI logs.",
+        "stateMachine": "not-applicable: Read-only checks do not mutate business state, user grants, migrations or production services."
+      },
+      "negativeTests": [
+        {
+          "file": "tests/security.test.mjs",
+          "name": "security inheritance rejects uncovered entries and self-approved baselines"
+        },
+        {
+          "file": "tests/security.test.mjs",
+          "name": "security inheritance rejects commented guards, unused functions and auth false"
+        }
+      ]
+    }
+  ],
+  "auditExceptions": [],
+  "sastExceptions": []
+}
