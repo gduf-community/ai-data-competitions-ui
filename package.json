@@ -53,7 +53,7 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@radix-ui/react-separator": "1.1.8",
     "@radix-ui/react-dropdown-menu": "2.1.16",
-    "@radix-ui/react-collapsible": "1.1.12",
+    "@radix-ui/react-collapsible": "1.2.1",
     "@tanstack/react-table": "8.21.3",
     "recharts": "3.6.0",
     "undici": "7.30.1",
