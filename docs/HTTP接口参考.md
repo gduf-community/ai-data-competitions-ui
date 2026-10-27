@@ -228,7 +228,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂创建/更新支持的 status 为 invited/candidate/active，不因本地类型含 hidden 就自行发送 hidden。
 
-当前奖状审核、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
+当前奖状管理、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
 
 ## 安全事件、动作与 SSE
 
