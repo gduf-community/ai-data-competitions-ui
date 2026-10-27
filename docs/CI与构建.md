@@ -52,13 +52,13 @@ API CI 自动响应 PR/main push 并保留手动 workflow_dispatch，其模块�
 
 `scripts/check-security.mjs` 追踪 Route Handler、proxy、BFF、上传下载/导入导出及可执行脚本的源码依赖闭包；新增 Server Action 违反现有分仓边界，直接拒绝。既有入口只保留精确摘要基线，**不代表已证明全部旧代码安全**。入口或传递 helper 变化后，在 `.github/security-policy.json` 更新对应 `reviews`：当前闭包摘要、每个 HTTP method 的认证、功能/对象/字段授权、当前权限、Origin/CSRF、限流、Schema、正文/响应上界、缓存、敏感数据、审计、状态机依据，以及实际负向测试的文件和标题。不适用项须写 `not-applicable: ` 和具体理由；首次基线来自真实 base 源码，后续使用 base policy，PR 自改 baseline 不能跳过门禁。
 
-静态 AST 识别实际导入别名、调用和公共包装函数委托，包括 `withApiGuard`、`officialAwardRequest`、`clubContentCommand`；注释、未调用 guard 和 `auth:false` 不算认证依据。静态引用与测试标题只能建立可复核的证据关联，不能证明完整业务语义；业务授权必须由实际负向测试和独立维护者 Review 共同核对，不以 PR 模板填表代替测试。修改公共 helper 可能影响多个入口，应逐项复核，不能批量补不适用绕过。
+静态 AST 识别导入别名、barrel 和公共包装函数委托，包括 `withApiGuard`、`officialAwardRequest`、`clubContentCommand`。普通 Route、函数和包装器只有可达性，不自动拥有任何控制能力；证明必须指向 `mechanismControls` 中显式登记的具体机制，且只获得对应控制（例如 scope 断言只获得 authorization）。`withApiGuard` 单独按调用选项判定，只有明确 `auth:true` 才算认证，当前权限同时要求认证和 requireCurrentAuthorization；spread/计算属性、禁用的 Origin 分支及相互冲突的调用不获得保障。未知机制按失败处理，需审查具体实现后登记，不按函数名称或前缀猜测。该检查确认机制引用，仍不证明所有分支的完整业务语义或参数作用域。静态引用与测试标题只能建立可复核的证据关联，不能证明完整业务语义；业务授权必须由实际负向测试和独立维护者 Review 共同核对，不以 PR 模板填表代替测试。修改公共 helper 可能影响多个入口，应逐项复核，不能批量补不适用绕过。
 
 本地复现：先冻结安装，再运行 `SECURITY_BASE_SHA=<完整基线SHA> pnpm security:check`（PowerShell 使用 `$env:SECURITY_BASE_SHA`）；`node scripts/check-security.mjs snapshot` 输出当前入口摘要。`pnpm audit --json > build/security/audit.json` 后运行 `pnpm security:audit`；CodeQL `security-extended` 输出目录交给 `pnpm security:sast`。依赖扫描覆盖生产和开发依赖；moderate/high/critical、CodeQL 高危或 error、分析失败/缺失、密钥发现均失败。依赖例外绑定 GHSA/包/精确版本，SAST 例外绑定 finding fingerprint，均须原因和不超过 91 天的到期日并经 Review；初始无例外。Gitleaks 扫描 base..head 的提交范围，手动同 SHA 扫描最新提交；既有历史另由 GitHub 原生 Secret Scanning 覆盖，不能从增量通过推断历史无泄露。
 
 Dependabot 每周检查 npm/pnpm 和 Actions，框架与认证依赖分别分组。为使门禁可用，本阶段将 Next/ESLint 升至 16.4.1、Auth.js beta.32、Zod 4.6.6、sanitize-html 2.18.x，修复锁文件中的已知漏洞；API 另升级 Drizzle/Sharp，SheetJS 使用官方 0.20.3 tarball（锁文件固定 integrity），并限定旧版工具传递依赖的安全修复版本。该环境变化影响开发、CI 和今后构建的运行产物；**本次不改变现有生产实例**。
 
-必需汇总检查要求质量、构建/运行、安全继承/依赖/密钥与 SAST 全部成功；失败、取消、跳过均拒绝。main 分支保护使用稳定的汇总检查名称、严格跟随最新 base、管理员也受约束、至少一位独立审批、撤销过期审批、解决会话，禁 force push/delete。分支保护是 GitHub 配置，源码不能自行启用；实际启用及回读证据记录于本阶段 PR/Issue。管理员仍有更改规则的治理权限，不能承诺绝对无绕过。第一阶段先合入，第二阶段再合入；稳定的检查名称保留旧 PR 的可合并路径，完整安全汇总从第二阶段生效。两仓独立 review，不使用受控 AI 账号满足独立审批。
+工作流汇总检查要求质量、构建/运行、安全继承/依赖/密钥与 SAST 全部成功；失败、取消、跳过均失败。按用户本轮范围，**不配置分支保护、Required Checks、CODEOWNERS 或独立受信任工作流**；这些仍是可由 PR 修改的自动检查，不宣称已建立不可绕过的合并门禁。测试文件/标题关联也仍是静态索引，本轮未加入测试实际执行及覆盖入口的动态证明。
 
 Web 的 `regressionMatrix` 绑定匿名、Origin、public/trusted、上传下载和敏感数据边界测试；API 的撤权、对象/字段、scope、状态机和并发以 API 配对 HTTP/DB 作业为准。稳定的 `Web quality and runtime artifact` 名称现在用于汇总；`Web build and tests` 执行原质量/构建产物流程。
 

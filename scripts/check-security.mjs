@@ -11,6 +11,25 @@ export const matrix = {
   web: ["anonymous", "origin", "public-trusted", "upload-download", "sensitive-data"],
 };
 const policyPath = ".github/security-policy.json";
+// Only reviewed mechanisms have capabilities. Ordinary routes and wrappers are
+// reachable symbols, never security controls merely because they are called.
+const mechanismControls = new Map([
+  ["src/lib/security/origin-guard.ts#assertSameOrigin", ["origin"]],
+  ["src/lib/security/rate-limit.ts#enforceRateLimit", ["rateLimit"]],
+  ["src/lib/security/response-headers.ts#jsonWithPrivateNoStore", ["cache"]],
+  ["src/lib/security/response-headers.ts#withPrivateNoStoreHeaders", ["cache"]],
+  ["src/app/api/official-awards-command.ts#readOfficialAwardJson", ["bodyLimit"]],
+  ["src/lib/registration-policy.ts#assertRegistrationTransition", ["stateMachine"]],
+  ["src/lib/server/observability.ts#reportEvent", ["audit"]],
+  ...["assertCanReadOfficialAwards", "assertCanManageOfficialAwards", "assertCanExportOfficialAwards"]
+    .map(symbol => [`src/server/permissions/official-awards-permissions.ts#${symbol}`, ["authorization"]]),
+  ...["assertCanManageClubContent", "assertCanReviewClubContent", "assertCanArchiveClubContent", "assertCanManageClubAdmins", "assertCanEditContent"]
+    .map(symbol => [`src/server/permissions/club-permissions.ts#${symbol}`, ["authorization"]]),
+  ...["assertCanReadRegistrationPII", "assertCanExportRegistrationPII"]
+    .map(symbol => [`src/server/permissions/registration-data-permissions.ts#${symbol}`, ["authorization"]]),
+  ...["maskEmail", "maskPhone", "maskStudentNo"]
+    .map(symbol => [`src/lib/security/personal-data.ts#${symbol}`, ["sensitiveData"]]),
+]);
 const code = /\.(?:[cm]?[jt]sx?)$/;
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 const safePath = name => typeof name === "string" && !name.startsWith("/") && !/[\r\n\\:]/.test(name) && !name.split("/").includes("..");
@@ -129,6 +148,21 @@ export function sourceGraph(files) {
   }
   function witnesses(entry, method) {
     const seen = new Set(), found = new Map();
+    function canonical(file, symbol) {
+      const visited = new Set();
+      while (!visited.has(`${file}#${symbol}`)) {
+        visited.add(`${file}#${symbol}`);
+        const sourceModule = modules.get(file);
+        if (!sourceModule) return { file, symbol };
+        const local = sourceModule.exports.get(symbol) ?? symbol;
+        const imported = sourceModule.imports.get(local);
+        if (imported) { file = imported.file; symbol = imported.symbol; continue; }
+        const declaration = sourceModule.declarations.get(local);
+        if (declaration && ts.isIdentifier(declaration)) { symbol = declaration.text; continue; }
+        return { file, symbol: local };
+      }
+      return { file, symbol };
+    }
     function follow(file, symbol) {
       const ref = `${file}#${symbol}`; if (seen.has(ref)) return; seen.add(ref);
       const sourceModule = modules.get(file); if (!sourceModule) return;
@@ -137,7 +171,8 @@ export function sourceGraph(files) {
       if (external) { follow(external.file, external.symbol); return; }
       const node = symbol === "*" ? sourceModule.ast : sourceModule.declarations.get(local);
       if (!node) return;
-      found.set(ref, new Set(controls));
+      found.set(ref, new Set(mechanismControls.get(ref) ?? []));
+      if (ref === "src/lib/security/api-guard.ts#withApiGuard") return;
       if (ts.isIdentifier(node)) follow(file, node.text);
       if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
         const binding = sourceModule.imports.get(node.expression.text);
@@ -147,23 +182,30 @@ export function sourceGraph(files) {
       for (const parameter of node.parameters ?? []) for (const name of bindings(parameter.name)) shadowed.add(name);
       function visit(current) {
         if (current !== node && ts.isFunctionDeclaration(current)) return;
+        if (current !== node && (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && ts.isVariableDeclaration(current.parent)) return;
         if (ts.isCallExpression(current)) {
           const callee = current.expression;
           const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) ? callee.expression.text : null;
           if (name && !shadowed.has(name)) {
             const binding = sourceModule.imports.get(name);
-            const target = binding ? { file: binding.file, symbol: binding.symbol === "*" && ts.isPropertyAccessExpression(callee) ? callee.name.text : binding.symbol } : { file, symbol: name };
-            follow(target.file, target.symbol);
+            const target = binding ? canonical(binding.file, binding.symbol === "*" && ts.isPropertyAccessExpression(callee) ? callee.name.text : binding.symbol) : canonical(file, name);
             if (target.file === "src/lib/security/api-guard.ts" && target.symbol === "withApiGuard") {
-              const caps = new Set(["origin", "cache"]), options = current.arguments[1];
-              for (const property of options && ts.isObjectLiteralExpression(options) ? options.properties : []) if (ts.isPropertyAssignment(property)) {
-                const key = property.name.getText(sourceModule.ast);
-                if (key === "auth" && property.initializer.kind === ts.SyntaxKind.TrueKeyword) caps.add("authentication");
-                if (key === "requireCurrentAuthorization" && property.initializer.kind === ts.SyntaxKind.TrueKeyword) caps.add("currentPermissions");
-                if (key === "rateLimit" && ts.isObjectLiteralExpression(property.initializer)) caps.add("rateLimit");
+              // This wrapper's optional branches are evaluated from this call's
+              // options. Do not traverse its implementation and credit disabled
+              // auth/rate/origin branches as unconditional caller guarantees.
+              const caps = new Set(["cache"]), options = current.arguments[1];
+              if (options && ts.isObjectLiteralExpression(options) && !options.properties.some(property => ts.isSpreadAssignment(property) || property.name && ts.isComputedPropertyName(property.name))) {
+                const properties = new Map(options.properties.map(property => [property.name && ts.isIdentifier(property.name) ? property.name.text : property.name && ts.isStringLiteralLike(property.name) ? property.name.text : "", property]));
+                const value = key => { const property = properties.get(key); return property && ts.isPropertyAssignment(property) ? property.initializer : undefined; };
+                const auth = value("auth")?.kind === ts.SyntaxKind.TrueKeyword;
+                if (!properties.has("bypassOriginCheck")) caps.add("origin");
+                if (auth) caps.add("authentication");
+                if (auth && value("requireCurrentAuthorization")?.kind === ts.SyntaxKind.TrueKeyword) caps.add("currentPermissions");
+                if (value("rateLimit") && ts.isObjectLiteralExpression(value("rateLimit"))) caps.add("rateLimit");
               }
-              found.set(`${target.file}#${target.symbol}`, caps);
-            }
+              const ref = `${target.file}#${target.symbol}`, previous = found.get(ref);
+              found.set(ref, previous ? new Set([...previous].filter(control => caps.has(control))) : caps);
+            } else follow(target.file, target.symbol);
           }
         }
         ts.forEachChild(current, visit);
@@ -209,7 +251,7 @@ export function checkInheritance(files, policy, baseline, unit) {
         const proof = evidence?.controls?.[control];
         if (typeof proof !== "string") { problems.push(`${entry}#${method}: missing ${control}`); continue; }
         if (proof.startsWith("not-applicable: ") && proof.slice(16).trim().length >= 20) continue;
-        if (!witnesses.get(proof)?.has(control)) problems.push(`${entry}#${method}: ${control} evidence is not an executed/delegated symbol: ${proof}`);
+        if (!witnesses.get(proof)?.has(control)) problems.push(`${entry}#${method}: ${control} evidence does not match a recognized, reachable control mechanism: ${proof}`);
       }
     }
     if (!review.negativeTests?.length || !review.negativeTests.every(item => testEvidence(files, item))) problems.push(`${entry}: missing executable negative test evidence`);

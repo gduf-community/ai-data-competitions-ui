@@ -38,7 +38,43 @@ test("security inheritance follows actual imported aliases and delegated wrapper
   files.set(entry, 'import {clubContentCommand as command} from "../command"; export const POST=command();');
   policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
   policy.reviews[0].handlers.POST.controls.authentication = "src/app/api/command.ts#clubContentCommand";
+  assert.ok(checkInheritance(files, policy, {}, "api").some(message => /authentication evidence/.test(message)));
+  policy.reviews[0].handlers.POST.controls.authentication = guard;
   assert.deepEqual(checkInheritance(files, policy, {}, "api"), []);
+});
+
+test("ordinary entry and helper symbols cannot prove any security control", () => {
+  for (const proof of [entry + "#POST", "src/app/api/helper.ts#assertCanReadOfficialAwards"]) {
+    const { files, policy } = fixture('import {assertCanReadOfficialAwards} from "../helper"; export function POST(){assertCanReadOfficialAwards(); return Response.json({secret:"private"});}');
+    files.set("src/app/api/helper.ts", "export function assertCanReadOfficialAwards(){return true;}");
+    policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+    policy.reviews[0].handlers.POST.controls = Object.fromEntries(controls.map(control => [control, proof]));
+    const errors = checkInheritance(files, policy, {}, "api");
+    for (const control of controls) assert.ok(errors.some(message => message.includes(control + " evidence")), control);
+  }
+  const { files, policy } = fixture();
+  policy.reviews[0].handlers.POST.controls.authorization = guard;
+  assert.ok(checkInheritance(files, policy, {}, "api").some(message => /authorization evidence/.test(message)));
+});
+
+test("guard options fail closed across aliases, overrides and mixed calls", () => {
+  for (const options of ["{auth:false}", "{auth:true,...unknown}", "{auth:true,[key]:false}", "{auth:true,auth:false}"]) {
+    const { files, policy } = fixture(`import {guarded} from "@/lib/security/barrel"; export function POST(request){return guarded(request,${options},()=>new Response("ok"));}`);
+    files.set("src/lib/security/barrel.ts", 'export {withApiGuard as guarded} from "./api-guard";');
+    policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+    assert.ok(checkInheritance(files, policy, {}, "api").some(message => /authentication evidence/.test(message)), options);
+  }
+  const { files } = fixture('import {withApiGuard as guard} from "@/lib/security/barrel"; export function POST(request){return guard(request,{auth:true},()=>new Response("ok"));}');
+  files.set("src/lib/security/barrel.ts", 'export {withApiGuard} from "./api-guard";');
+  assert.ok(sourceGraph(files).witnesses(entry, "POST").get(guard)?.has("authentication"));
+  files.set(entry, 'import {withApiGuard} from "@/lib/security/api-guard"; export function POST(request){if(request.url)return withApiGuard(request,{auth:false},()=>new Response("public")); return withApiGuard(request,{auth:true},()=>new Response("ok"));}');
+  assert.equal(sourceGraph(files).witnesses(entry, "POST").get(guard)?.has("authentication"), false);
+  files.set(entry, 'import {withApiGuard} from "@/lib/security/api-guard"; export function POST(request){const unused=()=>withApiGuard(request,{auth:true},()=>{}); return new Response("public");}');
+  assert.equal(sourceGraph(files).witnesses(entry, "POST").get(guard)?.has("authentication") ?? false, false);
+  files.set(entry, 'import {withApiGuard} from "@/lib/security/api-guard"; export function POST(request){return withApiGuard(request,{auth:true,bypassOriginCheck(){return true;}},()=>new Response("ok"));}');
+  const witnesses = sourceGraph(files).witnesses(entry, "POST");
+  assert.equal(witnesses.get(guard).has("origin"), false);
+  assert.equal(witnesses.has("src/lib/security/origin-guard.ts#assertSameOrigin"), false);
 });
 
 test("security inheritance rejects commented guards, unused functions and auth false", () => {

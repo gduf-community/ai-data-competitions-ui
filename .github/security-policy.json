@@ -13,8 +13,8 @@
     "scripts/check-web-boundaries.mjs": "c38901ede396e987638c847716c0949dd4ac76496615e04b5b0ce45909c49d91",
     "scripts/package-runtime.mjs": "bdd93a8f28adab89bdb02adb38ac63f4c81b06a6fbcc92fcd23ced08fa40b32f",
     "scripts/release-ecs.mjs": "63db13189d665ca91817e783bbaa1fb675b5bf5da332af8d57e02376b4b28f97",
-    "src/app/api/[...path]/route.ts": "d822b5e548a0c3ffeedd4f8313438b7370f098ce433d606567329b62fe235e83",
-    "src/proxy.ts": "cac129b8a659ef5fd50ac95ed6849af6397f051d16792d54149a864e0ba68882"
+    "src/app/api/[...path]/route.ts": "8fbfef729a3f5cfe0cac85e0e4c74366a599a8ac33346e6bda7c886d7fb123fb",
+    "src/proxy.ts": "9a195540e5261d98efd435b7943dde7393c3e04f73e3bf0a64336ec196b381bc"
   },
   "regressionMatrix": {
     "anonymous": [
@@ -51,19 +51,19 @@
   "reviews": [
     {
       "entry": "scripts/check-security.mjs",
-      "sha256": "458a6da7862ae028355ab0509efb84d9f9dc8245c9482909798e11d04f955323",
+      "sha256": "0f20c887b4bd9830ab45e2afb95d5168c6cb4e6bb82dc2d1d27cb56b1fcc4c74",
       "controls": {
         "authentication": "not-applicable: CI-only read-only tooling; runner identity is repository read access and never a production user session.",
         "authorization": "not-applicable: CI tooling has no business object authority or production credentials; repository reviewers authorize policy changes.",
         "currentPermissions": "not-applicable: No persisted business grants are consumed; workflow permissions are independently constrained and tested.",
         "origin": "not-applicable: No HTTP entry or browser cookies are accepted; the input is a local checkout on an isolated runner.",
         "rateLimit": "not-applicable: No public request endpoint exists; the workflow uses an explicit ten-minute execution timeout and bounded subprocess output.",
-        "schema": "scripts/check-security.mjs#checkInheritance",
+        "schema": "not-applicable: This read-only CI tool has no HTTP payload Schema; its policy and scanner report checks are covered by dedicated unit tests.",
         "bodyLimit": "not-applicable: No HTTP body is consumed; git source reads use a 32 MiB subprocess output limit and only repository-tracked source paths.",
         "responseLimit": "not-applicable: No business response or export is emitted; the gate prints finding identifiers and status without source snippets.",
         "cache": "not-applicable: The scanner has no shared data cache; PR checkout does not persist repository credentials or production data.",
-        "sensitiveData": "scripts/check-security.mjs#checkAudit",
-        "audit": "scripts/check-security.mjs#main",
+        "sensitiveData": "not-applicable: The tool emits finding identifiers and statuses, not business records or credential values; no PII transformation occurs.",
+        "audit": "not-applicable: This scanner does not mutate auditable business state; it reports its outcomes through ordinary CI logs.",
         "stateMachine": "not-applicable: Read-only checks do not mutate business state, user grants, migrations or production services."
       },
       "negativeTests": [
