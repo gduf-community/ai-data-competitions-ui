@@ -82,7 +82,7 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
       { title: "用户管理", url: "/admin/users", capability: "canReadUserManagement", icon: Users },
       { title: "赛程安排", url: "/admin/schedule", icon: Calendar },
       { title: "名人堂管理", url: "/admin/hall-of-fame", capability: "canReadRestrictedContentManagement", icon: Award },
-      { title: "奖状审核", url: "/admin/award-reviews", icon: ImageIcon },
+      { title: "奖状管理", url: "/admin/award-reviews", icon: ImageIcon },
       { title: "官方获奖名单", url: "/admin/official-awards", capability: "canReadOfficialAwards", icon: Award },
     ],
   },
