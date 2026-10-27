@@ -1,0 +1,3 @@
+name: Security extended
+queries:
+  - uses: security-extended
