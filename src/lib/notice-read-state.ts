@@ -1,5 +1,7 @@
 "use client";
 
+import { requestJSON } from "@/lib/http-client";
+
 import {
   getSafeStorageItem,
   setSafeStorageItem,
@@ -15,11 +17,7 @@ function notifyUpdated() {
 
 function persistReadState(noticeIds: string[]) {
   if (noticeIds.length === 0) return;
-  void fetch("/api/me/notices/read", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ noticeIds }),
-  }).catch(() => undefined);
+  void requestJSON("/api/me/notices/read", { method: "POST", json: { noticeIds }, keepalive: true }).catch(() => undefined);
 }
 
 function normalizeUserId(userId?: string | null) {

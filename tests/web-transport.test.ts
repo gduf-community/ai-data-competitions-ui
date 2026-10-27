@@ -100,7 +100,7 @@ test("explicit public notice capability is read-only and does not open nearby DT
 });
 
 test("interaction paths allow only their declared methods and preserve origin checks", () => {
-  for (const [path, method] of [["/api/applications", "POST"], ["/api/questions/commands", "POST"], ["/api/admin/security/situation/live", "GET"], ["/api/auth/callback/credentials", "POST"], ["/api/me/competition-options", "GET"], ["/api/uploads", "POST"]]) {
+  for (const [path, method] of [["/api/applications", "POST"], ["/api/questions/commands", "POST"], ["/api/notices/notice-test/open", "POST"], ["/api/admin/security/situation/live", "GET"], ["/api/auth/callback/credentials", "POST"], ["/api/me/competition-options", "GET"], ["/api/uploads", "POST"]]) {
     assert.equal(permittedBrowserRequest(new Request(config.web.origin+path,{method,headers:{host:config.web.host,origin:config.web.origin}}),config),true);
   }
   for (const [path, method] of [["/api/applications", "GET"], ["/api/questions/commands", "GET"], ["/api/admin/analytics", "POST"], ["/api/admin/security/situation/live", "DELETE"]]) {

@@ -243,3 +243,21 @@ test("resolved Auth.js responses cannot redirect while a session remains or cann
     }
   }
 });
+
+
+test("student signup and optional profile schemas enforce nine ASCII alphanumerics", () => {
+  for (const [path, name, field, optional] of [
+    ["../src/app/(auth)/sign-up/components/signup-form-1.tsx", "signupFormSchema", "studentId", false],
+    ["../src/components/profile/profile-view.tsx", "profileSchema", "studentNo", true],
+  ]) {
+    const sf = parsed(path);
+    const declaration = find(sf, n => ts.isVariableDeclaration(n) && n.name.getText(sf) === name);
+    // Test only the shipped field initializer, preserving the other form fields.
+    const fieldNode = find(declaration.initializer, n => ts.isPropertyAssignment(n) && n.name.getText(sf) === field);
+    const schema = evaluate(`(${fieldNode.initializer.getText(sf)})`, { z });
+    for (const value of ["123456789", "AbCdEfGhI", "Ab123xy09"]) assert.equal(schema.safeParse(value).success, true);
+    for (const value of ["12345678", "1234567890", " 123456789", "123456789 ", "1234 6789", "12345678!", "１２３４５６７８９", "123456789\n"]) assert.equal(schema.safeParse(value).success, false, JSON.stringify(value));
+    assert.equal(schema.safeParse("").success, optional);
+    if (optional) assert.equal(schema.safeParse(undefined).success, true);
+  }
+});

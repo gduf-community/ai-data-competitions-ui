@@ -125,7 +125,8 @@ export function useSituationData() {
         /* Keep the existing malformed-event behavior. */
       }
     });
-    source.onerror = () => source.close();
+    // Keep native reconnection after the API's bounded connection lifetime.
+    // A subsequent 401/403 stops EventSource; unmount cleanup still closes it.
     const timer = setInterval(() => {
       if (state.active) return;
       state.poll?.abort();
