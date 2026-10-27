@@ -78,28 +78,28 @@ const navGroups: Array<{ label: string; capability?: keyof SessionCapabilities; 
     capability: "canReadBusinessManagement",
     items: [
       { title: "比赛管理", url: "/admin/competitions", icon: Trophy },
-      { title: "报名审核", url: "/admin/applications", icon: ClipboardCheck },
       { title: "通知管理", url: "/admin/notices", icon: Megaphone },
       { title: "用户管理", url: "/admin/users", capability: "canReadUserManagement", icon: Users },
       { title: "赛程安排", url: "/admin/schedule", icon: Calendar },
       { title: "名人堂管理", url: "/admin/hall-of-fame", capability: "canReadRestrictedContentManagement", icon: Award },
-      {
-        title: "经验文章审核",
-        url: "/admin/experience-reviews", capability: "canReadRestrictedContentManagement",
-        icon: BookOpenCheck,
-      },
       { title: "奖状审核", url: "/admin/award-reviews", icon: ImageIcon },
       { title: "官方获奖名单", url: "/admin/official-awards", capability: "canReadOfficialAwards", icon: Award },
     ],
   },
   {
-    label: "社团管理",
-    capability: "canAccessClubManagement",
-    items: [{ title: "内容工作台", url: "/admin/clubs", icon: Users2 }],
+    label: "审核管理",
+    capability: "canReadBusinessManagement",
+    items: [
+      { title: "报名审核", url: "/admin/applications", icon: ClipboardCheck },
+      { title: "经验文章审核", url: "/admin/experience-reviews", capability: "canReadRestrictedContentManagement", icon: BookOpenCheck },
+    ],
   },
   {
-    label: "社团治理", capability: "canModerateClubContent",
-    items: [{ title: "已发布内容治理", url: "/admin/clubs/governance", icon: ClipboardCheck }],
+    label: "社团管理",
+    items: [
+      { title: "内容工作台", url: "/admin/clubs", capability: "canAccessClubManagement", icon: Users2 },
+      { title: "已发布内容治理", url: "/admin/clubs/governance", capability: "canModerateClubContent", icon: ClipboardCheck },
+    ],
   },
   {
     label: "安全中心",
