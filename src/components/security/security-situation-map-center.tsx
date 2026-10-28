@@ -2,14 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  Clock3,
-  Loader2,
-  RadioTower,
-  RefreshCw,
-  Shield,
-} from "lucide-react";
+import { AlertTriangle, Clock3, RadioTower, RefreshCw, Shield } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -54,6 +47,7 @@ import type {
   SituationMapView,
   SituationOverviewView,
 } from "@/lib/security/types";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -276,7 +270,7 @@ export function SecuritySituationMapCenter() {
             disabled={refreshing || loading}
           >
             {refreshing ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
             ) : (
               <RefreshCw className="mr-2 size-4" />
             )}

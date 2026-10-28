@@ -175,7 +175,7 @@ export function HallOfFameEditDialog({
           >
             取消
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button loading={submitting} onClick={handleSubmit} disabled={submitting}>
             {submitting ? "保存中..." : "保存"}
           </Button>
         </DialogFooter>

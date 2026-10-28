@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// 与 API profiles 契约保持一致；按 JS/HTML 的 UTF-16 长度计数。
+export const AWARD_LEVEL_TEXT_MAX_LENGTH = 120;
+export const AWARD_LEVEL_MAX_LENGTH = 120;
+
 export type AwardStatus = "pending" | "approved" | "rejected";
 
 // 奖状公开展示契约：memberNames 仅包含随奖状审核核验（verified）的成员。

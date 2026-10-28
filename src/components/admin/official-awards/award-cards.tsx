@@ -12,6 +12,7 @@ import {
   type OfficialAwardSummary,
 } from "@/lib/contracts/official-awards";
 import { SourceBadge } from "@/components/admin/official-awards/award-table";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 type Props = {
   rows: OfficialAwardRow[];
@@ -52,7 +53,7 @@ export function OfficialAwardCards({
   if (loading) {
     return (
       <div className="rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
-        正在加载获奖事实…
+        <LoadingStatus>正在加载获奖事实…</LoadingStatus>
       </div>
     );
   }

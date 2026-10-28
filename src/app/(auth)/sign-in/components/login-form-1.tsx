@@ -161,7 +161,7 @@ export function LoginForm1({
                     )}
                   />
 
-                  <Button
+                  <Button loading={submitting}
                     type="submit"
                     className="w-full cursor-pointer"
                     disabled={submitting}

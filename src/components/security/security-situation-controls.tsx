@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
+import { ShieldAlert, Trash2 } from "lucide-react";
 
 import { toast } from "@/lib/i18n/toast";
 import type {
@@ -42,6 +42,7 @@ import {
 } from "./security-situation-presentation";
 
 import type { useSituationData } from "./use-situation-data";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 export function useSituationControls(
   data: ReturnType<typeof useSituationData>,
@@ -223,7 +224,7 @@ export function SecuritySituationControls({
             disabled={savingPolicy || !policy}
           >
             {savingPolicy ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
             ) : (
               <ShieldAlert className="mr-2 size-4" />
             )}
@@ -360,7 +361,7 @@ export function SecuritySituationControls({
               disabled={addingWhitelist}
             >
               {addingWhitelist ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
               ) : null}
               新增白名单
             </Button>

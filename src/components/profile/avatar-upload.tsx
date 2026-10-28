@@ -7,6 +7,7 @@ import { toast } from "@/lib/i18n/toast";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 import { normalizeUploadPublicUrl } from "@/lib/storage/public-url";
 import { cn } from "@/lib/utils";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 interface AvatarUploadProps {
   currentImage: string | null;
@@ -132,7 +133,7 @@ export function AvatarUpload({
       )}
       {uploading && (
         <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
-          <div className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <EulerBridgeLoader size={24} tone="inherit" className="text-white" />
         </div>
       )}
     </div>

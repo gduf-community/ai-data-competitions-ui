@@ -94,7 +94,7 @@ export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost
           <Button disabled={submitting} variant="outline" onClick={onClose}>
             取消
           </Button>
-          <Button className="text-rose-600" disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
+          <Button loading={submitting} className="text-rose-600" disabled={submitting || waiting || conflictLost} onClick={() => void submit()}>
             {submitting ? "提交中…" : "确认撤销"}
           </Button>
         </DialogFooter>

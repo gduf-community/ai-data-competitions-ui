@@ -5,6 +5,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { AdminDataTable } from "@/components/admin/admin-data-table";
 import { PageHeader } from "@/components/shared/page-header";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 import { confirmI18n, useI18nText } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Badge } from "@/components/ui/badge";
@@ -451,6 +452,7 @@ export default function AdminUsersPage() {
           title="用户与权限组"
           description="支持同一用户配置多项权限；安全权限可只读访问本页并执行用户删除。"
         />
+        {submitting ? <LoadingStatus>正在更新用户…</LoadingStatus> : null}
 
         <Card className="border-border/70">
           <CardHeader>
@@ -574,7 +576,7 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button onClick={submitEdit} disabled={submitting}>
+                <Button loading={submitting} onClick={submitEdit} disabled={submitting}>
                   {submitting ? "保存中..." : "保存"}
                 </Button>
                 <Button variant="outline" onClick={cancelEdit} disabled={submitting}>
@@ -585,7 +587,7 @@ export default function AdminUsersPage() {
           </Card>
         ) : null}
 
-        <AdminDataTable
+        <AdminDataTable loading={loading}
           data={users}
           columns={columns}
           searchPlaceholder={

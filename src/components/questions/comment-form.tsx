@@ -65,7 +65,7 @@ export function CommentForm({
         rows={compact ? 1 : 2}
         className={compact ? "min-h-8 resize-none text-sm" : "resize-none text-sm"}
       />
-      <Button
+      <Button loading={isPending}
         size={compact ? "sm" : "default"}
         type="submit"
         disabled={isPending || !body.trim()}

@@ -70,7 +70,7 @@ export const MAX_APPLICATION_ADVISORS = 5;
 
 export const applicationTeamMemberSchema = z.object({
   name: z.string().trim().min(2, "请输入队员姓名"),
-  studentId: z.string().trim().min(6, "请输入有效学号"),
+  studentId: z.string().length(9, "学号须为恰好9位字母或数字").regex(/^[A-Za-z0-9]{9}$/, "学号须为恰好9位字母或数字"),
   college: z.string().trim().min(2, "请输入学院"),
   major: z.string().trim().min(2, "请输入专业"),
   grade: z.string().trim().min(1, "请输入年级"),
@@ -89,7 +89,7 @@ export const applicationAdvisorSchema = z.object({
 // Request fields only; identity, persisted mode and permissions come from the server.
 export const applicationFieldsSchema = z.object({
   applicantName: z.string().trim().min(2, "请输入姓名"),
-  studentId: z.string().trim().min(6, "请输入有效学号"),
+  studentId: z.string().length(9, "学号须为恰好9位字母或数字").regex(/^[A-Za-z0-9]{9}$/, "学号须为恰好9位字母或数字"),
   college: z.string().trim().min(2, "请输入学院"),
   major: z.string().trim().min(2, "请输入专业"),
   grade: z.string().trim().min(1, "请输入年级"),

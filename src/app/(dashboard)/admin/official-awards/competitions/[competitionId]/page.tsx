@@ -142,7 +142,7 @@ export default function OfficialAwardCompetitionPage() {
                 </SelectContent>
               </Select>
               <div className="flex w-full gap-2 sm:w-auto">
-                <Button
+                <Button loading={exporter.exporting === "csv"}
                   className="flex-1 sm:flex-none"
                   disabled={Boolean(exporter.exporting) || !exportReady || !permissions?.canExport}
                   variant="outline"
@@ -155,7 +155,7 @@ export default function OfficialAwardCompetitionPage() {
                 >
                   {exporter.exporting === "csv" ? "导出中…" : "导出 CSV"}
                 </Button>
-                <Button
+                <Button loading={exporter.exporting === "xlsx"}
                   className="flex-1 sm:flex-none"
                   disabled={Boolean(exporter.exporting) || !exportReady || !permissions?.canExport}
                   onClick={() =>

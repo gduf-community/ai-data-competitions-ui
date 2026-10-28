@@ -11,6 +11,7 @@ import type { ExperiencePostRow } from "@/lib/contracts/profiles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 const statusConfig: Record<
   string,
@@ -82,6 +83,7 @@ export function ExperiencePostList({ posts }: ExperiencePostListProps) {
             return (
               <Card key={post.id}>
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  {isLoading ? <LoadingStatus>处理中…</LoadingStatus> : null}
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className="truncate text-sm font-semibold">

@@ -4,7 +4,6 @@ import { NewFooter } from "@/components/marketing/new-footer";
 import { NewNavbar } from "@/components/marketing/new-navbar";
 import { Section } from "@/components/marketing/section";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
 import { cn } from "@/lib/utils";
 
 const founders = [
@@ -110,14 +109,10 @@ const platformHighlights = [
 ];
 
 export default async function TeamPage() {
-  const session = await auth();
-  const currentUser = session?.user
-    ? { name: session.user.name ?? "未命名用户", role: session.user.role }
-    : null;
 
   return (
     <div className="relative min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f3f8fd_42%,#edf4fb_100%)]">
-      <NewNavbar currentUser={currentUser} />
+      <NewNavbar />
       <main className="pt-24">
         <Section className="pb-16 pt-6 sm:pt-10">
           <div className="mx-auto max-w-4xl space-y-10">

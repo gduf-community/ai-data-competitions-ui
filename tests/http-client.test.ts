@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { HttpRequestError, isAbortError, requestJSON } from "@/lib/http-client";
 import { fetchClientSessionUser } from "@/lib/auth/client-session";
+import { NoticeCompetitionLink } from "@/components/notifications/notifications-read-sync";
 
 test("missing throwIfAborted preserves success and late cancellation on older browsers", async t => {
   const previous = Object.getOwnPropertyDescriptor(AbortSignal.prototype, "throwIfAborted");
@@ -34,6 +35,33 @@ test("JSON writes inject same-origin CSRF, preserve request options and execute 
   });
   assert.deepEqual(await requestJSON("/api/items", { method: "POST", json: { title: "保留输入" }, signal: controller.signal }), { id: "created" });
   assert.equal(fetchMock.mock.callCount(), 1);
+});
+
+test("notice links report only explicit clicks with CSRF and keepalive without blocking navigation", async t => {
+  for (const [name, value] of Object.entries({ window: { location: { href: "https://campus.test/notifications" } }, document: { cookie: "competition_csrf_token=local-token" } })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => { if (previous) Object.defineProperty(globalThis, name, previous); else Reflect.deleteProperty(globalThis, name); });
+  }
+  const fetchMock = t.mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    assert.equal(input, "/api/notices/notice-test/open");
+    assert.equal(init?.method, "POST");
+    assert.equal(init?.keepalive, true);
+    assert.equal(init?.body, undefined);
+    assert.equal(new Headers(init?.headers).get("x-csrf-token"), "local-token");
+    return Response.json({ success: true });
+  });
+  const link = NoticeCompetitionLink({ noticeId: "notice-test" });
+  assert.equal(link.type, "a");
+  assert.equal(link.props.href, "/api/notices/notice-test/open");
+  assert.equal(fetchMock.mock.callCount(), 0);
+  assert.equal(link.props.onClick(), undefined);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fetchMock.mock.callCount(), 1);
+  fetchMock.mock.mockImplementation(async () => { throw new TypeError("synthetic network failure"); });
+  assert.equal(link.props.onClick(), undefined);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(link.props.href, "/api/notices/notice-test/open");
 });
 
 test("HTTP errors preserve status/message without converting failures into empty data", async t => {

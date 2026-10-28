@@ -8,7 +8,6 @@ import { NewNavbar } from "@/components/marketing/new-navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
 import { displayAwardLevel } from "@/lib/award-level";
 import { getVisibleAwardById } from "@/lib/web-data";
 
@@ -20,22 +19,16 @@ export default async function AwardDetailPage({
   params,
 }: AwardDetailPageProps) {
   const { id } = await params;
-  const [session, award] = await Promise.all([auth(), getVisibleAwardById(id)]);
+  const award = await getVisibleAwardById(id);
 
   if (!award) {
     notFound();
   }
 
-  const currentUser = session?.user
-    ? {
-        name: session.user.name ?? "未命名用户",
-        role: session.user.role,
-      }
-    : null;
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f6ef_0%,#fcfbf8_45%,#f3efe5_100%)]">
-      <NewNavbar currentUser={currentUser} />
+      <NewNavbar />
       <main className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">
         <div className="space-y-6">
           <Link

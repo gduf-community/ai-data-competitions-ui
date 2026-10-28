@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { fetchClientSessionUser } from "@/lib/auth/client-session";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -8,7 +12,17 @@ interface NewCtaProps {
   isLoggedIn?: boolean;
 }
 
-export function NewCta({ isLoggedIn = false }: NewCtaProps) {
+export function NewCta({ isLoggedIn }: NewCtaProps) {
+  const [sessionLoggedIn, setSessionLoggedIn] = useState(false);
+  useEffect(() => {
+    if (isLoggedIn !== undefined) return;
+    let active = true;
+    void fetchClientSessionUser().then(user => {
+      if (active) setSessionLoggedIn(Boolean(user));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [isLoggedIn]);
+  const resolvedLoggedIn = isLoggedIn ?? sessionLoggedIn;
   return (
     <section className="relative overflow-hidden py-20 sm:py-28">
       <Glow variant="bottom" className="opacity-30 dark:opacity-50" />
@@ -27,8 +41,8 @@ export function NewCta({ isLoggedIn = false }: NewCtaProps) {
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link href={isLoggedIn ? "/me/applications" : "/sign-up"}>
-              {isLoggedIn ? "查看我的报名" : "立即注册"}
+            <Link href={resolvedLoggedIn ? "/me/applications" : "/sign-up"}>
+              {resolvedLoggedIn ? "查看我的报名" : "立即注册"}
             </Link>
           </Button>
         </div>

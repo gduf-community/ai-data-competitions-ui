@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, ScrollText, Trophy } from "lucide-react";
+import { LogOut, Menu, ScrollText } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 import { fetchClientSessionUser } from "@/lib/auth/client-session";
+import { Logo } from "@/components/logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Button } from "@/components/ui/button";
 import {
@@ -146,14 +147,7 @@ export function NewNavbar({ currentUser }: NewNavbarProps) {
             isCompact ? "pr-1" : "pr-2",
           )}
         >
-          <div
-            className={cn(
-              "flex items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-all",
-              isCompact ? "size-7" : "size-8",
-            )}
-          >
-            <Trophy className={cn("transition-all", isCompact ? "size-3.5" : "size-4")} />
-          </div>
+          <Logo size={32} className={cn("transition-all", isCompact ? "size-7" : "size-8")} />
           <span className={cn("hidden font-semibold sm:inline", isCompact ? "text-xs" : "text-sm")}>
             学院竞赛中心
           </span>

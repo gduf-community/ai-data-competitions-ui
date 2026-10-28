@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface CompetitionOption {
   id: string;
@@ -228,7 +229,7 @@ export function ExperienceInviteDialog({
                   placeholder="输入学生姓名，如：张伟"
                 />
                 {searching ? (
-                  <p className="text-xs text-muted-foreground">搜索中...</p>
+                  <p className="text-xs text-muted-foreground"><LoadingStatus>搜索中...</LoadingStatus></p>
                 ) : userQuery.trim().length >= 2 && candidates.length === 0 ? (
                   <p className="text-xs text-muted-foreground">未找到匹配的学生</p>
                 ) : candidates.length > 0 ? (
@@ -272,6 +273,7 @@ export function ExperienceInviteDialog({
           </div>
           <div className="grid gap-2">
             <Label>关联比赛 *</Label>
+            {loadingCompetitions ? <LoadingStatus>比赛加载中...</LoadingStatus> : null}
             <Select
               value={formData.competitionId}
               onValueChange={(value) =>
@@ -320,7 +322,7 @@ export function ExperienceInviteDialog({
           >
             取消
           </Button>
-          <Button
+          <Button loading={submitting}
             onClick={handleSubmit}
             disabled={
               submitting ||

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import { toast } from "@/lib/i18n/toast";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -214,7 +215,7 @@ export function SecurityAlertTable() {
           disabled={loading}
         >
           {loading ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
+            <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
           ) : (
             <RefreshCw className="mr-2 size-4" />
           )}
@@ -273,7 +274,7 @@ export function SecurityAlertTable() {
                     >
                       查看
                     </Button>
-                    <Button
+                    <Button loading={acting === `${item.id}:ack`}
                       variant="ghost"
                       size="sm"
                       disabled={acting !== null || item.status !== "new"}
@@ -281,7 +282,7 @@ export function SecurityAlertTable() {
                     >
                       确认
                     </Button>
-                    <Button
+                    <Button loading={acting === `${item.id}:resolve`}
                       variant="ghost"
                       size="sm"
                       disabled={acting !== null || item.status === "resolved"}
@@ -289,7 +290,7 @@ export function SecurityAlertTable() {
                     >
                       解决
                     </Button>
-                    <Button
+                    <Button loading={acting === `${item.id}:ignore`}
                       variant="ghost"
                       size="sm"
                       disabled={acting !== null || item.status === "ignored"}

@@ -678,7 +678,7 @@ export function CompetitionEditor({ competition, submitting, onSave, onCancel }:
 
               {/* ---- 按钮区 ---- */}
               <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
-                <Button onClick={submitForm} disabled={submitting}>
+                <Button loading={submitting} onClick={submitForm} disabled={submitting}>
                   {submitting ? "保存中..." : competition?.id ? "保存修改" : "创建比赛"}
                 </Button>
                 <Button variant="outline" onClick={onCancel} disabled={submitting}>

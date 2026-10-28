@@ -41,9 +41,10 @@ export function MultiSelectFilter({
   className,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = React.useState(false);
+  const listId = React.useId();
 
-  const selectedOptions = options.filter((option) =>
-    value.includes(option.value),
+  const selectedOptions = value.map((selected) =>
+    options.find((option) => option.value === selected) ?? { value: selected, label: selected },
   );
 
   function toggle(optionValue: string) {
@@ -64,7 +65,16 @@ export function MultiSelectFilter({
         <div
           role="combobox"
           aria-expanded={open}
+          aria-controls={listId}
+          aria-label={placeholder}
           tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
+              event.preventDefault();
+              setOpen((current) => event.key === "ArrowDown" || !current);
+            }
+          }}
           className={cn(
             "border-input flex min-h-9 w-full cursor-pointer flex-wrap items-center gap-1 rounded-md border bg-transparent px-2 py-1.5 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
             className,
@@ -109,6 +119,7 @@ export function MultiSelectFilter({
       >
         <Command shouldFilter={false}>
           <CommandList
+            id={listId}
             className="max-h-80 overscroll-contain"
             onWheelCapture={(event) => {
               event.stopPropagation();

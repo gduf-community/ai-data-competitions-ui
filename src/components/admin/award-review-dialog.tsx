@@ -116,14 +116,14 @@ export function AwardReviewDialog({
           >
             取消
           </Button>
-          <Button
+          <Button loading={submitting}
             variant="destructive"
             onClick={() => handleAction("reject")}
             disabled={submitting}
           >
             驳回
           </Button>
-          <Button onClick={() => handleAction("approve")} disabled={submitting}>
+          <Button loading={submitting} onClick={() => handleAction("approve")} disabled={submitting}>
             通过
           </Button>
         </DialogFooter>

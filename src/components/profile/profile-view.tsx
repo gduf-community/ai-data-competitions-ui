@@ -38,7 +38,7 @@ import type { TitleInfo } from "@/lib/contracts/profiles";
 
 const profileSchema = z.object({
   name: z.string().min(1, "姓名不能为空").max(100),
-  studentNo: z.string().max(64).default(""),
+  studentNo: z.union([z.literal(""), z.string().length(9, "学号须为恰好9位字母或数字").regex(/^[A-Za-z0-9]{9}$/, "学号须为恰好9位字母或数字")]).default(""),
   college: z.string().max(120).default(""),
   major: z.string().max(120).default(""),
   grade: z.string().max(64).default(""),
@@ -185,7 +185,7 @@ export function ProfileView({ initialData, titles }: ProfileViewProps) {
                 <X className="mr-1 size-4" />
                 取消
               </Button>
-              <Button type="submit" size="sm" disabled={submitting}>
+              <Button loading={submitting} type="submit" size="sm" disabled={submitting}>
                 <Save className="mr-1 size-4" />
                 {submitting ? "保存中…" : "保存"}
               </Button>

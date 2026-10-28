@@ -41,7 +41,7 @@ export function ApplicationCancelButton({
   }
 
   return (
-    <Button
+    <Button loading={submitting}
       type="button"
       variant="destructive"
       size="sm"

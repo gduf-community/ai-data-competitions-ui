@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { canAccessDashboard } from "@/lib/auth/authorization";
 import { CompetitionDetailHeader } from "@/components/competitions/competition-detail-header";
 import { PortalFooter } from "@/components/marketing/portal-footer";

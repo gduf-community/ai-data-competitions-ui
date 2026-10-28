@@ -8,7 +8,7 @@ import { createApplicationSchema } from "@/components/competitions/application-f
 import type { Competition } from "@/lib/types";
 
 test("optional and required advisor forms preserve the shared limit under a larger competition limit", () => {
-  const fields = { applicantName: "学生", studentId: "20260001", college: "金融学院", major: "金融学", grade: "2026", phone: "13800000000", email: "student@example.invalid", teamMembers: [] };
+  const fields = { applicantName: "学生", studentId: "202600001", college: "金融学院", major: "金融学", grade: "2026", phone: "13800000000", email: "student@example.invalid", teamMembers: [] };
   const advisor = { name: "老师", college: "金融学院", major: "金融学", phone: "13800000001", email: "teacher@example.invalid" };
   for (const required of [true, false]) {
     const schema = createApplicationSchema(required, false, false, 6);

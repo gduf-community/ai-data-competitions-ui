@@ -8,9 +8,16 @@ export const AWARD_SCOPE_OPTIONS = [
 ] as const;
 
 export const AWARD_LEVEL_OPTIONS = [
+  "特等奖",
   "一等奖",
   "二等奖",
   "三等奖",
+  "金奖",
+  "银奖",
+  "铜奖",
+  "优秀奖",
+  "入围",
+  "入围奖",
   "其他",
 ] as const;
 

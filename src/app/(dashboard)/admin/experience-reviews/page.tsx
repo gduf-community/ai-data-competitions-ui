@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/lib/i18n/toast";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface ExperiencePost {
   id: string;
@@ -244,7 +245,7 @@ export default function AdminExperienceReviewsPage() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
         ) : posts.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">

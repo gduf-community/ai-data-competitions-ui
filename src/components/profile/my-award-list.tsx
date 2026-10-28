@@ -1,5 +1,7 @@
 "use client";
 
+import { AWARD_LEVEL_MAX_LENGTH, AWARD_LEVEL_TEXT_MAX_LENGTH } from "@/lib/contracts/profiles";
+
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleAlert, ImageIcon, Plus, Trash2, Users } from "lucide-react";
@@ -8,6 +10,7 @@ import { toast } from "@/lib/i18n/toast";
 import { AwardMemberPicker } from "@/components/profile/award-member-picker";
 import { CompetitionPicker } from "@/components/competitions/competition-picker";
 import { DirectUploadImage } from "@/components/shared/direct-upload-image";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -305,7 +308,6 @@ export function MyAwardList({ awards }: MyAwardListProps) {
       toast.error("请选择获奖年份");
       return;
     }
-    const willReReview = manageAward.status !== "pending";
     setSavingLevel(true);
     try {
       const res = await fetchWithCsrf(
@@ -325,11 +327,19 @@ export function MyAwardList({ awards }: MyAwardListProps) {
         const err = await res.json().catch(() => ({ message: "保存失败" }));
         throw new Error(err.message);
       }
-      if (willReReview) {
-        setManageAward((prev) =>
-          prev ? { ...prev, status: "pending", showOnHomepage: false } : prev,
-        );
+      const { changed } = await res.json() as { changed: boolean };
+      setManageAward((prev) => prev ? {
+        ...prev,
+        awardScope: manageScope,
+        awardLevel: manageLevel.trim(),
+        awardYear: Number(manageYear),
+        awardLevelText: manageLevelText.trim() || null,
+        ...(changed ? { status: "pending", showOnHomepage: false } : {}),
+      } : prev);
+      if (changed && manageAward.status !== "pending") {
         toast.success("获奖等级已更新，奖状将重新进入审核。");
+      } else if (!changed) {
+        toast.success("奖状信息未变化");
       } else {
         toast.success("获奖等级已更新");
       }
@@ -424,7 +434,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                         <Users className="mr-1 size-3.5" />
                         管理奖状
                       </Button>
-                      <Button
+                      <Button loading={isDeleting}
                         variant="outline"
                         size="sm"
                         className="w-full"
@@ -493,27 +503,17 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        若获奖为金银铜，则分别对应一二三等奖；否则，选择“其他”。
+                        按证书原文选择或输入奖级，金银铜奖保留原名。
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <Select
-                    value={awardLevel}
-                    onValueChange={setAwardLevel}
-                    disabled={uploading}
-                    required
-                  >
-                    <SelectTrigger id="award-level">
-                      <SelectValue placeholder="请选择获奖等级" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AWARD_LEVEL_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input id="award-level" list="award-level-options" value={awardLevel}
+                    onChange={(event) => setAwardLevel(event.target.value)}
+                    disabled={uploading} required maxLength={AWARD_LEVEL_MAX_LENGTH}
+                    placeholder="选择或输入证书上的奖级" />
+                  <datalist id="award-level-options">
+                    {AWARD_LEVEL_OPTIONS.map((option) => <option key={option} value={option} />)}
+                  </datalist>
                 </div>
               </div>
 
@@ -540,14 +540,14 @@ export function MyAwardList({ awards }: MyAwardListProps) {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="award-level-text">
-                显示奖项等级（选填，最多 20 字）
+                显示奖项等级（选填，最多 {AWARD_LEVEL_TEXT_MAX_LENGTH} 字符）
               </Label>
               <Input
                 id="award-level-text"
                 value={awardLevelText}
                 onChange={(event) => setAwardLevelText(event.target.value)}
                 placeholder="留空则使用下方组合结果"
-                maxLength={20}
+                maxLength={AWARD_LEVEL_TEXT_MAX_LENGTH}
                 disabled={uploading}
               />
               {displayAwardLevel({
@@ -594,7 +594,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
             >
               取消
             </Button>
-            <Button onClick={handleUpload} disabled={uploading}>
+            <Button loading={uploading} onClick={handleUpload} disabled={uploading}>
               {uploading ? "上传中..." : "提交"}
             </Button>
           </DialogFooter>
@@ -628,7 +628,6 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                         value={manageScope}
                         onValueChange={(value) => {
                           setManageScope(value);
-                          setManageLevelText("");
                         }}
                         disabled={savingLevel}
                         required
@@ -647,26 +646,13 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="manage-level">获奖等级</Label>
-                      <Select
-                        value={manageLevel}
-                        onValueChange={(value) => {
-                          setManageLevel(value);
-                          setManageLevelText("");
-                        }}
-                        disabled={savingLevel}
-                        required
-                      >
-                        <SelectTrigger id="manage-level">
-                          <SelectValue placeholder="请选择获奖等级" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {AWARD_LEVEL_OPTIONS.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Input id="manage-level" list="manage-level-options" value={manageLevel}
+                        onChange={(event) => setManageLevel(event.target.value)}
+                        disabled={savingLevel} required maxLength={AWARD_LEVEL_MAX_LENGTH}
+                        placeholder="选择或输入证书上的奖级" />
+                      <datalist id="manage-level-options">
+                        {AWARD_LEVEL_OPTIONS.map((option) => <option key={option} value={option} />)}
+                      </datalist>
                     </div>
                   </div>
                   <div className="grid gap-1.5">
@@ -691,14 +677,14 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="manage-level-text">
-                      显示奖项等级（选填，最多 20 字）
+                      显示奖项等级（选填，最多 {AWARD_LEVEL_TEXT_MAX_LENGTH} 字符）
                     </Label>
                     <Input
                       id="manage-level-text"
                       value={manageLevelText}
                       onChange={(event) => setManageLevelText(event.target.value)}
                       placeholder="留空则使用下方组合结果"
-                      maxLength={20}
+                      maxLength={AWARD_LEVEL_TEXT_MAX_LENGTH}
                       disabled={savingLevel}
                     />
                   </div>
@@ -727,7 +713,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   </Button>
                   {manageAward.status !== "pending" ? (
                     <p className="text-xs text-amber-700 dark:text-amber-400">
-                      保存后奖状将重新进入审核。
+                      实际修改信息后奖状将重新进入审核，并暂时从展示墙隐藏。
                     </p>
                   ) : null}
                 </div>
@@ -735,7 +721,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                   <p className="text-sm font-medium">获奖成员</p>
                   {manageAward.status === "approved" ? (
                     <p className="text-xs text-muted-foreground">
-                      修改成员名单后，该奖状将重新进入审核。
+                      修改成员名单后，该奖状将重新进入审核，并暂时从展示墙隐藏。
                     </p>
                   ) : null}
                   <AwardMemberPicker
@@ -746,6 +732,7 @@ export function MyAwardList({ awards }: MyAwardListProps) {
                     ownerId={manageAward.userId}
                   />
                 </div>
+                {managing ? <LoadingStatus>正在更新获奖成员…</LoadingStatus> : null}
               </>
             ) : null}
           </div>

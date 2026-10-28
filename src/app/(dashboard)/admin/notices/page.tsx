@@ -394,7 +394,7 @@ export default function AdminNoticesPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button onClick={() => void submitForm()} disabled={saving}>
+                <Button loading={saving} onClick={() => void submitForm()} disabled={saving}>
                   {saving ? "保存中..." : editingId ? "保存修改" : "创建通知"}
                 </Button>
                 <Button

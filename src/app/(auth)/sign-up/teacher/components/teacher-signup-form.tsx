@@ -215,7 +215,7 @@ export function TeacherSignupForm({
                     )}
                   />
 
-                  <Button
+                  <Button loading={submitting}
                     type="submit"
                     className="w-full cursor-pointer"
                     disabled={submitting}

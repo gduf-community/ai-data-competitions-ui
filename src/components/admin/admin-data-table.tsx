@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -210,7 +211,7 @@ export function AdminDataTable<TData>({
             {loading || error ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-28 text-center">
-                  {loading ? <span role="status">正在加载…</span> : <div role="alert" className="space-y-2">
+                  {loading ? <LoadingStatus size={32}>正在加载…</LoadingStatus> : <div role="alert" className="space-y-2">
                     <p>{error}</p>
                     {onRetry ? <Button variant="outline" size="sm" onClick={onRetry}>重试</Button> : null}
                   </div>}
@@ -277,7 +278,7 @@ export function AdminDataTable<TData>({
           第 {currentPage} 页 / 共 {pageCount} 页
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
+          <Button loading={loading}
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
@@ -285,7 +286,7 @@ export function AdminDataTable<TData>({
           >
             {"<"}
           </Button>
-          <Button
+          <Button loading={loading}
             variant="outline"
             size="sm"
             onClick={() => table.setPageIndex(0)}
@@ -302,7 +303,7 @@ export function AdminDataTable<TData>({
                 ...
               </span>
             ) : (
-              <Button
+              <Button loading={loading}
                 key={item}
                 variant={item === currentPage ? "default" : "outline"}
                 size="sm"
@@ -313,7 +314,7 @@ export function AdminDataTable<TData>({
               </Button>
             ),
           )}
-          <Button
+          <Button loading={loading}
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
@@ -321,7 +322,7 @@ export function AdminDataTable<TData>({
           >
             {">"}
           </Button>
-          <Button
+          <Button loading={loading}
             variant="outline"
             size="sm"
             onClick={() => table.setPageIndex(pageCount - 1)}

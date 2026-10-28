@@ -3,10 +3,10 @@ import { Bell, Megaphone } from "lucide-react";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { PortalFooter } from "@/components/marketing/portal-footer";
 import { Section } from "@/components/marketing/section";
-import { NotificationsReadSync } from "@/components/notifications/notifications-read-sync";
+import { NoticeCompetitionLink, NotificationsReadSync } from "@/components/notifications/notifications-read-sync";
 import { RichTextContent } from "@/components/shared/rich-text-content";
 import { Card, CardContent } from "@/components/ui/card";
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { listPublishedNotices } from "@/lib/web-data";
 import { formatNoticeDate } from "@/lib/notice-format";
 
@@ -99,12 +99,7 @@ export default async function NotificationsPage() {
                           </span>
                           {notice.competitionTitle && <span>· {notice.competitionTitle}</span>}
                           {notice.competitionId ? (
-                            <a
-                              href={`/api/notices/${notice.id}/open`}
-                              className="text-primary hover:underline"
-                            >
-                              查看关联比赛
-                            </a>
+                            <NoticeCompetitionLink noticeId={notice.id} />
                           ) : null}
                         </div>
                       </div>

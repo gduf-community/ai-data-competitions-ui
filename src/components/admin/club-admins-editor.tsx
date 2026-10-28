@@ -90,7 +90,7 @@ export function ClubAdminsEditor({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <Button onClick={handleBind} disabled={binding} className="shrink-0">
+          <Button loading={binding} onClick={handleBind} disabled={binding} className="shrink-0">
             <Plus className="mr-1 size-4" />
             {binding ? "绑定中..." : "绑定"}
           </Button>
@@ -113,7 +113,7 @@ export function ClubAdminsEditor({
                     {admin.userEmail}
                   </p>
                 </div>
-                <Button
+                <Button loading={unbindingId === admin.userId}
                   variant="ghost"
                   size="sm"
                   disabled={unbindingId === admin.userId}

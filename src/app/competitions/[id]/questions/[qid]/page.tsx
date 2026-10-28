@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight, LogIn } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { PortalFooter } from "@/components/marketing/portal-footer";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { Section } from "@/components/marketing/section";

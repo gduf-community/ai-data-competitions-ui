@@ -32,6 +32,7 @@ import { StatsCard } from "@/components/shared/stats-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFriendlyUiMessage, reportSecurityUiIssue } from "@/lib/security/security-ui-monitor";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface DashboardPayload {
   stats: {
@@ -250,7 +251,7 @@ export default function AdminHomePage() {
             <CardContent className="h-[320px]">
               {loading ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  看板加载中...
+                  <LoadingStatus>看板加载中...</LoadingStatus>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -273,7 +274,7 @@ export default function AdminHomePage() {
             <CardContent className="h-[320px]">
               {loading ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  看板加载中...
+                  <LoadingStatus>看板加载中...</LoadingStatus>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">

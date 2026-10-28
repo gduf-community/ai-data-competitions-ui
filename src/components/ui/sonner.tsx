@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -18,6 +19,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         } as React.CSSProperties
       }
       {...props}
+      icons={{ ...props.icons, loading: <EulerBridgeLoader size={16} tone="inherit" /> }}
     />
   )
 }

@@ -227,15 +227,15 @@ export function SecuritySituationOverview({
           </Card>
         </div>
       ) : null}
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="border-border/60 xl:col-span-2">
+      <div className="grid gap-6 xl:grid-cols-3 xl:items-stretch">
+        <Card className="flex h-full flex-col border-border/60 xl:col-span-2">
           <CardHeader>
             <CardTitle>访问来源地图（近 24 小时）</CardTitle>
             <CardDescription>
               支持广东 / 中国 / 世界三档切换，其中世界视角使用本地离线地图。
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-1 flex-col space-y-4">
             <SecurityAttackMap points={mapData?.points ?? []} />
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
@@ -302,37 +302,39 @@ export function SecuritySituationOverview({
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
+        <Card className="flex h-full flex-col border-border/60">
           <CardHeader>
             <CardTitle>高危告警时间线</CardTitle>
             <CardDescription>实时日志中高风险与严重风险事件</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {highRiskTimeline.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                当前筛选条件下暂无高危事件。
-              </p>
-            ) : (
-              highRiskTimeline.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-lg border border-border/60 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant={riskVariant(item.riskLevel)}>
-                      {riskLabelMap[item.riskLevel]}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDateTime(item.createdAt)}
-                    </span>
+          <CardContent className="flex min-h-0 flex-1 flex-col xl:relative xl:p-0">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 max-h-[30rem] xl:max-h-none xl:absolute xl:inset-0 xl:px-6 xl:pb-6">
+              {highRiskTimeline.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  当前筛选条件下暂无高危事件。
+                </p>
+              ) : (
+                highRiskTimeline.map((item) => (
+                  <div
+                    key={item.id}
+                    className="min-w-0 rounded-lg border border-border/60 p-3"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant={riskVariant(item.riskLevel)}>
+                        {riskLabelMap[item.riskLevel]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDateTime(item.createdAt)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm break-all">{item.path ?? "-"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.maskedIp} · {formatRegion(item)}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm">{item.path ?? "-"}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {item.maskedIp} · {formatRegion(item)}
-                  </p>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

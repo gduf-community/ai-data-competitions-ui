@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { parseSearchQuery, searchParameter, serializeSearchQuery, SearchQueryError } from "@/lib/search";
 import { SearchQueryForm } from "@/components/shared/search-query-form";
 
-import { getWebSession as auth } from "@/lib/web-session";
+import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { PortalFooter } from "@/components/marketing/portal-footer";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { Section } from "@/components/marketing/section";

@@ -12,6 +12,7 @@ import { formatRegistrationWindow } from "@/lib/competition-date";
 import { isAbortError, requestJSON } from "@/lib/http-client";
 import { useJSONResource } from "@/hooks/use-json-resource";
 import type { Competition, CompetitionCtaType, CompetitionRecognition } from "@/lib/types";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 const ctaTypeLabel: Record<CompetitionCtaType, string> = {
   internal_only: "仅校内报名", official_plus_profile: "官网 + 校内资料", official_only: "仅官网报名",
 };
@@ -145,7 +146,8 @@ export default function AdminCompetitionsPage() {
     <div className="px-4 lg:px-6"><div className="space-y-8">
       <PageHeader eyebrow="比赛管理" title="竞赛管理" description="创建与编辑比赛：标题、时间、赛程、FAQ、附件等全字段管理。"
         actions={<Button onClick={startCreate} disabled={saving}>新建比赛</Button>} />
-      {detailLoading ? <div role="status">正在加载比赛详情… <Button variant="ghost" onClick={cancelDetail}>取消</Button></div> : null}
+      {saving ? <LoadingStatus>正在更新比赛…</LoadingStatus> : null}
+      {detailLoading ? <div role="status"><LoadingStatus>正在加载比赛详情…</LoadingStatus> <Button variant="ghost" onClick={cancelDetail}>取消</Button></div> : null}
       {showForm ? <CompetitionEditor key={editorKey} competition={editing} submitting={saving} onSave={saveCompetition} onCancel={cancelForm} /> : null}
       <AdminDataTable data={resource.data ?? []} columns={columns} getRowId={item => item.id}
         searchPlaceholder={tt("按比赛标题、分类或院系搜索")} emptyLabel={tt("暂无比赛记录")}
