@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MarkdownContent } from "./markdown-content";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 interface AnswerCardProps {
   id: string;
@@ -68,9 +69,10 @@ export function AnswerCard({
             <button
               type="button"
               disabled={isPending}
+              aria-busy={isPending}
               onClick={() => onAccept(id)}
               className="text-xs text-muted-foreground hover:text-primary"
-            >
+            >{isPending ? <EulerBridgeLoader size={16} tone="inherit" className="mr-1 inline-block align-middle" /> : null}
               采纳此回答
             </button>
           )}

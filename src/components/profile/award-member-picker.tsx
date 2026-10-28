@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Loader2, Search, X } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import type {
   AwardMemberCandidate,
   AwardMemberRow,
 } from "@/lib/contracts/profiles";
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 interface AwardMemberPickerProps {
   members: AwardMemberRow[];
@@ -117,7 +118,7 @@ export function AwardMemberPicker({
           disabled={disabled || searching}
         >
           {searching ? (
-            <Loader2 className="mr-1 size-4 animate-spin" />
+            <EulerBridgeLoader size={16} tone="inherit" className="mr-1" />
           ) : (
             <Search className="mr-1 size-4" />
           )}

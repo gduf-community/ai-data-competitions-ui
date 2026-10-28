@@ -1,5 +1,14 @@
 # Web HTTP 接口参考
 
+## API #162 第一阶段配套（2026-10-26）
+
+学生注册、本人资料提供的学号与报名申请人/队员表单均要求恰好 9 位 ASCII 字母/数字，拒绝前后空格、换行和特殊字符；资料空值/未提供保留原可选语义。API 是最终校验边界，教师注册、历史数据、身份和唯一性规则不变。
+
+通知 GET `/api/notices/[id]/open` 仅检查有效性并跳转，不再保存已读或点击。显式已读继续 POST `/api/me/notices/read`，Web 复用 requestJSON 自动附加 CSRF/Origin 所需头，keepalive 保留导航时的请求机会。导航链接与公开 BFF 白名单保持原路径/方法。
+
+密码重置后所有旧 Cookie（包括其他设备）失效，需要重新登录。安全中心 SSE 最多 60 秒并按既有客户端重连，API 持续复核权限/账号/会话版本和到期时间；每进程每用户最多 2 条、总计 50 条。统计响应保留 DTO，但不返回具名用户意向；数据规模/超时或忙碌返回 503/Retry-After，不展示截断统计。精确 API 实现和迁移见 [API 认证模块](https://github.com/gduf-community/competition-Q-A-website/blob/main/docs/modules/认证与会话.md)。生产未部署，须与 API 0037 迁移后配对验收。
+
+
 官方获奖名单通过 `parseOfficialAwardList` 验证 API 的 competitionId/items/rowCount/summary/hasMore/nextCursor/permissions；成员 displayName/identityState/snapshotSource 转换为页面字段，已核实人数读取 verifiedPersonCount。接口没有赛事 facets、草稿数或 lastUpdatedAt，页面不伪造这些数据；年份/赛道支持直接输入，等级使用规范枚举。操作权限仅来自 API 的 permissions，每次写入仍由 API 复核。
 
 更正 PATCH 使用 `{expectedVersion,reason,fields,members,advisors}`，成员为 operation=create/update/remove 命令；更新只发送用户实际更改的字段，新增用 officialName，展示名更新用 displayName。老师的完整目标列表使用 decision=manual/displayName，既有老师保留 advisorId，新老师省略 ID；省略未修改的学院可保留服务端快照。409 等到新响应返回后再启用提交，基线/草稿/最新版三方比较保留并发新增与未改字段，同名老师按 ID 区分。
@@ -148,13 +157,15 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 消费者：[profile 组件](../src/components/profile)、[通知组件](../src/components/notifications)、[个人 DTO](../src/lib/contracts/profiles.ts)。
 
+个人奖状分类与上传者更正由 [API #170](https://github.com/gduf-community/competition-Q-A-website/issues/170) 追踪，配套 API #159 / Web #158；先显式数据库增量与API、再Web，生产未发布。范围为亚洲级/世界级/国家级/省级/校级/其他；奖级保留非空原文，金银铜不换算，支持自定义名称；年份1900–2100整数，历史未知为NULL。奖级/展示文案的120个UTF-16单元上限分别集中在 `src/lib/contracts/profiles.ts` 的常量，POST/PATCH一致，清洗后超长400；公共限长组件仍由API #160跟踪。DTO同步包含 `awardScope/awardLevel/awardLevelText/awardYear`。
+
 | 方法/路径 | 输入 | 返回/限制 |
 | --- | --- | --- |
 | GET / PUT `/api/me/profile` | PUT 可更新基础信息、展示开关和公开资料 | `{data: MeProfileData,titles: TitleInfo[]}`；不在此更新邮箱/权限 |
 | POST `/api/me/avatar` | multipart `file`，PNG/JPEG/WebP，最大 2 MiB | `{url}`；归属为当前账号 |
 | GET `/api/me/competition-options` | `keyword` 最长 120 字符 | `{competitions:[{id,title}]}`，最多 20 项；登录/限流保护 |
-| GET / POST `/api/me/award-certificates` | POST multipart `file,competitionId,awardLevel?`；图片最大 5 MiB | GET `{awards}`；POST `{id,url}`，走奖状专用入口 |
-| DELETE `/api/me/award-certificates/[id]` | 本人奖状 ID | `{success:true}`，成功后刷新 |
+| GET / POST `/api/me/award-certificates` | POST multipart必填 `file,competitionId,awardScope,awardLevel,awardYear`，选填 `awardLevelText`；图片最大5 MiB | GET `{awards}`；POST `{id,url}`，走奖状专用入口 |
+| PATCH / DELETE `/api/me/award-certificates/[id]` | PATCH `{awardScope,awardLevel,awardYear,awardLevelText?}`；仅上传者 | PATCH `{success:true,changed:boolean}`：真实修改后重新审核；无变化保持原状态；DELETE `{success:true}`，成功后刷新 |
 | GET `/api/me/experience-posts` | 当前身份 | `{data: ExperiencePostRow[]}` |
 | POST `/api/me/experience-posts` | 当前自助创建入口停用 | 403；管理员邀请草稿；`/me/experiences/new` 实际重定向到列表 |
 | GET / PUT / DELETE `/api/me/experience-posts/[id]` | PUT `{title?,content?,awardLevel?}` | GET/PUT `{data}`；DELETE `{success:true}` |
@@ -219,7 +230,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂创建/更新支持的 status 为 invited/candidate/active，不因本地类型含 hidden 就自行发送 hidden。
 
-当前奖状审核、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
+当前奖状管理、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
 
 ## 安全事件、动作与 SSE
 
@@ -373,7 +384,7 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/me/applications/[id]` | DELETE/GET | DELETE/GET | — | — |  |
 | `/api/me/avatar` | POST | POST | — | — |  |
 | `/api/me/award-certificates` | GET/POST | GET/POST | — | — |  |
-| `/api/me/award-certificates/[id]` | DELETE | DELETE | — | — |  |
+| `/api/me/award-certificates/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
 | `/api/me/clubs` | GET | GET | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents` | GET/POST | GET/POST | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents/[id]` | DELETE/GET/PATCH | DELETE/GET/PATCH | — | — |  |

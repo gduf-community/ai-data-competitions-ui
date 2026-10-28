@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface CompetitionOption {
   id: string;
@@ -100,7 +101,7 @@ export function CompetitionPicker({
           >
             {loading ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                加载中...
+                <LoadingStatus>加载中...</LoadingStatus>
               </div>
             ) : (
               <>

@@ -54,7 +54,7 @@ export function SearchQueryForm({ path, query, parameters = "", placeholder, sta
       <SelectTrigger aria-label="状态筛选" className="w-40"><SelectValue /></SelectTrigger>
       <SelectContent><SelectItem value="all">全部状态</SelectItem>{statuses.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select>
       : null}
-    <Button type="submit">搜索</Button>
+    <Button type="submit" loading={pending}>搜索</Button>
     <Button type="button" variant="outline" onClick={() => { if (query.q || query.page > 1) pendingClearFocus = { path, expires: Date.now() + 5000 }; setDraft(""); submission.clear(); input.current?.focus(); }}>清空搜索</Button>
     <span role="status" className="basis-full text-sm">{error ?? (pending ? "正在更新搜索结果…" : "")}</span>
     {query.mode === "regex" ? <p className="basis-full text-sm">区分大小写，保留原始空格。支持字面文本、^/$、点、字符集合及0至16次有界重复；不支持分组、范围、无界重复或自定义flags。</p> : null}

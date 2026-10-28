@@ -106,7 +106,7 @@ export function ForgotPasswordForm1({
                       </FormItem>
                     )}
                   />
-                  <Button
+                  <Button loading={submitting}
                     type="submit"
                     className="w-full cursor-pointer"
                     disabled={submitting}

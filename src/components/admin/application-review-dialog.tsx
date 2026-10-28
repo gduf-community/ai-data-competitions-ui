@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { ApplicationRecord } from "@/lib/types";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface ApplicationDetail {
   id: string;
@@ -178,7 +179,7 @@ export function ApplicationReviewDialog({
           </div>
 
           {loadingDetail ? (
-            <p className="text-xs text-muted-foreground">加载报名详情中...</p>
+            <p className="text-xs text-muted-foreground"><LoadingStatus>加载报名详情中...</LoadingStatus></p>
           ) : detail ? (
             <>
               {detail.selectedSubTrack ? (
@@ -255,28 +256,28 @@ export function ApplicationReviewDialog({
         </div>
 
         <DialogFooter className="flex-wrap gap-2">
-          <Button
+          <Button loading={loadingAction === "reject"}
             variant="outline"
             disabled={loadingAction !== null}
             onClick={() => submitReview("reject", "请按要求补充报名材料")}
           >
             {loadingAction === "reject" ? "提交中..." : "驳回补充"}
           </Button>
-          <Button
+          <Button loading={loadingAction === "withdraw"}
             variant="secondary"
             disabled={loadingAction !== null}
             onClick={() => submitReview("withdraw", "该记录已撤回到学生侧")}
           >
             {loadingAction === "withdraw" ? "提交中..." : "撤回审核"}
           </Button>
-          <Button
+          <Button loading={loadingAction === "cancel"}
             variant="outline"
             disabled={loadingAction !== null}
             onClick={() => submitReview("cancel", "该记录已由管理员取消")}
           >
             {loadingAction === "cancel" ? "提交中..." : "取消报名"}
           </Button>
-          <Button
+          <Button loading={loadingAction === "approve"}
             disabled={loadingAction !== null}
             onClick={() => submitReview("approve", "审核通过")}
           >

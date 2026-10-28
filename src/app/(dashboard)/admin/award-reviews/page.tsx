@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 import { AWARD_LEVEL_OPTIONS, AWARD_SCOPE_OPTIONS, displayAwardLevel } from "@/lib/award-level";
+import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface AwardCertificate {
   id: string;
@@ -163,6 +164,9 @@ export default function AdminAwardReviewsPage() {
     if (value === statusFilter) return;
     setLoading(true);
     setStatusFilter(value);
+    // 比赛和年份选项来自当前状态的数据，切换时清除以免隐藏筛选继续生效。
+    setCompetitionFilters([]);
+    setYearFilters([]);
     setPage(1);
   }
 
@@ -299,7 +303,10 @@ export default function AdminAwardReviewsPage() {
     label: scope,
   }));
 
-  const levelOptions = AWARD_LEVEL_OPTIONS.map((level) => ({
+  const levelOptions = Array.from(new Set([
+    ...AWARD_LEVEL_OPTIONS,
+    ...awards.flatMap((award) => award.awardLevel ? [award.awardLevel] : []),
+  ])).map((level) => ({
     value: level,
     label: level,
   }));
@@ -365,15 +372,15 @@ export default function AdminAwardReviewsPage() {
     <div className="px-4 lg:px-6">
       <div className="space-y-8">
         <PageHeader
-          eyebrow="奖状审核"
-          title="奖状审核"
+          eyebrow="奖状管理"
+          title="奖状管理"
           description="审核学生上传的获奖证书，并单独决定哪些奖状可以展示到首页作品墙。首页最多建议维护 20 张以内。"
         />
 
         {canManage === false ? (
           <Card>
             <CardContent className="p-4 text-sm text-muted-foreground">
-              当前账号为只读后台权限，可查看奖状审核数据，但不可执行审核、撤回或首页展示设置。
+              当前账号为只读后台权限，可查看奖状管理数据，但不可执行审核、撤回或首页展示设置。
             </CardContent>
           </Card>
         ) : null}
@@ -490,6 +497,8 @@ export default function AdminAwardReviewsPage() {
         {loading ? (
           <p className="text-sm text-muted-foreground">加载中...</p>
         ) : visibleAwards.length === 0 ? (
+          <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
+        ) : awards.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
               暂无奖状
@@ -603,7 +612,7 @@ export default function AdminAwardReviewsPage() {
                           />
                         </div>
 
-                        <Button
+                        <Button loading={isSavingShowcase}
                           variant="outline"
                           size="sm"
                           className="w-full"
@@ -629,7 +638,7 @@ export default function AdminAwardReviewsPage() {
                         >
                           审核
                         </Button>
-                        <Button
+                        <Button loading={isDeletingAward}
                           variant="destructive"
                           size="sm"
                           className="flex-1"
@@ -640,7 +649,7 @@ export default function AdminAwardReviewsPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Button
+                      <Button loading={isDeletingAward}
                         variant="destructive"
                         size="sm"
                         className="w-full"

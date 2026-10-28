@@ -90,20 +90,20 @@ export function ClubReviewDialog({
         <DialogFooter>
           {contentStatus === "pending_review" ? (
             <>
-              <Button
+              <Button loading={submitting}
                 variant="destructive"
                 disabled={submitting || !comment.trim()}
                 onClick={() => handleAction("reject")}
               >
                 驳回
               </Button>
-              <Button disabled={submitting} onClick={() => handleAction("approve")}>
+              <Button loading={submitting} disabled={submitting} onClick={() => handleAction("approve")}>
                 通过
               </Button>
             </>
           ) : null}
           {contentStatus === "published" ? (
-            <Button
+            <Button loading={submitting}
               variant="destructive"
               disabled={submitting}
               onClick={() => handleAction("offline")}

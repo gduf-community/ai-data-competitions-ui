@@ -157,7 +157,7 @@ export function ClubContactsEditor({
             <Plus className="mr-1 size-3.5" />
             添加联系方式
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Button loading={saving} size="sm" onClick={handleSave} disabled={saving}>
             <Save className="mr-1 size-3.5" />
             {saving ? "保存中..." : "保存"}
           </Button>

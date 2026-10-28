@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   check:
-    name: Web quality and runtime artifact
+    name: Web build and tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -29,7 +29,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
         with:
           version: '10.34.5'
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
@@ -43,7 +43,7 @@ jobs:
         run: node scripts/package-runtime.mjs web
       - name: Upload immutable runtime and manifest
         id: runtime
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: web-runtime-${{ github.sha }}
           path: |
@@ -51,3 +51,106 @@ jobs:
             build/release/runtime-manifest.json
           if-no-files-found: error
           retention-days: 14
+
+  security:
+    name: Security inheritance and supply chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SECURITY_BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.base_sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: "10.34.5"
+          run_install: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - name: Require inherited controls and executable negative evidence
+        run: pnpm run security:check
+      - name: Audit all locked dependencies (scanner errors also fail)
+        run: |
+          mkdir -p build/security
+          pnpm audit --json > build/security/audit.json || audit_status=$?
+          node scripts/check-security.mjs audit build/security/audit.json
+      - name: Install digest-verified Gitleaks
+        run: |
+          curl --fail --silent --show-error --location --retry 3 -o "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Prove secret rejection without logging the synthetic token
+        run: |
+          probe=$(mktemp -d)
+          trap 'rm -rf "$probe"' EXIT
+          printf '%s%s\n' 'ghp_' "$(openssl rand -hex 18)" > "$probe/token.txt"
+          status=0
+          "$RUNNER_TEMP/gitleaks" dir "$probe" --redact --no-banner > /dev/null 2>&1 || status=$?
+          test "$status" = 1
+      - name: Scan the candidate commit range with redacted output
+        run: |
+          [[ "$SECURITY_BASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "$SECURITY_BASE_SHA" = "$(git rev-parse HEAD)" ]]; then
+            range="-1 HEAD"
+          else
+            range="$SECURITY_BASE_SHA..HEAD"
+          fi
+          "$RUNNER_TEMP/gitleaks" git . --log-opts="$range" --redact --no-banner
+
+  sast:
+    name: CodeQL security analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          config-file: ./.github/codeql.yml
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          output: build/security/codeql
+          # Gate local SARIF on every PR, including forks without upload permission.
+          upload: never
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: "10.34.5"
+          run_install: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - name: Fail on unaccepted high severity SAST findings
+        run: node scripts/check-security.mjs sarif build/security/codeql
+
+  required:
+    # Preserve the required check context used before this gate existed.
+    name: Web quality and runtime artifact
+    if: ${{ always() }}
+    needs: [check, security, sast]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require all quality and security checks
+        env:
+          CHECK_RESULT: ${{ needs.check.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          SAST_RESULT: ${{ needs.sast.result }}
+        run: |
+          if [[ "$CHECK_RESULT" != success || "$SECURITY_RESULT" != success || "$SAST_RESULT" != success ]]; then
+            echo "A required check failed, was cancelled, or was skipped." >&2
+            exit 1
+          fi

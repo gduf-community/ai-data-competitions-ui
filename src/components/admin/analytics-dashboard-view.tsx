@@ -17,7 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import Link from "next/link";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
 import { competitionStatusLabelMap } from "@/lib/competition-status";
@@ -46,6 +46,7 @@ import type {
   AdminAnalyticsTabKey,
 } from "@/lib/admin/analytics-types";
 import { getFriendlyUiMessage, reportSecurityUiIssue } from "@/lib/security/security-ui-monitor";
+import { EulerBridgeLoader, LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 const piePalette = [
   "var(--color-chart-1)",
@@ -974,7 +975,7 @@ export function AdminAnalyticsDashboardView({
                 disabled={loading || refreshing}
               >
                 {refreshing ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <EulerBridgeLoader size={16} tone="inherit" className="mr-2" />
                 ) : (
                   <RefreshCw className="mr-2 size-4" />
                 )}
@@ -997,7 +998,7 @@ export function AdminAnalyticsDashboardView({
         {loading || !payload ? (
           <Card>
             <CardContent className="py-10 text-sm text-muted-foreground">
-              数据看板加载中...
+              <LoadingStatus>数据看板加载中...</LoadingStatus>
             </CardContent>
           </Card>
         ) : activeTab === "overview" ? (

@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { EulerBridgeLoader } from "@/components/shared/euler-bridge-loader";
 
 export function NavUser({
   user,
@@ -128,7 +129,7 @@ export function NavUser({
               disabled={isSigningOut}
               onSelect={() => void handleSignOut()}
             >
-              <LogOut />
+              {isSigningOut ? <EulerBridgeLoader size={16} tone="inherit" /> : <LogOut />}
               {isSigningOut ? "退出中..." : "退出登录"}
             </DropdownMenuItem>
           </DropdownMenuContent>

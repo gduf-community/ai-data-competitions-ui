@@ -49,7 +49,7 @@ export function QuestionModerationBar({
       <span className="self-center text-xs font-medium text-muted-foreground">
         管理操作
       </span>
-      <Button
+      <Button loading={isPending}
         variant="ghost"
         size="sm"
         disabled={isPending}
@@ -66,7 +66,7 @@ export function QuestionModerationBar({
         )}
       </Button>
       {status === "open" ? (
-        <Button
+        <Button loading={isPending}
           variant="ghost"
           size="sm"
           disabled={isPending}
@@ -75,7 +75,7 @@ export function QuestionModerationBar({
           <Lock className="mr-1 size-3.5" /> 关闭
         </Button>
       ) : status === "closed" ? (
-        <Button
+        <Button loading={isPending}
           variant="ghost"
           size="sm"
           disabled={isPending}
@@ -85,7 +85,7 @@ export function QuestionModerationBar({
         </Button>
       ) : null}
       {status !== "hidden" && (
-        <Button
+        <Button loading={isPending}
           variant="ghost"
           size="sm"
           disabled={isPending}
