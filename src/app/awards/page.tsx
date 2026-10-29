@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { Award } from "lucide-react";
 
-import { PortalNavbar } from "@/components/marketing/portal-navbar";
-import { PortalFooter } from "@/components/marketing/portal-footer";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -104,8 +102,7 @@ export default async function AwardsGalleryPage() {
   const years = groupAwards(awards);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
-      <PortalNavbar />
+    <>
       <main className="mx-auto max-w-6xl px-4 py-12 md:px-6">
         <div className="space-y-10">
           <div className="space-y-2">
@@ -151,7 +148,11 @@ export default async function AwardsGalleryPage() {
 
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                           {levelGroup.awards.map((award) => (
-                            <Link key={award.id} href={`/awards/${award.id}`}>
+                            <Link
+                              key={award.id}
+                              href={`/awards/${award.id}`}
+                              className="scroll-mt-24"
+                            >
                               <Card className="h-full overflow-hidden border-slate-200/70 bg-white/92 shadow-sm transition-shadow hover:shadow-md">
                                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                                   <LazyFillImage
@@ -185,7 +186,6 @@ export default async function AwardsGalleryPage() {
           )}
         </div>
       </main>
-      <PortalFooter />
-    </div>
+    </>
   );
 }
