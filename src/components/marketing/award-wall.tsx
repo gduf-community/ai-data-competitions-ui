@@ -60,7 +60,7 @@ function AwardCard({
     >
       <Link
         href={`/awards/${award.id}`}
-        className="block focus-visible:outline-none"
+        className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label={`查看 ${award.competitionTitle} 奖状详情`}
       >
         <div className="relative aspect-[4/3] overflow-hidden">
