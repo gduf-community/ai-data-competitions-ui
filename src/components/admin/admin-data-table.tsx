@@ -282,6 +282,7 @@ export function AdminDataTable<TData>({
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
+            aria-label="上一页"
             disabled={loading || Boolean(error) || !table.getCanPreviousPage()}
           >
             {"<"}
@@ -290,6 +291,7 @@ export function AdminDataTable<TData>({
             variant="outline"
             size="sm"
             onClick={() => table.setPageIndex(0)}
+            aria-label="首页"
             disabled={loading || Boolean(error) || !table.getCanPreviousPage()}
           >
             {"<<"}
@@ -318,6 +320,7 @@ export function AdminDataTable<TData>({
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
+            aria-label="下一页"
             disabled={loading || Boolean(error) || !table.getCanNextPage()}
           >
             {">"}
@@ -326,6 +329,7 @@ export function AdminDataTable<TData>({
             variant="outline"
             size="sm"
             onClick={() => table.setPageIndex(pageCount - 1)}
+            aria-label="末页"
             disabled={loading || Boolean(error) || !table.getCanNextPage()}
           >
             {">>"}
