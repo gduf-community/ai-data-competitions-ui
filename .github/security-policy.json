@@ -78,6 +78,21 @@
       ]
     }
   ],
-  "auditExceptions": [],
+  "auditExceptions": [
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "version": "3.1.5",
+      "reason": "dev-only eslint toolchain; minimatch is not fed untrusted glob input at runtime; patched 11.0.1 requires a major upgrade tracked separately",
+      "expires": "2027-01-15"
+    },
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "version": "10.2.6",
+      "reason": "dev-only eslint toolchain; minimatch is not fed untrusted glob input at runtime; patched 11.0.1 requires a major upgrade tracked separately",
+      "expires": "2027-01-15"
+    }
+  ],
   "sastExceptions": []
 }
