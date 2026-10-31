@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// 与 API profiles 契约保持一致；按 JS/HTML 的 UTF-16 长度计数。
+export const AWARD_LEVEL_TEXT_MAX_LENGTH = 120;
+export const AWARD_LEVEL_MAX_LENGTH = 120;
+
 export type AwardStatus = "pending" | "approved" | "rejected";
 
 // 奖状公开展示契约：memberNames 仅包含随奖状审核核验（verified）的成员。
@@ -10,7 +14,10 @@ export const awardShowcaseRowSchema = z.object({
   memberNames: z.array(z.string()),
   competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
+  awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
+  awardLevelText: z.string().nullable(),
+  awardYear: z.number().int().nullable(),
   imageUrl: z.string(),
 });
 export type AwardShowcaseRow = z.infer<typeof awardShowcaseRowSchema>;
@@ -33,7 +40,10 @@ export interface AwardForReviewRow {
   userImage: string | null;
   competitionId: string;
   competitionTitle: string;
+  awardScope: string | null;
   awardLevel: string | null;
+  awardLevelText: string | null;
+  awardYear: number | null;
   imageUrl: string;
   imageLargeUrl: string | null;
   status: string;
@@ -73,7 +83,10 @@ export const myAwardRowSchema = z.object({
   userId: z.string().uuid(),
   competitionId: z.string().min(1), // 历史比赛编号非 UUID（后端 varchar(64)），仅要求非空。
   competitionTitle: z.string(),
+  awardScope: z.string().nullable(),
   awardLevel: z.string().nullable(),
+  awardLevelText: z.string().nullable(),
+  awardYear: z.number().int().nullable(),
   imageUrl: z.string(),
   imageLargeUrl: z.string().nullable(),
   status: z.string(),

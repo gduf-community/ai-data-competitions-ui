@@ -51,7 +51,7 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: /^\/api\/me\/notices\/read$/, methods: ["GET", "HEAD", "POST"] },
   { path: /^\/api\/me\/competition-options$/, methods: ["GET", "HEAD"] },
   { path: /^\/api\/me\/award-certificates$/, methods: ["GET", "HEAD", "POST"] },
-  { path: /^\/api\/me\/award-certificates\/[A-Za-z0-9_-]+$/, methods: ["DELETE"] },
+  { path: /^\/api\/me\/award-certificates\/[A-Za-z0-9_-]+$/, methods: ["PATCH", "DELETE"] },
   { path: /^\/api\/me\/award-certificates\/member-search$/, methods: ["GET", "HEAD"] },
   { path: new RegExp(`^/api/me/award-certificates/${AWARD_UUID}/members$`), methods: ["GET", "HEAD", "POST"] },
   { path: new RegExp(`^/api/me/award-certificates/${AWARD_UUID}/members/${AWARD_UUID}$`), methods: ["DELETE"] },

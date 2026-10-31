@@ -4,6 +4,7 @@ import { Award } from "lucide-react";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { displayAwardLevel } from "@/lib/award-level";
 import type { AwardGalleryRow } from "@/lib/contracts/profiles";
 import { listApprovedAwardsForGallery } from "@/lib/web-data";
 
@@ -54,7 +55,7 @@ function groupAwards(awards: AwardGalleryRow[]): YearGroup[] {
   >();
 
   for (const award of awards) {
-    const level = award.awardLevel?.trim() || "未标注等级";
+    const level = displayAwardLevel(award) || "未标注等级";
     let competitions = years.get(award.competitionYear);
     if (!competitions) {
       competitions = new Map();
@@ -167,6 +168,11 @@ export default async function AwardsGalleryPage() {
                                   <p className="line-clamp-1 text-sm font-medium text-slate-900">
                                     {award.competitionTitle}
                                   </p>
+                                  {award.awardYear != null ? (
+                                    <p className="text-xs text-slate-500">
+                                      年份：{award.awardYear}
+                                    </p>
+                                  ) : null}
                                   <p className="text-xs text-slate-500 line-clamp-1">
                                     {award.memberNames.length > 0
                                       ? award.memberNames.join("、")
