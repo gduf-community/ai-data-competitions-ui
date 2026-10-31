@@ -19,4 +19,6 @@ export const mono = localFont({
   ],
   display: 'swap',
   variable: '--font-mono-custom',
+  // 等宽字体只用于管理台/安全页；根布局会在所有路由预加载字体，关闭预加载避免公开页下载未使用的 TTF。
+  preload: false,
 })
