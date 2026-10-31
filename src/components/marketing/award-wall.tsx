@@ -27,6 +27,7 @@ function AwardWallImage({ src, alt }: { src: string; alt: string }) {
       className="transition-transform duration-500 group-hover:scale-105"
       fallbackText="奖状图片暂不可用"
       fallbackClassName="px-4 text-center"
+      nearViewport
     />
   );
 }
