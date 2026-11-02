@@ -219,7 +219,13 @@ export function SecuritySituationOverview({
                     tickFormatter={getSituationRiskLevelLabel}
                   />
                   <YAxis allowDecimals={false} />
-                  <Tooltip labelFormatter={getSituationRiskLevelLabel} />
+                  <Tooltip
+                    labelFormatter={(label) =>
+                      typeof label === "string"
+                        ? getSituationRiskLevelLabel(label)
+                        : label
+                    }
+                  />
                   <Bar dataKey="count" fill="#f97316" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
