@@ -25,7 +25,7 @@ export default async function AwardDetailPage({
 
   return (
     <>
-      <main className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-14">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-14 md:px-6 md:pt-8">
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px]">
             <Card className="overflow-hidden border-slate-200/70 bg-white/92 shadow-sm">
