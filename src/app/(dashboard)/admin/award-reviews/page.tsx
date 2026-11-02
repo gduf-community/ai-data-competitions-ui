@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "@/lib/i18n/toast";
 
 import { AwardReviewDialog } from "@/components/admin/award-review-dialog";
+import { MultiSelectFilter } from "@/components/admin/multi-select-filter";
 import { PageHeader } from "@/components/shared/page-header";
 import { DirectUploadImage } from "@/components/shared/direct-upload-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { AWARD_LEVEL_OPTIONS, AWARD_SCOPE_OPTIONS, displayAwardLevel } from "@/lib/award-level";
 import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 
 interface AwardCertificate {
@@ -23,7 +25,10 @@ interface AwardCertificate {
   userImage: string | null;
   competitionId: string;
   competitionTitle: string;
+  awardScope: string | null;
   awardLevel: string | null;
+  awardLevelText: string | null;
+  awardYear: number | null;
   imageUrl: string;
   imageLargeUrl: string | null;
   status: string;
@@ -57,6 +62,44 @@ const statusOptions = [
   { value: "all", label: "全部" },
 ];
 
+function buildPageItems(pageCount: number, currentPage: number) {
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, pageCount, currentPage]);
+
+  if (currentPage > 1) pages.add(currentPage - 1);
+  if (currentPage < pageCount) pages.add(currentPage + 1);
+
+  if (currentPage <= 3) {
+    pages.add(2);
+    pages.add(3);
+    pages.add(4);
+  }
+
+  if (currentPage >= pageCount - 2) {
+    pages.add(pageCount - 1);
+    pages.add(pageCount - 2);
+    pages.add(pageCount - 3);
+  }
+
+  const sortedPages = [...pages]
+    .filter((page) => page >= 1 && page <= pageCount)
+    .sort((a, b) => a - b);
+
+  const items: Array<number | "ellipsis"> = [];
+  for (const page of sortedPages) {
+    const lastItem = items[items.length - 1];
+    if (typeof lastItem === "number" && page - lastItem > 1) {
+      items.push("ellipsis");
+    }
+    items.push(page);
+  }
+
+  return items;
+}
+
 export default function AdminAwardReviewsPage() {
   const [awards, setAwards] = useState<AwardCertificate[]>([]);
   const [canManage, setCanManage] = useState<boolean | null>(null);
@@ -65,6 +108,13 @@ export default function AdminAwardReviewsPage() {
   const [reviewTarget, setReviewTarget] = useState<AwardCertificate | null>(null);
   const [savingShowcaseId, setSavingShowcaseId] = useState<string | null>(null);
   const [deletingAwardId, setDeletingAwardId] = useState<string | null>(null);
+  const [scopeFilters, setScopeFilters] = useState<string[]>([]);
+  const [levelFilters, setLevelFilters] = useState<string[]>([]);
+  const [yearFilters, setYearFilters] = useState<string[]>([]);
+  const [competitionFilters, setCompetitionFilters] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [gridColumns, setGridColumns] = useState(3);
+  const [memberSearch, setMemberSearch] = useState("");
 
   async function fetchAwards(status: string): Promise<AwardCertificate[]> {
     const params = status !== "all" ? `?status=${status}` : "";
@@ -98,10 +148,51 @@ export default function AdminAwardReviewsPage() {
     };
   }, [statusFilter]);
 
+  // 根据窗口宽度确定网格列数（与 sm:grid-cols-2 / lg:grid-cols-3 对齐），
+  // 以便每页固定显示 3 行。
+  useEffect(() => {
+    function updateColumns() {
+      const width = window.innerWidth;
+      setGridColumns(width >= 1024 ? 3 : width >= 640 ? 2 : 1);
+    }
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
+
   function handleStatusFilterChange(value: string) {
     if (value === statusFilter) return;
     setLoading(true);
     setStatusFilter(value);
+    // 比赛和年份选项来自当前状态的数据，切换时清除以免隐藏筛选继续生效。
+    setCompetitionFilters([]);
+    setYearFilters([]);
+    setPage(1);
+  }
+
+  function handleScopeFiltersChange(next: string[]) {
+    setScopeFilters(next);
+    setPage(1);
+  }
+
+  function handleLevelFiltersChange(next: string[]) {
+    setLevelFilters(next);
+    setPage(1);
+  }
+
+  function handleYearFiltersChange(next: string[]) {
+    setYearFilters(next);
+    setPage(1);
+  }
+
+  function handleCompetitionFiltersChange(next: string[]) {
+    setCompetitionFilters(next);
+    setPage(1);
+  }
+
+  function handleMemberSearchChange(value: string) {
+    setMemberSearch(value);
+    setPage(1);
   }
 
   function updateAwardLocal(
@@ -197,6 +288,86 @@ export default function AdminAwardReviewsPage() {
     }
   }
 
+  const competitionOptions = Array.from(
+    new Map(
+      awards.map((award) => [award.competitionId, award.competitionTitle] as const),
+    ),
+    ([competitionId, competitionTitle]) => ({
+      value: competitionId,
+      label: competitionTitle,
+    }),
+  );
+
+  const scopeOptions = AWARD_SCOPE_OPTIONS.map((scope) => ({
+    value: scope,
+    label: scope,
+  }));
+
+  const levelOptions = Array.from(new Set([
+    ...AWARD_LEVEL_OPTIONS,
+    ...awards.flatMap((award) => award.awardLevel ? [award.awardLevel] : []),
+  ])).map((level) => ({
+    value: level,
+    label: level,
+  }));
+
+  const yearOptions = Array.from(
+    new Set(
+      awards
+        .map((award) => award.awardYear)
+        .filter((year): year is number => year != null),
+    ),
+  )
+    .sort((left, right) => right - left)
+    .map((year) => ({ value: String(year), label: `${year} 年` }));
+
+  const visibleAwards = awards.filter((award) => {
+    if (
+      scopeFilters.length > 0 &&
+      !scopeFilters.includes(award.awardScope ?? "")
+    ) {
+      return false;
+    }
+    if (
+      levelFilters.length > 0 &&
+      !levelFilters.includes(award.awardLevel ?? "")
+    ) {
+      return false;
+    }
+    if (
+      yearFilters.length > 0 &&
+      (award.awardYear == null || !yearFilters.includes(String(award.awardYear)))
+    ) {
+      return false;
+    }
+    if (
+      competitionFilters.length > 0 &&
+      !competitionFilters.includes(award.competitionId)
+    ) {
+      return false;
+    }
+    const keyword = memberSearch.trim().toLowerCase();
+    if (
+      keyword &&
+      ![...award.memberNames, award.userName].some((name) =>
+        name.toLowerCase().includes(keyword),
+      )
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const pageSize = gridColumns * 3;
+  const totalPages = Math.max(1, Math.ceil(visibleAwards.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageAwards = visibleAwards.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+
+  const pageItems = buildPageItems(totalPages, currentPage);
+
   return (
     <div className="px-4 lg:px-6">
       <div className="space-y-8">
@@ -226,9 +397,106 @@ export default function AdminAwardReviewsPage() {
               {option.label}
             </Button>
           ))}
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              {"<"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(1)}
+              disabled={currentPage <= 1}
+            >
+              {"<<"}
+            </Button>
+            {pageItems.map((item, index) =>
+              item === "ellipsis" ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-1 text-sm text-muted-foreground"
+                >
+                  ...
+                </span>
+              ) : (
+                <Button
+                  key={item}
+                  variant={item === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPage(item)}
+                >
+                  {item}
+                </Button>
+              ),
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              {">"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(totalPages)}
+              disabled={currentPage >= totalPages}
+            >
+              {">>"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Input
+            value={memberSearch}
+            onChange={(event) => handleMemberSearchChange(event.target.value)}
+            placeholder="搜索参赛成员"
+            className="w-full"
+          />
+
+          <MultiSelectFilter
+            value={competitionFilters}
+            options={competitionOptions}
+            placeholder="选择比赛"
+            onChange={handleCompetitionFiltersChange}
+            className="w-full"
+          />
+
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+            <MultiSelectFilter
+              value={scopeFilters}
+              options={scopeOptions}
+              placeholder="选择范围"
+              onChange={handleScopeFiltersChange}
+              className="w-full"
+            />
+            <MultiSelectFilter
+              value={levelFilters}
+              options={levelOptions}
+              placeholder="选择等级"
+              onChange={handleLevelFiltersChange}
+              className="w-full"
+            />
+            <MultiSelectFilter
+              value={yearFilters}
+              options={yearOptions}
+              placeholder="选择年份"
+              onChange={handleYearFiltersChange}
+              className="w-full"
+            />
+          </div>
         </div>
 
         {loading ? (
+          <p className="text-sm text-muted-foreground">加载中...</p>
+        ) : visibleAwards.length === 0 ? (
           <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
         ) : awards.length === 0 ? (
           <Card>
@@ -238,7 +506,7 @@ export default function AdminAwardReviewsPage() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {awards.map((award) => {
+            {pageAwards.map((award) => {
               const isApproved = award.status === "approved";
               const isSavingShowcase = savingShowcaseId === award.id;
               const isDeletingAward = deletingAwardId === award.id;
@@ -251,7 +519,7 @@ export default function AdminAwardReviewsPage() {
                     className="aspect-[4/3]"
                     imgClassName="object-cover"
                   />
-                  <CardContent className="space-y-4 p-4">
+                  <CardContent className="mt-auto space-y-4 p-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">
                         {award.competitionTitle}
@@ -263,7 +531,21 @@ export default function AdminAwardReviewsPage() {
 
                     <div className="space-y-1 text-xs text-slate-600">
                       <p>比赛 ID：{award.competitionId}</p>
-                      {award.awardLevel ? <p>获奖等级：{award.awardLevel}</p> : null}
+                      {award.awardYear != null ? (
+                        <p>年份：{award.awardYear}</p>
+                      ) : null}
+                      {award.awardScope ? (
+                        <p>范围：{award.awardScope}</p>
+                      ) : null}
+                      {award.awardLevel ? (
+                        <p>等级：{award.awardLevel}</p>
+                      ) : null}
+                      {displayAwardLevel(award) ? (
+                        <p>
+                          显示奖项等级：{displayAwardLevel(award)}
+                        </p>
+                      ) : null}
+
                       <p className="line-clamp-2 break-words">
                         参赛成员：
                         {award.memberNames.length > 0
@@ -391,7 +673,10 @@ export default function AdminAwardReviewsPage() {
             if (!open) setReviewTarget(null);
           }}
           awardTitle={reviewTarget?.competitionTitle ?? ""}
-          awardLevel={reviewTarget?.awardLevel}
+          awardScope={reviewTarget?.awardScope ?? null}
+          awardLevel={reviewTarget?.awardLevel ?? null}
+          displayLevel={displayAwardLevel(reviewTarget ?? {})}
+          awardYear={reviewTarget?.awardYear ?? null}
           applicantName={reviewTarget?.userName ?? ""}
           memberNames={reviewTarget?.memberNames ?? []}
           imageUrl={reviewTarget?.imageLargeUrl ?? reviewTarget?.imageUrl ?? ""}
