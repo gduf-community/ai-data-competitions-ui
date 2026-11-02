@@ -103,11 +103,11 @@ export default async function AwardsGalleryPage() {
 
   return (
     <>
-      <main className="mx-auto max-w-6xl px-4 py-12 md:px-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-14 md:px-6 md:pt-8">
         <div className="space-y-10">
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-slate-950">荣誉展示</h1>
-            <p className="text-sm text-slate-500">
+            <h1 className="text-2xl font-bold text-foreground">荣誉展示</h1>
+            <p className="text-sm text-muted-foreground">
               按年份与获奖等级整理展示各比赛上传的获奖证书。
             </p>
           </div>
@@ -121,13 +121,13 @@ export default async function AwardsGalleryPage() {
           ) : (
             years.map((yearGroup) => (
               <section key={yearGroup.year} className="space-y-6">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2 className="text-xl font-semibold text-foreground">
                   {yearGroup.year} 年
                 </h2>
 
                 {yearGroup.competitions.map((competition) => (
                   <div key={competition.competitionId} className="space-y-4">
-                    <h3 className="text-base font-semibold text-slate-800">
+                    <h3 className="text-base font-semibold text-foreground">
                       {competition.competitionTitle}
                     </h3>
 
@@ -141,7 +141,7 @@ export default async function AwardsGalleryPage() {
                             <Award className="mr-1 size-3" />
                             {levelGroup.level}
                           </Badge>
-                          <span className="text-xs text-slate-400">
+                          <span className="whitespace-nowrap text-xs text-muted-foreground">
                             {levelGroup.awards.length} 份
                           </span>
                         </div>
