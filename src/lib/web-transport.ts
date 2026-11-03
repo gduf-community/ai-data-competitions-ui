@@ -22,6 +22,7 @@ export function permittedPublicServerRead(pathname: string) {
     /^\/api\/portal\/competitions\/[^/]+$/.test(path) ||
     /^\/api\/competitions\/[^/]+\/(showcase|official-link)$/.test(path) ||
     /^\/api\/awards\/[^/]+$/.test(path) ||
+    /^\/api\/awards\/years\/[1-9]\d{3}(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/.test(path) ||
     /^\/api\/profiles\/[^/]+(?:\/experiences\/[^/]+)?$/.test(path) ||
     /^\/api\/clubs\/[^/]+(?:\/contents(?:\/[^/]+)?)?$/.test(path) ||
     /^\/api\/questions(?:\/[^/]+)?$/.test(path);
