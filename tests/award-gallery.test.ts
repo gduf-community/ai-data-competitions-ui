@@ -81,4 +81,3 @@ test("data error retry refreshes server data before resetting its boundary", () 
   assert.equal(clickRetry(tree), true);
   assert.deepEqual(actions, ["refresh", "reset"]);
 });
-
