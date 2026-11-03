@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { parseAwardYear, parseAwardCompetitionId } from "./contracts/award-gallery";
 
+/** Server Components only; this does not grant browser BFF capabilities. */
+export function permittedAwardGalleryServerRead(pathname: string) {
+  return /^\/api\/awards\/years(?:\/[1-9]\d{3}(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?)?$/.test(new URL(pathname, "http://web.invalid").pathname);
+}
+
 export function galleryHref(selection: { year?: number; competition?: string; cursor?: string }) {
   if (selection.year === undefined) {
     if (selection.competition) throw new Error("A competition requires a year");
