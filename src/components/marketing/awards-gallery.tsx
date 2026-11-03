@@ -201,5 +201,3 @@ export function AwardsGallery(props: GalleryProps) {
     </main>
   );
 }
-
-
