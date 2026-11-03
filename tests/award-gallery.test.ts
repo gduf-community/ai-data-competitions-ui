@@ -6,9 +6,9 @@ import vm from "node:vm";
 import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { galleryHref, awardCompetitionCertificatesSchema, awardYearSummariesSchema } from "../src/lib/award-gallery";
+import { galleryHref, awardCompetitionCertificatesSchema, awardYearSummariesSchema, permittedAwardGalleryServerRead } from "../src/lib/award-gallery";
 import * as contracts from "../src/lib/contracts/award-gallery";
-import { permittedPublicServerRead, permittedBrowserRequest } from "../src/lib/web-transport";
+import { permittedBrowserRequest } from "../src/lib/web-transport";
 
 const require = createRequire(import.meta.url);
 const competitionId = "11111111-1111-4111-8111-111111111111";
@@ -59,10 +59,10 @@ test("C renders full-event totals, current-page counts, verified members and rev
 });
 test("new public server reads remain precise and are not browser capabilities", () => {
   for (const path of ["/api/awards/years", "/api/awards/years/2030", `/api/awards/years/2030/${competitionId}?cursor=x`]) {
-    assert.equal(permittedPublicServerRead(path), true);
+    assert.equal(permittedAwardGalleryServerRead(path), true);
     assert.equal(permittedBrowserRequest(new Request("http://localhost:3000" + path), { api: new URL("http://localhost:3001"), web: new URL("http://localhost:3000"), business: false, serviceToken: "a".repeat(64), clientIpHeader: undefined }), false);
   }
-  for (const path of ["/api/awards/years/2030/private", `/api/awards/years/2030/${competitionId}/members`, "/api/awards/years/no-year"]) assert.equal(permittedPublicServerRead(path), false);
+  for (const path of ["/api/awards/years/2030/private", `/api/awards/years/2030/${competitionId}/members`, "/api/awards/years/no-year"]) assert.equal(permittedAwardGalleryServerRead(path), false);
 });
 
 test("data error retry refreshes server data before resetting its boundary", () => {

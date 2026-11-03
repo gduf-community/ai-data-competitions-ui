@@ -14,7 +14,7 @@ function Count({ value, unit }: { value: number; unit: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const reducedMotion = useReducedMotion();
   const completedValue = useRef<number | null>(null);
-  const [counter, setCounter] = useState({ target: value, display: 0 });
+  const [counter, setCounter] = useState({ target: value, display: value });
   const display = reducedMotion || counter.target !== value ? value : counter.display;
   useEffect(() => {
     const element = ref.current;
@@ -68,7 +68,7 @@ type GalleryProps =
   | { view: "year"; data: AwardYearCompetitions }
   | { view: "competition"; data: AwardCompetitionCertificates };
 
-const actionClass = "inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600";
+const actionClass = "inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary";
 
 export function AwardsGallery(props: GalleryProps) {
   const overview = props.view === "overview" ? props.data : null;
