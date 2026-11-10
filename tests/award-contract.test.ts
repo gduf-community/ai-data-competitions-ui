@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { z } from "zod";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MultiSelectFilter } from "@/components/admin/multi-select-filter";
+import { AWARD_LEVEL_OPTIONS, displayAwardLevel } from "@/lib/award-level";
+import { AWARD_LEVEL_MAX_LENGTH, AWARD_LEVEL_TEXT_MAX_LENGTH } from "@/lib/contracts/profiles";
 
 import {
   awardGalleryRowSchema,
@@ -24,6 +29,26 @@ function memberRowFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
+test("award display preserves custom and historical grades without equating medals", () => {
+  assert.equal(AWARD_LEVEL_TEXT_MAX_LENGTH, 120);
+  assert.equal(AWARD_LEVEL_MAX_LENGTH, 120);
+  for (const level of ["特等奖", "金奖", "银奖", "铜奖", "优秀奖", "入围"]) {
+    assert.ok((AWARD_LEVEL_OPTIONS as readonly string[]).includes(level));
+    assert.equal(displayAwardLevel({ awardScope: "国家级", awardLevel: level }), `国家级${level}`);
+  }
+  assert.equal(displayAwardLevel({ awardScope: "其他", awardLevel: "市级优胜奖" }), "市级优胜奖");
+  assert.equal(displayAwardLevel({ awardScope: "省级", awardLevel: "金奖", awardLevelText: "省级 金奖" }), "省级 金奖");
+});
+
+test("missing filter options remain visible and removable after a list refresh", () => {
+  const html = renderToStaticMarkup(createElement(MultiSelectFilter, {
+    value: ["历史比赛"], options: [], placeholder: "筛选比赛", onChange: () => undefined,
+  }));
+  assert.match(html, /历史比赛/);
+  assert.match(html, /aria-label="移除 历史比赛"/);
+  assert.match(html, /aria-label="筛选比赛"/);
+});
+
 function candidateFixture(overrides: Record<string, unknown> = {}) {
   return {
     id: randomUUID(),
@@ -43,7 +68,10 @@ function showcaseRowFixture(overrides: Record<string, unknown> = {}) {
     memberNames: ["王五", "张三"],
     competitionId: randomUUID(),
     competitionTitle: "程序设计竞赛",
-    awardLevel: "国家级一等奖",
+    awardScope: "国家级",
+    awardLevel: "一等奖",
+    awardLevelText: null,
+    awardYear: 2025,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     ...overrides,
   };
@@ -118,7 +146,10 @@ test("我的奖状行契约：owner/member 角色、members 数组、日期与�
     userId: randomUUID(),
     competitionId: randomUUID(),
     competitionTitle: "程序设计竞赛",
-    awardLevel: "国家级一等奖",
+    awardScope: "国家级",
+    awardLevel: "一等奖",
+    awardLevelText: null,
+    awardYear: 2025,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     imageLargeUrl: null,
     status: "approved",
@@ -147,7 +178,10 @@ test("我的奖状行契约拒绝 role=admin、缺失 members 与非 UUID 主键
     userId: randomUUID(),
     competitionId: randomUUID(),
     competitionTitle: "程序设计竞赛",
+    awardScope: null,
     awardLevel: null,
+    awardLevelText: null,
+    awardYear: null,
     imageUrl: "/api/uploads?key=uploads/awards/a.png",
     imageLargeUrl: null,
     status: "pending",

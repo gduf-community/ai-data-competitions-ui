@@ -157,13 +157,15 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 消费者：[profile 组件](../src/components/profile)、[通知组件](../src/components/notifications)、[个人 DTO](../src/lib/contracts/profiles.ts)。
 
+个人奖状分类与上传者更正由 [API #170](https://github.com/gduf-community/competition-Q-A-website/issues/170) 追踪，配套 API #159 / Web #158；先显式数据库增量与API、再Web，生产未发布。范围为亚洲级/世界级/国家级/省级/校级/其他；奖级保留非空原文，金银铜不换算，支持自定义名称；年份1900–2100整数，历史未知为NULL。奖级/展示文案的120个UTF-16单元上限分别集中在 `src/lib/contracts/profiles.ts` 的常量，POST/PATCH一致，清洗后超长400；公共限长组件仍由API #160跟踪。DTO同步包含 `awardScope/awardLevel/awardLevelText/awardYear`。
+
 | 方法/路径 | 输入 | 返回/限制 |
 | --- | --- | --- |
 | GET / PUT `/api/me/profile` | PUT 可更新基础信息、展示开关和公开资料 | `{data: MeProfileData,titles: TitleInfo[]}`；不在此更新邮箱/权限 |
 | POST `/api/me/avatar` | multipart `file`，PNG/JPEG/WebP，最大 2 MiB | `{url}`；归属为当前账号 |
 | GET `/api/me/competition-options` | `keyword` 最长 120 字符 | `{competitions:[{id,title}]}`，最多 20 项；登录/限流保护 |
-| GET / POST `/api/me/award-certificates` | POST multipart `file,competitionId,awardLevel?`；图片最大 5 MiB | GET `{awards}`；POST `{id,url}`，走奖状专用入口 |
-| DELETE `/api/me/award-certificates/[id]` | 本人奖状 ID | `{success:true}`，成功后刷新 |
+| GET / POST `/api/me/award-certificates` | POST multipart必填 `file,competitionId,awardScope,awardLevel,awardYear`，选填 `awardLevelText`；图片最大5 MiB | GET `{awards}`；POST `{id,url}`，走奖状专用入口 |
+| PATCH / DELETE `/api/me/award-certificates/[id]` | PATCH `{awardScope,awardLevel,awardYear,awardLevelText?}`；仅上传者 | PATCH `{success:true,changed:boolean}`：真实修改后重新审核；无变化保持原状态；DELETE `{success:true}`，成功后刷新 |
 | GET `/api/me/experience-posts` | 当前身份 | `{data: ExperiencePostRow[]}` |
 | POST `/api/me/experience-posts` | 当前自助创建入口停用 | 403；管理员邀请草稿；`/me/experiences/new` 实际重定向到列表 |
 | GET / PUT / DELETE `/api/me/experience-posts/[id]` | PUT `{title?,content?,awardLevel?}` | GET/PUT `{data}`；DELETE `{success:true}` |
@@ -382,7 +384,7 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/me/applications/[id]` | DELETE/GET | DELETE/GET | — | — |  |
 | `/api/me/avatar` | POST | POST | — | — |  |
 | `/api/me/award-certificates` | GET/POST | GET/POST | — | — |  |
-| `/api/me/award-certificates/[id]` | DELETE | DELETE | — | — |  |
+| `/api/me/award-certificates/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
 | `/api/me/clubs` | GET | GET | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents` | GET/POST | GET/POST | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents/[id]` | DELETE/GET/PATCH | DELETE/GET/PATCH | — | — |  |

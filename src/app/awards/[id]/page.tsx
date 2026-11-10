@@ -6,6 +6,7 @@ import { Award, Calendar, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { displayAwardLevel } from "@/lib/award-level";
 import { getVisibleAwardById } from "@/lib/web-data";
 
 interface AwardDetailPageProps {
@@ -60,13 +61,22 @@ export default async function AwardDetailPage({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {award.awardLevel ? (
+                  {displayAwardLevel(award) ? (
                     <Badge
                       variant="secondary"
                       className="rounded-full bg-amber-50 text-amber-800 hover:bg-amber-50"
                     >
                       <Award className="size-3" />
-                      {award.awardLevel}
+                      {displayAwardLevel(award)}
+                    </Badge>
+                  ) : null}
+                  {award.awardYear != null ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-slate-200 bg-slate-50 text-slate-700"
+                    >
+                      <Calendar className="size-3" />
+                      年份：{award.awardYear}
                     </Badge>
                   ) : null}
                   {(award.memberNames.length > 0
