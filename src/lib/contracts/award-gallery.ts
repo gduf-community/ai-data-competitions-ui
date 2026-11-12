@@ -40,12 +40,3 @@ export function parseAwardYear(value: string): number | null {
 export function parseAwardCompetitionId(value: string): string | null {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value.toLowerCase() : null;
 }
-export function compareAwardLevels(left: { level: string }, right: { level: string }) {
-  const rank = (label: string, words: string[]) => {
-    const index = words.findIndex(word => label.includes(word));
-    return index < 0 ? 10 : index;
-  };
-  return rank(left.level, ["特等", "一等", "二等", "三等", "优秀", "参与"]) - rank(right.level, ["特等", "一等", "二等", "三等", "优秀", "参与"])
-    || rank(left.level, ["国家级", "省级", "市级", "校级", "院级"]) - rank(right.level, ["国家级", "省级", "市级", "校级", "院级"])
-    || left.level.localeCompare(right.level, "zh-CN");
-}

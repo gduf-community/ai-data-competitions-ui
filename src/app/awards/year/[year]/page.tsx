@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { AwardsGallery } from "@/components/marketing/awards-gallery";
+import { AwardYear } from "@/components/marketing/award-gallery/year";
 import { parseAwardYear } from "@/lib/contracts/award-gallery";
 import { listAwardCompetitionsByYear } from "@/lib/web-data";
 
@@ -8,5 +8,5 @@ export default async function AwardYearPage({ params }: { params: Promise<{ year
   if (year === null) notFound();
   const data = await listAwardCompetitionsByYear(year);
   if (!data) notFound();
-  return <AwardsGallery view="year" data={data} />;
+  return <AwardYear data={data} />;
 }
