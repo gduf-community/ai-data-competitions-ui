@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { AwardsGallery } from "@/components/marketing/awards-gallery";
+import { AwardCompetition } from "@/components/marketing/award-gallery/competition";
+import { awardCursorPattern } from "@/lib/award-gallery";
 import { parseAwardYear, parseAwardCompetitionId } from "@/lib/contracts/award-gallery";
 import { listAwardsByCompetition } from "@/lib/web-data";
 import { WebApiError } from "@/lib/web-api";
@@ -12,11 +13,11 @@ export default async function AwardCompetitionPage({ params, searchParams }: {
   const year = parseAwardYear(input.year);
   const competitionId = parseAwardCompetitionId(input.competitionId);
   const cursor = (await searchParams).cursor;
-  if (year === null || competitionId === null || Array.isArray(cursor) || (cursor !== undefined && !/^[A-Za-z0-9_-]{1,1024}$/.test(cursor))) notFound();
+  if (year === null || competitionId === null || Array.isArray(cursor) || (cursor !== undefined && !awardCursorPattern.test(cursor))) notFound();
   const data = await listAwardsByCompetition(year, competitionId, cursor).catch((error: unknown) => {
     if (error instanceof WebApiError && error.status === 400) notFound();
     throw error;
   });
   if (!data) notFound();
-  return <AwardsGallery view="competition" data={data} />;
+  return <AwardCompetition data={data} />;
 }

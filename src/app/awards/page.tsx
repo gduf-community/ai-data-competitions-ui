@@ -1,6 +1,6 @@
-import { AwardsGallery } from "@/components/marketing/awards-gallery";
+import { AwardOverview } from "@/components/marketing/award-gallery/overview";
 import { listAwardYearSummaries } from "@/lib/web-data";
 
 export default async function AwardsGalleryPage() {
-  return <AwardsGallery view="overview" data={await listAwardYearSummaries()} />;
+  return <AwardOverview data={await listAwardYearSummaries()} />;
 }
