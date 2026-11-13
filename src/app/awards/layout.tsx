@@ -8,7 +8,7 @@ export default function AwardsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
+    <div className="flex min-h-screen flex-col bg-white text-foreground dark:bg-background">
       <PortalNavbar />
       {children}
       <PortalFooter />

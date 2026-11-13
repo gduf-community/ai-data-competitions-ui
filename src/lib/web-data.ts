@@ -7,6 +7,7 @@ import type { ApplicationDetailForReview, ApplicationForEdit, ApplicationAuditLo
 import type { PublishedNoticeRecord } from "@/lib/contracts/portal";
 import type { PublicClubContent, ClubContentSummaryRow, ClubContactRow } from "@/lib/contracts/clubs";
 import { awardGalleryRowSchema, awardShowcaseRowSchema, myAwardRowSchema, publicAwardDetailSchema } from "@/lib/contracts/profiles";
+import { awardYearSummariesSchema, awardYearCompetitionsSchema, awardCompetitionCertificatesSchema } from "@/lib/award-gallery";
 import type { PublicHallOfFameEntry, PublicProfile, PublicExperiencePost, ExperiencePostRow, PublishedExperiencePostByCompetitionRow, MeProfileData, TitleInfo } from "@/lib/contracts/profiles";
 const id = encodeURIComponent;
 export const getHomepagePortalData = cache(async () => {
@@ -33,6 +34,24 @@ export async function getHallOfFameEntries() { return (await readAPI<{entries: P
 export async function getPublicProfile(userId: string) { return (await readOptionalAPI<{profile: PublicProfile}>("/api/profiles/" + id(userId)))?.profile ?? null; }
 export async function getPublishedExperiencePost(userId: string, postId: string) { return (await readOptionalAPI<{post: PublicExperiencePost}>("/api/profiles/" + id(userId) + "/experiences/" + id(postId)))?.post ?? null; }
 export async function listApprovedAwardsForGallery() { return (await readAPI<{awards: unknown[]}>("/api/awards")).awards.map((row) => awardGalleryRowSchema.parse(row)); }
+export async function listAwardYearSummaries() {
+  return awardYearSummariesSchema.parse(await readAPI("/api/awards/years"));
+}
+export async function listAwardCompetitionsByYear(year: number) {
+  const payload = await readOptionalAPI(`/api/awards/years/${year}`);
+  if (!payload) return null;
+  const data = awardYearCompetitionsSchema.parse(payload);
+  if (data.year !== year) throw new Error("Invalid award year response");
+  return data;
+}
+export async function listAwardsByCompetition(year: number, competitionId: string, cursor?: string) {
+  const query = cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
+  const payload = await readOptionalAPI(`/api/awards/years/${year}/${id(competitionId)}${query}`);
+  if (!payload) return null;
+  const data = awardCompetitionCertificatesSchema.parse(payload);
+  if (data.year !== year || data.competitionId !== competitionId) throw new Error("Invalid award competition response");
+  return data;
+}
 export async function getVisibleAwardById(awardId: string) { const payload = await readOptionalAPI<{award: unknown}>("/api/awards/" + id(awardId)); return payload ? publicAwardDetailSchema.parse(payload.award) : null; }
 export async function listPublishedNotices(limit: number) { return (await readAPI<{notices: PublishedNoticeRecord[]}>("/api/notices/published?limit=" + limit)).notices; }
 export const getCompetitionShowcase = cache((competitionId: string) => readAPI<{posts: PublishedExperiencePostByCompetitionRow[]; entries: PublicHallOfFameEntry[]}>("/api/competitions/" + id(competitionId) + "/showcase"));
