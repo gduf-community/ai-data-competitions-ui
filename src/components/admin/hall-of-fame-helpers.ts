@@ -4,6 +4,7 @@ import {
   hallOfFameMilestoneCreateRequestSchema,
   hallOfFamePhotoReviewRequestSchema,
   type AdminHallOfFameEntry,
+  type AdminHallOfFamePhotoRequest,
   type HallOfFameAdminUpdateRequest,
   type HallOfFameInviteRequest,
   type HallOfFameMemberStatus,
@@ -240,17 +241,75 @@ export function buildHallOfFamePhotoReviewPayload(input: {
   return { ok: true, data: parsed.data };
 }
 
+export function resolvePhotoRequestsPermissions(permissions?: {
+  canManage?: boolean;
+  canViewPreview?: boolean;
+}): { canManage: boolean; canViewPreview: boolean } {
+  return {
+    canManage: permissions?.canManage === true,
+    canViewPreview: permissions?.canViewPreview === true,
+  };
+}
+
+export type PhotoReviewConflictResult =
+  | {
+      kind: "missing";
+      nextRequest: AdminHallOfFamePhotoRequest;
+      lockActions: true;
+    }
+  | {
+      kind: "terminal";
+      nextRequest: AdminHallOfFamePhotoRequest;
+      lockActions: true;
+    }
+  | {
+      kind: "revision_changed";
+      nextRequest: AdminHallOfFamePhotoRequest;
+      pendingLatest: AdminHallOfFamePhotoRequest;
+      lockActions: true;
+    };
+
+export function reconcilePhotoReviewConflict(
+  current: AdminHallOfFamePhotoRequest,
+  latest: AdminHallOfFamePhotoRequest | null,
+): PhotoReviewConflictResult {
+  if (!latest) {
+    return {
+      kind: "missing",
+      nextRequest: current,
+      lockActions: true,
+    };
+  }
+
+  if (latest.status !== "pending") {
+    return {
+      kind: "terminal",
+      nextRequest: latest,
+      lockActions: true,
+    };
+  }
+
+  return {
+    kind: "revision_changed",
+    nextRequest: current,
+    pendingLatest: latest,
+    lockActions: true,
+  };
+}
+
 export function canApprovePhotoPreview(options: {
   canManage: boolean;
   status: AdminHallOfFameEntry["photoStatus"] | "pending" | "approved" | "rejected" | "withdrawn";
   previewStatus: "idle" | "loading" | "loaded" | "error" | "forbidden";
   submitting: boolean;
+  lockedByConflict?: boolean;
 }): boolean {
   return (
     options.canManage &&
     options.status === "pending" &&
     options.previewStatus === "loaded" &&
-    !options.submitting
+    !options.submitting &&
+    options.lockedByConflict !== true
   );
 }
 
