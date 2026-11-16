@@ -59,7 +59,15 @@ async function relay(request: Request) {
       ? await checkedDownloadBody(upstream.body as ReadableStream<Uint8Array> | null, target.searchParams.get("format"), request.signal) : upstream.body;
     const responseHeaders = new Headers();
     upstream.headers.forEach((value, name) => { if (!hop.has(name)) responseHeaders.set(name, value); });
-    responseHeaders.set("Cache-Control", target.pathname.startsWith("/api/admin/official-awards/") ? "private, no-store, max-age=0" : upstream.headers.get("cache-control") ?? "private, no-store, max-age=0");
+    const forcePrivateNoStore =
+      target.pathname.startsWith("/api/admin/official-awards/") ||
+      target.pathname.startsWith("/api/admin/hall-of-fame/photo-requests/");
+    responseHeaders.set(
+      "Cache-Control",
+      forcePrivateNoStore
+        ? "private, no-store, max-age=0"
+        : upstream.headers.get("cache-control") ?? "private, no-store, max-age=0",
+    );
     if (config.business) for (const cookie of upstream.headers.getSetCookie()) responseHeaders.append("set-cookie", cookie);
     const location = responseHeaders.get("location");
     if (location) {
