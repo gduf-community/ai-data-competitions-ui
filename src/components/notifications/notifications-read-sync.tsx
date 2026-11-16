@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { fetchClientSessionUser } from "@/lib/auth/client-session";
 import { markNoticesRead } from "@/lib/notice-read-state";
 import { requestJSON } from "@/lib/http-client";
 
@@ -15,8 +16,16 @@ export function NotificationsReadSync({
   userId,
 }: NotificationsReadSyncProps) {
   useEffect(() => {
-    if (!userId) return;
-    markNoticesRead(noticeIds, userId);
+    if (userId !== undefined) {
+      if (userId) markNoticesRead(noticeIds, userId);
+      return;
+    }
+    let active = true;
+    // Identity is optional enhancement; public notice rendering never waits for it.
+    void fetchClientSessionUser().then((user) => {
+      if (active && user?.id) markNoticesRead(noticeIds, user.id);
+    }).catch(() => undefined);
+    return () => { active = false; };
   }, [noticeIds, userId]);
 
   return null;
