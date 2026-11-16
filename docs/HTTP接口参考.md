@@ -15,6 +15,8 @@
 
 官方获奖导出在 BFF 转发前验证 MIME、规范 Content-Disposition 与起始签名（CSV UTF-8 BOM / XLSX ZIP local header）。仅预读签名所需前缀，原字节依序转发，失败或取消会取消上游；不读取整份文件，也不据此证明 ZIP 完整性或内容语义。
 
+官方名单和本人奖状成员的动态 UUID 段使用 Zod 的 RFC 9562 正则，与 API 的 `z.uuid()` 输入域一致（大小写、v1–8、nil/max）。路径和方法仍逐项白名单，业务接口仍要求 trusted；有效 UUID 不代表对象存在或已获授权。
+
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，配套 API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
 
 ## 先选择调用入口
