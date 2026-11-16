@@ -244,6 +244,49 @@ test("W2 candidate and legacy active views preserve compatibility and strip disa
   });
 });
 
+test("W6 rejects malformed queues and distinguishes them from an explicit empty list", () => {
+  for (const malformed of [
+    null, undefined, {}, [], "invalid", 0,
+    { requests: null }, { requests: {} }, { requests: "invalid" },
+    { data: null }, { data: {} }, { data: "invalid" },
+    { requests: null, data: [] }, { requests: {}, data: [] },
+    { requests: [null] }, { requests: [{}] },
+  ]) {
+    assert.throws(() => normalizeMePhotoRequestsPayload(malformed));
+  }
+  for (const payload of [{ requests: [] }, { data: [] }]) {
+    assert.deepEqual(normalizeMePhotoRequestsPayload(payload).requests, []);
+  }
+  const parsed = normalizeMePhotoRequestsPayload({
+    requests: [], currentRevision: 4, permissions: { canApply: false },
+  });
+  assert.equal(parsed.currentRevision, 4);
+  assert.equal(parsed.permissions?.canApply, false);
+});
+
+test("W6 load errors render retry instead of an empty queue or application controls", () => {
+  const props = {
+    requests: [], loading: false, canApply: true,
+    currentPortraitUrl: null, photoRef: null, uploadingPhoto: false,
+    submitting: false, withdrawingId: null, actionError: null,
+    onPhotoChange: () => undefined, onUploadingChange: () => undefined,
+    onSubmit: () => undefined, onWithdraw: () => undefined,
+    onRetryLoad: () => undefined,
+  };
+  const errorHtml = renderToStaticMarkup(React.createElement(
+    HallOfFamePhotoRequestSectionView,
+    { ...props, loadError: "换照申请记录加载失败，请稍后重试" },
+  ));
+  assert.match(errorHtml, /换照申请记录加载失败/);
+  assert.match(errorHtml, /重新加载/);
+  assert.doesNotMatch(errorHtml, /暂无历史换照申请记录|提交更换照片申请|type="file"/);
+  const emptyHtml = renderToStaticMarkup(React.createElement(
+    HallOfFamePhotoRequestSectionView, { ...props, loadError: null },
+  ));
+  assert.match(emptyHtml, /暂无历史换照申请记录/);
+  assert.match(emptyHtml, /提交更换照片申请/);
+});
+
 test("W6 photo request normalization strips private/reviewer fields and renders pending, rejected, and normal states safely", () => {
   const normalized = normalizeMePhotoRequestsPayload({
     data: [

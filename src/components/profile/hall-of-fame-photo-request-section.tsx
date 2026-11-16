@@ -40,14 +40,13 @@ export function normalizeMePhotoRequestsPayload(
   raw: unknown,
 ): NormalizedMePhotoRequests {
   const record =
-    raw && typeof raw === "object"
+    raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
       : {};
-  const list = Array.isArray(record.requests)
+  // A malformed canonical field must not be hidden by an alias or empty fallback.
+  const list = Object.prototype.hasOwnProperty.call(record, "requests")
     ? record.requests
-    : Array.isArray(record.data)
-      ? record.data
-      : [];
+    : record.data;
 
   return meHallOfFamePhotoRequestsResponseSchema.parse({
     requests: list,
