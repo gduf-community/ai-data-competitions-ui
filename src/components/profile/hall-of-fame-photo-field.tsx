@@ -24,6 +24,71 @@ import { cn } from "@/lib/utils";
 
 const HALL_PORTRAIT_UPLOAD_TIMEOUT_MS = 30_000;
 
+const OWNER_PRIVATE_HALL_PORTRAIT_KEY_RE =
+  /^[a-z0-9_-]+\/private\/hall_portrait\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/;
+
+function isSafeOwnerPrivateUploadUrl(parsed: URL): boolean {
+  if (parsed.pathname !== "/api/uploads") return false;
+  if (parsed.searchParams.size !== 1 || !parsed.searchParams.has("key")) {
+    return false;
+  }
+  const rawKey = parsed.searchParams.get("key") ?? "";
+  let decoded = rawKey;
+  try {
+    decoded = decodeURIComponent(rawKey);
+  } catch {
+    return false;
+  }
+  const normalized = decoded.replace(/\\/g, "/").replace(/^\/+/, "").trim();
+  if (!normalized || normalized.includes("..")) {
+    return false;
+  }
+  const segments = normalized.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
+    return false;
+  }
+  return OWNER_PRIVATE_HALL_PORTRAIT_KEY_RE.test(normalized);
+}
+
+/**
+ * 校验个人中心本人私有照片/待审照片预览地址：
+ * - 允许经 sanitizePublicPortraitSrc 通过的公开地址或签发版 /api/portal/assets
+ * - 额外允许服务端显式下发的本人私有上传读取地址 /api/uploads?key=<scope>/private/hall_portrait/...
+ * - 严格拒绝裸存储 key（如 uploads/private/...）、路径穿越、额外参数、data:/javascript: 与后台审核预览路径
+ */
+export function sanitizeOwnerPortraitPreviewSrc(
+  src: string | null | undefined,
+): string | null {
+  const publicSafe = sanitizePublicPortraitSrc(src);
+  if (publicSafe) {
+    return publicSafe;
+  }
+
+  if (typeof src !== "string") return null;
+  const trimmed = src.trim();
+  if (!trimmed) return null;
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      return isSafeOwnerPrivateUploadUrl(parsed) ? trimmed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (trimmed.startsWith("/api/uploads?")) {
+    try {
+      const parsed = new URL(trimmed, "https://web.invalid");
+      return isSafeOwnerPrivateUploadUrl(parsed) ? trimmed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export function validateHallPortraitFile(file: {
   type: string;
   size: number;
@@ -109,6 +174,7 @@ export function HallOfFamePhotoField({
 
   const [uploading, setUploading] = useState(false);
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [failedPreviewSrc, setFailedPreviewSrc] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [canRetry, setCanRetry] = useState(false);
 
@@ -153,6 +219,7 @@ export function HallOfFamePhotoField({
 
       releaseObjectUrl();
       setLocalPreviewUrl(null);
+      setFailedPreviewSrc(null);
       setUploadError(null);
       setCanRetry(false);
       onChange(null);
@@ -266,10 +333,18 @@ export function HallOfFamePhotoField({
     void startUpload(lastFileRef.current);
   }
 
-  const safeFallbackUrl = sanitizePublicPortraitSrc(
-    value?.previewUrl ?? existingPreviewUrl ?? null,
-  );
-  const displayPreview = localPreviewUrl ?? safeFallbackUrl;
+  const rawExistingPreview = value?.previewUrl ?? existingPreviewUrl ?? null;
+  const hasRawExistingPreview =
+    typeof rawExistingPreview === "string" &&
+    rawExistingPreview.trim().length > 0;
+  const safeFallbackUrl = sanitizeOwnerPortraitPreviewSrc(rawExistingPreview);
+  const candidatePreview = localPreviewUrl ?? safeFallbackUrl;
+  const displayPreview =
+    candidatePreview && failedPreviewSrc !== candidatePreview
+      ? candidatePreview
+      : null;
+  const previewUnavailable =
+    !localPreviewUrl && hasRawExistingPreview && !displayPreview;
   const combinedError = uploadError ?? error ?? null;
   const isInteractiveDisabled = disabled || uploading;
 
@@ -299,16 +374,17 @@ export function HallOfFamePhotoField({
           )}
         >
           {displayPreview ? (
-            // 本地压缩 blob 预览与私有受控预览不适用 Next 静态优化缓存
+            // 本地压缩 blob 预览与本人受控私有预览不适用 Next 静态优化缓存
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={displayPreview}
               alt={`${label}预览`}
               className="size-full object-cover"
+              onError={() => setFailedPreviewSrc(displayPreview)}
             />
           ) : (
             <span className="px-2 text-center text-xs text-muted-foreground">
-              暂无新上传照片
+              {previewUnavailable ? "原照片预览暂不可用或已过期" : "暂无新上传照片"}
             </span>
           )}
 
@@ -393,9 +469,13 @@ export function HallOfFamePhotoField({
             <p className="text-xs text-muted-foreground">
               当前上传照片已就绪，请核对个人展示信息并完成下方表单提交后进入审核。
             </p>
-          ) : existingPreviewUrl ? (
+          ) : previewUnavailable ? (
             <p className="text-xs text-muted-foreground">
-              当前已有已提交或审核通过的照片；如需替换，请重新选择图片上传。
+              已有已提交的照片记录，但当前预览暂不可用或已过期；你可重新选择照片上传替换。
+            </p>
+          ) : displayPreview ? (
+            <p className="text-xs text-muted-foreground">
+              当前正在预览已提交或已发布的照片；如需替换，请重新选择图片上传。
             </p>
           ) : null}
 

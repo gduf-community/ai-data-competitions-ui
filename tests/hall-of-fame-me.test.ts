@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   HallOfFamePhotoField,
+  sanitizeOwnerPortraitPreviewSrc,
   validateHallPortraitFile,
 } from "../src/components/profile/hall-of-fame-photo-field";
 import {
@@ -20,6 +21,7 @@ import {
 import {
   HALL_OF_FAME_PHOTO_MAX_BYTES,
   parseHallPortraitUploadResponse,
+  sanitizePublicPortraitSrc,
 } from "../src/lib/hall-of-fame";
 import {
   SYNTHETIC_PHOTO_REQUEST_IDS,
@@ -337,4 +339,97 @@ test("W6 photo request normalization strips private/reviewer fields and renders 
     "utf8",
   );
   assert.doesNotMatch(sectionSource, /\?userId=/);
+});
+
+test("F3 owner private pending portrait preview restores after reload while public portrait sanitizer stays strict", () => {
+  const ownerPrivateUploadUrl =
+    "/api/uploads?key=uploads%2Fprivate%2Fhall_portrait%2Fsynthetic%2Fportrait.webp";
+
+  // 公开过滤器仍严格拒绝私有 uploads 与后台预览路径
+  assert.equal(sanitizePublicPortraitSrc(ownerPrivateUploadUrl), null);
+  assert.equal(
+    sanitizePublicPortraitSrc(
+      `/api/admin/hall-of-fame/photo-requests/${SYNTHETIC_PHOTO_REQUEST_IDS.pending}/preview`,
+    ),
+    null,
+  );
+
+  // 本人预览校验允许服务端下发的受控 /api/uploads?key=.../private/hall_portrait/... ，但继续拦截裸 key / 路径穿越 / 后台路径 / 多参数
+  assert.equal(
+    sanitizeOwnerPortraitPreviewSrc(ownerPrivateUploadUrl),
+    ownerPrivateUploadUrl,
+  );
+  assert.equal(
+    sanitizeOwnerPortraitPreviewSrc("uploads/private/hall_portrait/synthetic/portrait.webp"),
+    null,
+  );
+  assert.equal(
+    sanitizeOwnerPortraitPreviewSrc(
+      "/api/uploads?key=uploads%2Fprivate%2Fhall_portrait%2F..%2Fsecret.webp",
+    ),
+    null,
+  );
+  assert.equal(
+    sanitizeOwnerPortraitPreviewSrc(
+      "/api/uploads?key=uploads%2Fprivate%2Fhall_portrait%2Fsynthetic%2Fportrait.webp&extra=1",
+    ),
+    null,
+  );
+  assert.equal(
+    sanitizeOwnerPortraitPreviewSrc(
+      `/api/admin/hall-of-fame/photo-requests/${SYNTHETIC_PHOTO_REQUEST_IDS.pending}/preview`,
+    ),
+    null,
+  );
+
+  // 复现 candidate 刷新/重编场景：value=null + existingPreviewUrl=本人受控私有预览 URL，可渲染预览且不出现“暂无新上传照片”
+  const recoveredFieldHtml = renderToStaticMarkup(
+    React.createElement(HallOfFamePhotoField, {
+      value: null,
+      existingPreviewUrl: ownerPrivateUploadUrl,
+      onChange: () => undefined,
+      error: null,
+    }),
+  );
+  assert.match(
+    recoveredFieldHtml,
+    /src="\/api\/uploads\?key=uploads%2Fprivate%2Fhall_portrait%2Fsynthetic%2Fportrait\.webp"/,
+  );
+  assert.match(recoveredFieldHtml, /当前正在预览已提交或已发布的照片/);
+  assert.doesNotMatch(recoveredFieldHtml, /暂无新上传照片/);
+
+  // 预览 URL 无效或被拒收时，给出明确的过期/不可用回退说明，避免自相矛盾
+  const expiredFieldHtml = renderToStaticMarkup(
+    React.createElement(HallOfFamePhotoField, {
+      value: null,
+      existingPreviewUrl: "uploads/private/hall_portrait/raw-bare-key.webp",
+      onChange: () => undefined,
+      error: null,
+    }),
+  );
+  assert.match(expiredFieldHtml, /原照片预览暂不可用或已过期/);
+  assert.match(expiredFieldHtml, /已有已提交的照片记录，但当前预览暂不可用或已过期/);
+  assert.doesNotMatch(expiredFieldHtml, /暂无新上传照片/);
+
+  // candidate 卡片刷新后同样恢复显示受控待审照片预览
+  const candidateCardWithPreviewHtml = renderToStaticMarkup(
+    React.createElement(HallOfFameStatusCardView, {
+      entry: {
+        ...syntheticMeInvitedEntry,
+        status: "candidate",
+        tag: "统计建模省一",
+        photoStatus: "pending",
+        hasPortrait: true,
+        pendingPortraitPreviewUrl: ownerPrivateUploadUrl,
+      },
+      userId: SYNTHETIC_USER_IDS.chenCandidate,
+      userName: "周待审",
+      displaySettings: defaultDisplaySettings,
+      onRefresh: () => undefined,
+    }),
+  );
+  assert.match(
+    candidateCardWithPreviewHtml,
+    /src="\/api\/uploads\?key=uploads%2Fprivate%2Fhall_portrait%2Fsynthetic%2Fportrait\.webp"/,
+  );
 });

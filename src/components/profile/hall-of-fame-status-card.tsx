@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
-import { HallOfFamePhotoField } from "@/components/profile/hall-of-fame-photo-field";
+import {
+  HallOfFamePhotoField,
+  sanitizeOwnerPortraitPreviewSrc,
+} from "@/components/profile/hall-of-fame-photo-field";
 import { HallOfFamePhotoRequestSection } from "@/components/profile/hall-of-fame-photo-request-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -364,7 +367,10 @@ function HallOfFameFirstSubmissionForm({
             value={photoRef}
             existingPreviewUrl={
               hasExistingCandidatePortrait
-                ? entry.pendingPortraitPreviewUrl ?? null
+                ? entry.pendingPortraitPreviewUrl ??
+                  entry.portraitThumbUrl ??
+                  entry.portraitUrl ??
+                  null
                 : null
             }
             onChange={(next) => {
@@ -667,14 +673,32 @@ export function HallOfFameStatusCardView({
     const photoStatusLabel = entry.photoStatus
       ? HALL_OF_FAME_PHOTO_STATUS_LABELS[entry.photoStatus]
       : "待审核";
+    const candidatePreviewSrc = sanitizeOwnerPortraitPreviewSrc(
+      entry.pendingPortraitPreviewUrl ??
+        entry.portraitThumbUrl ??
+        entry.portraitUrl ??
+        null,
+    );
 
     return (
       <Card className="border-blue-200/60 bg-gradient-to-br from-blue-50/80 to-white dark:from-blue-950/40 dark:to-background">
         <CardContent className="space-y-5 p-6">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
-              <Award className="size-7 text-blue-500" />
-            </div>
+            {candidatePreviewSrc ? (
+              <div className="relative aspect-[3/4] w-24 overflow-hidden rounded-xl border border-blue-200/80 bg-muted/40">
+                {/* 个人待审受控预览经 sanitizeOwnerPortraitPreviewSrc 过滤 */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={candidatePreviewSrc}
+                  alt={`${entry.displayName || userName} 待审照片预览`}
+                  className="size-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex size-14 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
+                <Award className="size-7 text-blue-500" />
+              </div>
+            )}
             <h3 className="text-base font-semibold">资料审核中（尚未公开展示）</h3>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {entry.level ? (
