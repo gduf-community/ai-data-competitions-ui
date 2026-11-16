@@ -9,6 +9,8 @@ import { HallOfFameLevelDetailView } from "../src/components/marketing/hall-of-f
 import {
   HallOfFameMilestoneList,
   PublicProfileContent,
+  isLegacyUnmigratedHallOfFameEntry,
+  resolvePublicHallOfFamePortraitSrc,
 } from "../src/components/profile/hall-of-fame-milestone-list";
 import { publicProfileSchema } from "../src/lib/contracts/profiles";
 import {
@@ -228,4 +230,101 @@ test("W5 schemas and portrait sanitizer strip PII, internal review fields, and n
   assert.match(hallErrorSrc, /reset\(\)/);
   assert.match(profileErrorSrc, /router\.refresh\(\)/);
   assert.match(profileErrorSrc, /reset\(\)/);
+});
+
+test("F4 separates formal portraits from account avatars and limits avatar fallback to explicit legacy unmigrated entries", () => {
+  // 1) 新体系成员缺失正式照片时，即使 profile.image 与 userImage 存在，也绝不渲染账号头像
+  const migratedWithoutPortrait = {
+    ...syntheticPublicProfile,
+    image: "https://example.com/ACCOUNT_AVATAR_UNREVIEWED.webp",
+    college: "可编辑账号学院不应回填",
+    hallOfFame: {
+      ...syntheticPublicProfile.hallOfFame,
+      userImage: "https://example.com/ACCOUNT_AVATAR_UNREVIEWED.webp",
+      portraitUrl: null,
+      portraitThumbUrl: null,
+      displayCollege: null,
+    },
+  };
+
+  assert.equal(
+    isLegacyUnmigratedHallOfFameEntry(migratedWithoutPortrait.hallOfFame),
+    false,
+  );
+  assert.equal(
+    resolvePublicHallOfFamePortraitSrc(
+      migratedWithoutPortrait.hallOfFame,
+      migratedWithoutPortrait.image,
+    ),
+    null,
+  );
+
+  const migratedMissingHtml = renderToStaticMarkup(
+    React.createElement(PublicProfileContent, {
+      profile: migratedWithoutPortrait,
+    }),
+  );
+  assert.doesNotMatch(migratedMissingHtml, /ACCOUNT_AVATAR_UNREVIEWED/);
+  assert.doesNotMatch(migratedMissingHtml, /可编辑账号学院不应回填/);
+
+  // 2) 新体系成员修改账号头像后，正式人物页依然只显示审核通过的正式照片
+  const migratedWithFormalPortrait = {
+    ...syntheticPublicProfile,
+    image: "https://example.com/NEW_UNAPPROVED_AVATAR.webp",
+  };
+  const formalHtml = renderToStaticMarkup(
+    React.createElement(PublicProfileContent, {
+      profile: migratedWithFormalPortrait,
+    }),
+  );
+  assert.match(formalHtml, /\/api\/portal\/assets\?key=/);
+  assert.doesNotMatch(formalHtml, /NEW_UNAPPROVED_AVATAR/);
+
+  // 3) 明确的未迁移存量旧成员：允许按旧隐私开关兼容公开头像/学院，隐私关闭(null)时不强行渲染
+  const legacyOpenProfile = {
+    id: SYNTHETIC_USER_IDS.legacyActive,
+    name: "陈历史",
+    college: "统计与数学学院",
+    grade: null,
+    major: null,
+    image: "https://example.com/LEGACY_PUBLIC_AVATAR.webp",
+    hallOfFame: {
+      id: SYNTHETIC_ENTRY_IDS.legacyActive,
+      userId: SYNTHETIC_USER_IDS.legacyActive,
+      userName: "陈历史",
+      userImage: "https://example.com/LEGACY_PUBLIC_AVATAR.webp",
+      college: "统计与数学学院",
+      tag: "历史正式成员",
+      bio: "早期入选成员，待补录等级与正式照片。",
+      displayOrder: 10,
+      level: null,
+      memberStatus: null,
+    },
+    experiencePosts: [],
+  };
+  assert.equal(
+    isLegacyUnmigratedHallOfFameEntry(legacyOpenProfile.hallOfFame),
+    true,
+  );
+  const legacyOpenHtml = renderToStaticMarkup(
+    React.createElement(PublicProfileContent, { profile: legacyOpenProfile }),
+  );
+  assert.match(legacyOpenHtml, /LEGACY_PUBLIC_AVATAR\.webp/);
+  assert.match(legacyOpenHtml, /统计与数学学院/);
+
+  const legacyPrivacyHidden = {
+    ...legacyOpenProfile,
+    college: null,
+    image: null,
+    hallOfFame: {
+      ...legacyOpenProfile.hallOfFame,
+      userImage: null,
+      college: null,
+    },
+  };
+  const legacyHiddenHtml = renderToStaticMarkup(
+    React.createElement(PublicProfileContent, { profile: legacyPrivacyHidden }),
+  );
+  assert.doesNotMatch(legacyHiddenHtml, /<img\b/i);
+  assert.doesNotMatch(legacyHiddenHtml, /统计与数学学院/);
 });

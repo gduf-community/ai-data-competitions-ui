@@ -5,6 +5,7 @@ import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type {
+  PublicHallOfFameEntry,
   PublicHallOfFameMilestone,
   PublicProfile,
 } from "@/lib/contracts/profiles";
@@ -14,6 +15,41 @@ import {
   HALL_OF_FAME_MILESTONE_TYPE_LABELS,
   sanitizePublicPortraitSrc,
 } from "@/lib/hall-of-fame";
+
+/**
+ * 判断公开人物记录是否仍属于未迁移的存量旧记录：
+ * 仅当新三级与正式展示快照字段全部缺失时，才允许按旧人物开关兼容账号公开头像/学院字段；
+ * 任一新体系字段存在时，绝不允许因正式照片缺失而回退消费可编辑账号头像或资料。
+ */
+export function isLegacyUnmigratedHallOfFameEntry(
+  entry: PublicHallOfFameEntry,
+): boolean {
+  return (
+    entry.level == null &&
+    entry.memberStatus == null &&
+    !entry.displayName?.trim() &&
+    entry.displayGrade == null &&
+    entry.displayCollege == null &&
+    entry.displayMajor == null &&
+    entry.portraitUrl == null &&
+    entry.portraitThumbUrl == null &&
+    (!entry.milestones || entry.milestones.length === 0)
+  );
+}
+
+export function resolvePublicHallOfFamePortraitSrc(
+  entry: PublicHallOfFameEntry,
+  legacyProfileImage?: string | null,
+): string | null {
+  if (!isLegacyUnmigratedHallOfFameEntry(entry)) {
+    return sanitizePublicPortraitSrc(
+      entry.portraitUrl ?? entry.portraitThumbUrl ?? null,
+    );
+  }
+  return sanitizePublicPortraitSrc(
+    entry.userImage ?? legacyProfileImage ?? null,
+  );
+}
 
 function formatMilestoneTransition(milestone: PublicHallOfFameMilestone): string {
   const targetName = getHallOfFameLevelMeta(milestone.toLevel).name;
@@ -100,24 +136,28 @@ export function HallOfFameMilestoneList({
 }
 
 export function PublicProfileContent({ profile }: { profile: PublicProfile }) {
-  const displayName =
-    profile.hallOfFame.displayName?.trim() || profile.name;
-  const displayGrade =
-    profile.hallOfFame.displayGrade ?? profile.grade ?? null;
-  const displayCollege =
-    profile.hallOfFame.displayCollege ?? profile.college ?? null;
-  const displayMajor =
-    profile.hallOfFame.displayMajor ?? profile.major ?? null;
+  const legacyUnmigrated = isLegacyUnmigratedHallOfFameEntry(profile.hallOfFame);
+  const displayName = legacyUnmigrated
+    ? profile.hallOfFame.userName || profile.name
+    : profile.hallOfFame.displayName?.trim() ||
+      profile.hallOfFame.userName ||
+      profile.name;
+  const displayGrade = legacyUnmigrated
+    ? (profile.grade ?? null)
+    : (profile.hallOfFame.displayGrade ?? null);
+  const displayCollege = legacyUnmigrated
+    ? (profile.hallOfFame.college ?? profile.college ?? null)
+    : (profile.hallOfFame.displayCollege ?? null);
+  const displayMajor = legacyUnmigrated
+    ? (profile.major ?? null)
+    : (profile.hallOfFame.displayMajor ?? null);
   const academicMeta = [displayGrade, displayCollege, displayMajor]
     .filter(Boolean)
     .join(" · ");
 
-  const safePortraitSrc = sanitizePublicPortraitSrc(
-    profile.hallOfFame.portraitUrl ??
-      profile.hallOfFame.portraitThumbUrl ??
-      profile.image ??
-      profile.hallOfFame.userImage ??
-      null,
+  const safePortraitSrc = resolvePublicHallOfFamePortraitSrc(
+    profile.hallOfFame,
+    profile.image,
   );
   const initial = displayName.charAt(0) || "榜";
 
