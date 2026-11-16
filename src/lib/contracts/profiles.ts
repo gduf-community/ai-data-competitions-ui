@@ -528,7 +528,12 @@ export type PublicHallOfFameLevelNamesGroup = z.infer<
 >;
 
 export const publicHallOfFameNamesOverviewSchema = z.object({
-  levels: z.array(publicHallOfFameLevelNamesGroupSchema),
+  levels: z
+    .array(publicHallOfFameLevelNamesGroupSchema)
+    .length(3, "名人堂总览必须包含全部三个等级分组")
+    .refine((groups) => new Set(groups.map((group) => group.level)).size === 3, {
+      message: "名人堂总览的等级分组不得重复",
+    }),
 });
 export type PublicHallOfFameNamesOverview = z.infer<
   typeof publicHallOfFameNamesOverviewSchema
