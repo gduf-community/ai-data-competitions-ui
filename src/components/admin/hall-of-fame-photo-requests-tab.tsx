@@ -10,6 +10,7 @@ import {
   resolvePhotoRequestsPermissions,
 } from "@/components/admin/hall-of-fame-helpers";
 import { HallOfFamePhotoReviewDialog } from "@/components/admin/hall-of-fame-photo-review-dialog";
+import { createPhotoReviewSession } from "@/components/admin/hall-of-fame-photo-review-session";
 import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,11 @@ export function HallOfFamePhotoRequestsTab({
 
   const abortRef = useRef<AbortController | null>(null);
   const seqRef = useRef(0);
+  const reviewSessionRef = useRef<ReturnType<typeof createPhotoReviewSession> | null>(null);
+  // Capture this opening: an old dialog's 409 must not refresh a later session.
+  const [reviewSession, setReviewSession] = useState<ReturnType<typeof createPhotoReviewSession> | null>(null);
+
+  useEffect(() => () => reviewSessionRef.current?.cancel(), []);
 
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -158,27 +164,40 @@ export function HallOfFamePhotoRequestsTab({
   }, [fetchRequestsPage, onPermissionRevoked, page, statusFilter]);
 
   const syncRequestOnConflict = useCallback(
-    async (requestId: string): Promise<AdminHallOfFamePhotoRequest | null> => {
-      const currentRows = await reloadCurrentPage();
-      let found = currentRows?.find((item) => item.id === requestId) ?? null;
-
-      if (!found) {
-        try {
-          const allResult = await fetchRequestsPage("all", 1, undefined, 50);
-          setServerCanManage(allResult.canManage);
-          setServerCanViewPreview(allResult.canViewPreview);
-          found = allResult.rows.find((item) => item.id === requestId) ?? null;
-        } catch {
-          found = null;
-        }
-      }
-
-      if (found) {
-        setSelectedRequest(found);
-      }
-      return found;
+    async (): Promise<AdminHallOfFamePhotoRequest | null> => {
+      if (!reviewSession || reviewSession !== reviewSessionRef.current) return null;
+      // Supersede any list read that predates this conflict refresh.
+      abortRef.current?.abort();
+      seqRef.current += 1;
+      return reviewSession.refresh({
+        loadCurrent: (signal) => fetchRequestsPage(statusFilter, page, signal),
+        loadAll: (signal) => fetchRequestsPage("all", 1, signal, 50),
+        applyCurrent: (result) => {
+          setItems(result.rows);
+          setTotal(result.total);
+          setServerCanManage(result.canManage);
+          setServerCanViewPreview(result.canViewPreview);
+          setError("");
+          setLoading(false);
+        },
+        applyLatest: (result, found) => {
+          setServerCanManage(result.canManage);
+          setServerCanViewPreview(result.canViewPreview);
+          if (found) setSelectedRequest(found);
+        },
+        onError: (err) => {
+          const parsedError = parseAdminRequestError(err, "刷新照片申请失败");
+          if (parsedError.isForbidden) {
+            setServerCanManage(false);
+            setServerCanViewPreview(false);
+            onPermissionRevoked?.();
+          }
+          setError(parsedError.message);
+          setLoading(false);
+        },
+      });
     },
-    [fetchRequestsPage, reloadCurrentPage],
+    [fetchRequestsPage, onPermissionRevoked, page, reviewSession, statusFilter],
   );
 
   useEffect(() => {
@@ -365,6 +384,9 @@ export function HallOfFamePhotoRequestsTab({
                             : "outline"
                         }
                         onClick={() => {
+                          reviewSessionRef.current?.cancel();
+                          reviewSessionRef.current = createPhotoReviewSession(item.id);
+                          setReviewSession(reviewSessionRef.current);
                           setSelectedRequest(item);
                           setReviewOpen(true);
                         }}
@@ -429,6 +451,9 @@ export function HallOfFamePhotoRequestsTab({
         onOpenChange={(open) => {
           setReviewOpen(open);
           if (!open) {
+            reviewSessionRef.current?.cancel();
+            reviewSessionRef.current = null;
+            setReviewSession(null);
             setSelectedRequest(null);
           }
         }}
