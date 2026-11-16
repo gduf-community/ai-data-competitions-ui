@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 
@@ -32,7 +32,11 @@ export function ClubCoverUploadField({
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef(0);
-  useEffect(() => () => { requestRef.current += 1; }, []);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  useLayoutEffect(() => () => {
+    requestRef.current += 1;
+    uploadAbortRef.current?.abort();
+  }, []);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -50,6 +54,9 @@ export function ClubCoverUploadField({
     }
 
     const request = ++requestRef.current;
+    uploadAbortRef.current?.abort();
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
     setUploading(true);
     onUploadingChange?.(true);
     try {
@@ -61,6 +68,7 @@ export function ClubCoverUploadField({
       const res = await fetchWithCsrf("/api/uploads", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -83,6 +91,7 @@ export function ClubCoverUploadField({
       if (request === requestRef.current) toast.error(error instanceof Error ? error.message : "上传失败");
     } finally {
       if (request === requestRef.current) {
+        uploadAbortRef.current = null;
         setUploading(false);
         onUploadingChange?.(false);
         if (inputRef.current) inputRef.current.value = "";
