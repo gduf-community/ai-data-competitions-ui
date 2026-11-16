@@ -40,6 +40,8 @@ PowerShell 使用 `Copy-Item .env.example .env.local`。Web 默认 `http://local
 
 ## 检查与构建
 
+[名人堂改造开发计划](./docs/名人堂改造开发计划.md)：三级名单、人物档案、姓名邀请和照片审核的7个Web任务及跨仓依赖；当前为待实现计划，完整用户报告由API仓维护。
+
 ```bash
 pnpm check:framework
 pnpm run ci
