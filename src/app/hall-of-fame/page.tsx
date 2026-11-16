@@ -2,15 +2,13 @@ import Link from "next/link";
 import { Award } from "lucide-react";
 
 import { HallOfFameLevelsOverview } from "@/components/marketing/hall-of-fame-level-section";
+import { resolvePublicHallOfFamePortraitSrc } from "@/components/profile/hall-of-fame-milestone-list";
 import { PortalFooter } from "@/components/marketing/portal-footer";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  isHallOfFameHierarchyEnabled,
-  sanitizePublicPortraitSrc,
-} from "@/lib/hall-of-fame";
+import { isHallOfFameHierarchyEnabled } from "@/lib/hall-of-fame";
 import {
   getHallOfFameEntries,
   getHallOfFameNamesOverview,
@@ -60,9 +58,7 @@ export default async function HallOfFamePage() {
               {entries.map((entry) => {
                 const initial = entry.userName.charAt(0);
                 const safeSrc =
-                  sanitizePublicPortraitSrc(
-                    entry.portraitThumbUrl ?? entry.portraitUrl ?? entry.userImage,
-                  ) ?? undefined;
+                  resolvePublicHallOfFamePortraitSrc(entry) ?? undefined;
                 return (
                   <Link
                     key={entry.id}
