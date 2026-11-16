@@ -178,3 +178,95 @@ test("the actual BFF rejects undeclared paths and methods before contacting the 
     for(const [name,value] of Object.entries(previous)) if(value===undefined) delete process.env[name]; else process.env[name]=value;
   }
 });
+
+test("hall of fame BFF capabilities allow only declared methods and reject public or private-preview leaks", () => {
+  const entryId = "20000000-0000-4000-8000-000000000205";
+  const requestId = "30000000-0000-4000-8000-000000000301";
+  const trustedAllowed: Array<[string, string]> = [
+    ["/api/admin/hall-of-fame/candidates?q=张", "GET"],
+    ["/api/admin/hall-of-fame/candidates?q=张", "HEAD"],
+    [`/api/admin/hall-of-fame/${entryId}/milestones`, "POST"],
+    ["/api/admin/hall-of-fame/photo-requests?status=pending", "GET"],
+    ["/api/admin/hall-of-fame/photo-requests", "HEAD"],
+    [`/api/admin/hall-of-fame/photo-requests/${requestId}/preview`, "GET"],
+    [`/api/admin/hall-of-fame/photo-requests/${requestId}/preview`, "HEAD"],
+    [`/api/admin/hall-of-fame/photo-requests/${requestId}/review`, "POST"],
+    ["/api/me/hall-of-fame/photo-requests", "GET"],
+    ["/api/me/hall-of-fame/photo-requests", "HEAD"],
+    ["/api/me/hall-of-fame/photo-requests", "POST"],
+    [`/api/me/hall-of-fame/photo-requests/${requestId}`, "DELETE"],
+  ];
+
+  for (const [path, method] of trustedAllowed) {
+    assert.equal(
+      permittedBrowserRequest(
+        new Request(config.web.origin + path, {
+          method,
+          headers: { host: config.web.host, origin: config.web.origin },
+        }),
+        config,
+      ),
+      true,
+      `expected trusted ${method} ${path} to be allowed`,
+    );
+    assert.equal(
+      permittedBrowserRequest(
+        new Request(config.web.origin + path, {
+          method,
+          headers: { host: config.web.host, origin: config.web.origin },
+        }),
+        { ...config, business: false },
+      ),
+      false,
+      `expected public ${method} ${path} to be rejected`,
+    );
+  }
+
+  const deniedInTrusted: Array<[string, string]> = [
+    ["/api/admin/hall-of-fame/candidates", "POST"],
+    ["/api/admin/hall-of-fame/candidates", "PUT"],
+    ["/api/admin/hall-of-fame/candidates", "DELETE"],
+    ["/api/admin/hall-of-fame/photo-requests", "POST"],
+    ["/api/admin/hall-of-fame/photo-requests", "PUT"],
+    ["/api/admin/hall-of-fame/photo-requests", "DELETE"],
+    [`/api/admin/hall-of-fame/${entryId}/milestones`, "GET"],
+    [`/api/admin/hall-of-fame/${entryId}/milestones`, "DELETE"],
+    ["/api/admin/hall-of-fame/photo-requests/not-a-uuid/preview", "GET"],
+    [`/api/admin/hall-of-fame/photo-requests/${requestId}/preview`, "POST"],
+    [`/api/admin/hall-of-fame/photo-requests/${requestId}/review`, "GET"],
+    ["/api/admin/hall-of-fame/photo-requests/not-a-uuid/review", "POST"],
+    [`/api/me/hall-of-fame/photo-requests/${requestId}`, "GET"],
+    [`/api/me/hall-of-fame/photo-requests/${requestId}`, "POST"],
+    ["/api/me/hall-of-fame/photo-requests/not-a-uuid", "DELETE"],
+  ];
+
+  for (const [path, method] of deniedInTrusted) {
+    assert.equal(
+      permittedBrowserRequest(
+        new Request(config.web.origin + path, {
+          method,
+          headers: { host: config.web.host, origin: config.web.origin },
+        }),
+        config,
+      ),
+      false,
+      `expected trusted ${method} ${path} to be rejected`,
+    );
+  }
+
+  assert.equal(
+    permittedBrowserRequest(
+      new Request(
+        config.web.origin +
+          "/api/uploads?key=uploads/private/hall_portrait/user-test/photo.webp",
+      ),
+      { ...config, business: false },
+    ),
+    false,
+  );
+  assert.equal(permittedPublicServerRead("/api/hall-of-fame?view=names"), true);
+  assert.equal(
+    permittedPublicServerRead("/api/hall-of-fame?view=level&level=1"),
+    true,
+  );
+});
