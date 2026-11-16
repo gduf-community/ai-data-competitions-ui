@@ -12,7 +12,10 @@ import {
   isLegacyUnmigratedHallOfFameEntry,
   resolvePublicHallOfFamePortraitSrc,
 } from "../src/components/profile/hall-of-fame-milestone-list";
-import { publicProfileSchema } from "../src/lib/contracts/profiles";
+import {
+  publicHallOfFameNamesOverviewSchema,
+  publicProfileSchema,
+} from "../src/lib/contracts/profiles";
 import {
   isHallOfFameHierarchyEnabled,
   parseHallOfFameLevelSegment,
@@ -26,6 +29,44 @@ import {
   syntheticPublicNamesOverview,
   syntheticPublicProfile,
 } from "./fixtures/hall-of-fame";
+
+test("W4 overview contract rejects missing or duplicate levels instead of rendering empty groups", () => {
+  const { levels } = syntheticPublicNamesOverview;
+  for (const missing of [1, 2, 3]) {
+    assert.throws(() => publicHallOfFameNamesOverviewSchema.parse({
+      levels: levels.filter((group) => group.level !== missing),
+    }));
+  }
+  for (const duplicate of levels) {
+    assert.throws(() => publicHallOfFameNamesOverviewSchema.parse({
+      levels: [duplicate, duplicate, duplicate],
+    }));
+    assert.throws(() => publicHallOfFameNamesOverviewSchema.parse({
+      levels: [...levels, duplicate],
+    }));
+  }
+  for (const malformed of [null, {}, { levels: [] }, { levels: null }]) {
+    assert.throws(() => publicHallOfFameNamesOverviewSchema.parse(malformed));
+  }
+  assert.throws(() => publicHallOfFameNamesOverviewSchema.parse({
+    levels: [{ ...levels[0], level: 4 }, levels[1], levels[2]],
+  }));
+});
+
+test("W4 overview accepts explicit empty levels and preserves API group order", () => {
+  const levels = [3, 1, 2].map((level) => ({ level, totalCount: 0, members: [] }));
+  const parsed = publicHallOfFameNamesOverviewSchema.parse({ levels });
+  assert.deepEqual(parsed.levels.map((group) => group.level), [3, 1, 2]);
+  const html = renderToStaticMarkup(
+    React.createElement(HallOfFameLevelsOverview, { overview: parsed }),
+  );
+  assert.equal((html.match(/该等级暂未公布成员/g) ?? []).length, 3);
+  assert.equal((html.match(/共 0 人/g) ?? []).length, 3);
+  assert.deepEqual(
+    publicHallOfFameNamesOverviewSchema.parse(syntheticPublicNamesOverview),
+    syntheticPublicNamesOverview,
+  );
+});
 
 test("W4 overview renders >20 members per level without truncation, keeps duplicates distinct by userId, and omits photos", () => {
   const overviewHtml = renderToStaticMarkup(
