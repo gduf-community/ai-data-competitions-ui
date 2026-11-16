@@ -24,6 +24,8 @@ test("a failed publish retry preserves the saved draft and reuses its revision w
   const save = evaluate(`(${functionText("save")})`, {
     coverUploading: false, submitting: false, clubId: "synthetic", mode: "create", savedRef,
     commandRef: { current: null }, pendingPublishRef: { current: null },
+    submittingRef: { current: false }, coverUploadingRef: { current: false }, mountedRef: { current: true },
+    conflictRef: { current: false }, baselineRef: { current: values }, setSavedStatus() {}, setHasSavedContent() {},
     buildPayload: evaluate(`(${functionText("buildPayload")})`, {}), setSubmitting() {},
     form: { setError() {} }, document: { getElementById: () => null }, toast: { success() {}, error() {} }, router: { push() {}, refresh() {} },
     fetchWithCsrf: async (url: string, init: RequestInit) => {
