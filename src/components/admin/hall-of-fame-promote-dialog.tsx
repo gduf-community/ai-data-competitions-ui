@@ -9,6 +9,7 @@ import {
   parseAdminRequestError,
   resolveAdminEntryDisplayName,
 } from "@/components/admin/hall-of-fame-helpers";
+import { AdminHallOfFameMilestoneHistory } from "@/components/admin/hall-of-fame-milestone-history";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -192,6 +193,13 @@ export function HallOfFamePromoteDialog({
             </div>
           </div>
 
+          {effectiveEntry.milestones && effectiveEntry.milestones.length > 0 ? (
+            <AdminHallOfFameMilestoneHistory
+              milestones={effectiveEntry.milestones}
+              title="已有入选与进阶履历（只读核对）"
+            />
+          ) : null}
+
           {hasConflict ? (
             <div
               role="alert"
@@ -316,7 +324,7 @@ export function HallOfFamePromoteDialog({
             <Button
               type="button"
               loading={submitting}
-              disabled={submitting || refreshing}
+              disabled={submitting || refreshing || hasConflict}
               onClick={() => void handleSubmit()}
             >
               {submitting ? "提交中..." : "确认提交"}

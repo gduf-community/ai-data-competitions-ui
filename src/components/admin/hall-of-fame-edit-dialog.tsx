@@ -12,6 +12,7 @@ import {
   parseAdminRequestError,
   resolveAdminEntryDisplayName,
 } from "@/components/admin/hall-of-fame-helpers";
+import { AdminHallOfFameMilestoneHistory } from "@/components/admin/hall-of-fame-milestone-history";
 import { HallOfFameUserPicker } from "@/components/admin/hall-of-fame-user-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -390,6 +391,11 @@ export function HallOfFameEditDialog({
                 </div>
               ) : null}
 
+              <AdminHallOfFameMilestoneHistory
+                milestones={(latestServerEntry ?? entry).milestones}
+                title="入选与进阶履历明细（只读）"
+              />
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="hof-edit-name">展示姓名</Label>
@@ -656,7 +662,7 @@ export function HallOfFameEditDialog({
             <Button
               type="button"
               loading={submitting}
-              disabled={submitting || refreshing}
+              disabled={submitting || refreshing || hasConflict}
               onClick={() => void handleEditSubmit()}
             >
               {submitting ? "保存中..." : "保存修改"}

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { HallOfFameEditDialog } from "@/components/admin/hall-of-fame-edit-dialog";
+import { AdminHallOfFameMilestoneHistory } from "@/components/admin/hall-of-fame-milestone-history";
 import {
   buildHallOfFameUpdatePayload,
   defaultAdminHallOfFameFilters,
@@ -522,20 +523,31 @@ export default function AdminHallOfFamePage() {
                               </p>
                             ) : null}
                             {entry.milestones && entry.milestones.length > 0 ? (
+                              <details className="pt-1">
+                                <summary className="cursor-pointer select-none text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                                  {(() => {
+                                    const latest =
+                                      entry.milestones[
+                                        entry.milestones.length - 1
+                                      ];
+                                    const eventLabel =
+                                      latest.eventType === "promoted"
+                                        ? "进阶"
+                                        : "入选";
+                                    return `履历记录：${entry.milestones.length} 条（最近：成绩 ${latest.achievementYear} 年 / ${eventLabel} ${latest.eventYear} 年 → ${formatAdminHallOfFameLevelLabel(latest.toLevel)}）· 展开查看完整理由与双年份`;
+                                  })()}
+                                </summary>
+                                <div className="mt-2">
+                                  <AdminHallOfFameMilestoneHistory
+                                    milestones={entry.milestones}
+                                  />
+                                </div>
+                              </details>
+                            ) : (
                               <p className="text-xs text-muted-foreground">
-                                履历记录：{entry.milestones.length} 条（最近：
-                                {
-                                  entry.milestones[entry.milestones.length - 1]
-                                    .eventYear
-                                }
-                                年 →{" "}
-                                {formatAdminHallOfFameLevelLabel(
-                                  entry.milestones[entry.milestones.length - 1]
-                                    .toLevel,
-                                )}
-                                ）
+                                履历记录：暂无入选或进阶履历（待定级/补录）
                               </p>
-                            ) : null}
+                            )}
                           </div>
                         </div>
 

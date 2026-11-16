@@ -7,6 +7,7 @@ import {
   formatAdminHallOfFameLevelLabel,
   formatAdminMemberStatusLabel,
   parseAdminRequestError,
+  resolvePhotoRequestsPermissions,
 } from "@/components/admin/hall-of-fame-helpers";
 import { HallOfFamePhotoReviewDialog } from "@/components/admin/hall-of-fame-photo-review-dialog";
 import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
@@ -36,6 +37,8 @@ interface HallOfFamePhotoRequestsTabProps {
 
 const PAGE_SIZE = 10;
 
+export { resolvePhotoRequestsPermissions };
+
 export function normalizePhotoRequestsPayload(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") return payload;
   const record = payload as Record<string, unknown>;
@@ -58,7 +61,7 @@ export function HallOfFamePhotoRequestsTab({
   const [items, setItems] = useState<AdminHallOfFamePhotoRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [serverCanManage, setServerCanManage] = useState(false);
-  const [serverCanViewPreview, setServerCanViewPreview] = useState(true);
+  const [serverCanViewPreview, setServerCanViewPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedRequest, setSelectedRequest] =
@@ -75,10 +78,11 @@ export function HallOfFamePhotoRequestsTab({
       targetFilter: "all" | HallOfFamePhotoRequestStatus,
       targetPage: number,
       signal?: AbortSignal,
+      customPageSize = PAGE_SIZE,
     ) => {
       const params = new URLSearchParams({
         page: String(targetPage),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(customPageSize),
       });
       if (targetFilter !== "all") {
         params.set("status", targetFilter);
@@ -97,12 +101,13 @@ export function HallOfFamePhotoRequestsTab({
       }
 
       const rows = parsed.data.data;
+      const perms = resolvePhotoRequestsPermissions(parsed.data.permissions);
       return {
         rows,
         total: parsed.data.total ?? rows.length,
-        // 严禁根据页面路由可见推断可审批，必须以服务端权限字段为准。
-        canManage: parsed.data.permissions?.canManage === true,
-        canViewPreview: parsed.data.permissions?.canViewPreview !== false,
+        // 严禁根据页面路由可见或缺失权限字段推导授权，一律以服务端显式 true 为准。
+        canManage: perms.canManage,
+        canViewPreview: perms.canViewPreview,
       };
     },
     [],
@@ -123,30 +128,58 @@ export function HallOfFamePhotoRequestsTab({
         page,
         controller.signal,
       );
-      if (seq !== seqRef.current || controller.signal.aborted) return;
+      if (seq !== seqRef.current || controller.signal.aborted) return null;
       setItems(result.rows);
       setTotal(result.total);
       setServerCanManage(result.canManage);
       setServerCanViewPreview(result.canViewPreview);
+      return result.rows;
     } catch (err) {
       if (
         seq !== seqRef.current ||
         controller.signal.aborted ||
         isAbortError(err)
       ) {
-        return;
+        return null;
       }
       const parsedError = parseAdminRequestError(err, "获取照片申请列表失败");
       if (parsedError.isForbidden) {
+        setServerCanManage(false);
+        setServerCanViewPreview(false);
         onPermissionRevoked?.();
       }
       setError(parsedError.message);
+      return null;
     } finally {
       if (seq === seqRef.current) {
         setLoading(false);
       }
     }
   }, [fetchRequestsPage, onPermissionRevoked, page, statusFilter]);
+
+  const syncRequestOnConflict = useCallback(
+    async (requestId: string): Promise<AdminHallOfFamePhotoRequest | null> => {
+      const currentRows = await reloadCurrentPage();
+      let found = currentRows?.find((item) => item.id === requestId) ?? null;
+
+      if (!found) {
+        try {
+          const allResult = await fetchRequestsPage("all", 1, undefined, 50);
+          setServerCanManage(allResult.canManage);
+          setServerCanViewPreview(allResult.canViewPreview);
+          found = allResult.rows.find((item) => item.id === requestId) ?? null;
+        } catch {
+          found = null;
+        }
+      }
+
+      if (found) {
+        setSelectedRequest(found);
+      }
+      return found;
+    },
+    [fetchRequestsPage, reloadCurrentPage],
+  );
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -391,7 +424,7 @@ export function HallOfFamePhotoRequestsTab({
       )}
 
       <HallOfFamePhotoReviewDialog
-        key={`${selectedRequest?.id ?? "none"}-${selectedRequest?.status ?? "none"}-${reviewOpen ? "open" : "closed"}`}
+        key={`${selectedRequest?.id ?? "none"}-${reviewOpen ? "open" : "closed"}`}
         open={reviewOpen}
         onOpenChange={(open) => {
           setReviewOpen(open);
@@ -408,11 +441,10 @@ export function HallOfFamePhotoRequestsTab({
             await onApproved();
           }
         }}
-        onConflictRefresh={async () => {
-          await reloadCurrentPage();
-        }}
+        onConflictRefresh={syncRequestOnConflict}
         onPermissionRevoked={() => {
           setServerCanManage(false);
+          setServerCanViewPreview(false);
           onPermissionRevoked?.();
         }}
       />
