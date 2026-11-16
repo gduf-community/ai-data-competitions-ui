@@ -57,6 +57,63 @@ test("ordinary entry and helper symbols cannot prove any security control", () =
   assert.ok(checkInheritance(files, policy, {}, "api").some(message => /authorization evidence/.test(message)));
 });
 
+test("Web origin and private-cache mechanisms prove only their own reachable controls", () => {
+  const transport = "src/lib/web-transport.ts", origin = transport + "#permittedBrowserRequest", cache = transport + "#privateNoStoreHeaders";
+  const { files, policy, proof } = fixture('import {permittedBrowserRequest,privateNoStoreHeaders} from "@/lib/web-transport"; export function POST(request){if(!permittedBrowserRequest(request,{}))return new Response(null,{status:403,headers:privateNoStoreHeaders()}); return new Response("ok",{headers:privateNoStoreHeaders()});}');
+  files.set(transport, fs.readFileSync(transport, "utf8"));
+  proof.controls = { ...Object.fromEntries(controls.map(name => [name, waiver])), origin, cache };
+  policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+  assert.deepEqual(checkInheritance(files, policy, {}, "api"), []);
+  for (const control of ["authentication", "authorization", "currentPermissions"]) {
+    proof.controls[control] = cache;
+    assert.ok(checkInheritance(files, policy, {}, "api").some(message => message.includes(control + " evidence")));
+    proof.controls[control] = origin;
+    assert.ok(checkInheritance(files, policy, {}, "api").some(message => message.includes(control + " evidence")));
+    proof.controls[control] = waiver;
+  }
+  proof.controls.cache = transport + "#forwardedHeaders";
+  assert.ok(checkInheritance(files, policy, {}, "api").some(message => /cache evidence/.test(message)));
+  proof.controls.cache = cache;
+  files.set(entry, 'import {permittedBrowserRequest} from "@/lib/web-transport"; export function POST(request){permittedBrowserRequest(request,{});return new Response("ok");}');
+  policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+  assert.ok(checkInheritance(files, policy, {}, "api").some(message => /cache evidence/.test(message)));
+  proof.controls.cache = waiver;
+  files.set(entry, 'export function POST(){return new Response("ok");}');
+  policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+  assert.ok(checkInheritance(files, policy, {}, "api").some(message => /origin evidence/.test(message)));
+});
+
+test("Web origin credit requires a direct negative predicate with unconditional denial", () => {
+  const transport = "src/lib/web-transport.ts", origin = transport + "#permittedBrowserRequest";
+  const imports = 'import {permittedBrowserRequest as allowed} from "@/lib/web-transport"; ';
+  const check = body => {
+    const { files, policy, proof } = fixture(imports + `export function POST(request){${body}}`);
+    files.set(transport, fs.readFileSync(transport, "utf8"));
+    proof.controls = { ...Object.fromEntries(controls.map(name => [name, waiver])), origin };
+    policy.reviews[0].sha256 = sourceGraph(files).entries.get(entry).digest;
+    return checkInheritance(files, policy, {}, "api");
+  };
+  for (const body of [
+    'if(!allowed(request,{})) return new Response(null,{status:403});return new Response("ok");',
+    'if(!allowed(request,{})){return Response.json({message:"denied"},{status:404});}return new Response("ok");',
+    'if(!allowed(request,{})) throw new Error("denied");return new Response("ok");',
+  ]) assert.deepEqual(check(body), [], body);
+  for (const body of [
+    'allowed(request,{});return new Response("ok");',
+    'if(allowed(request,{}))return new Response(null,{status:403});return new Response("ok");',
+    'if(!allowed(request,{}) && false)return new Response(null,{status:403});return new Response("ok");',
+    'if(!allowed(request,{})){if(request.deny)return new Response(null,{status:403});}return new Response("ok");',
+    'if(request.enabled){if(!allowed(request,{}))return new Response(null,{status:403});}return new Response("ok");',
+    'if(!allowed(request,{}))return new Response("ok");return new Response("ok");',
+    'if(!allowed(request,{}))return new Response(null,{status:200});return new Response("ok");',
+    'if(!allowed(request,{}))return new Response(null,{status:403,...unknown});return new Response("ok");',
+    'if(!allowed(request,{})){return request.deny?new Response(null,{status:403}):new Response("ok");}return new Response("ok");',
+    'function guarded(){if(!allowed(request,{}))return new Response(null,{status:403});}if(request.enabled)guarded();return new Response("ok");',
+    'const allowed=()=>true;if(!allowed(request,{}))return new Response(null,{status:403});return new Response("ok");',
+    'const Response={json:()=>({status:200})};if(!allowed(request,{}))return Response.json(null,{status:403});return Response.json(null);',
+  ]) assert.ok(check(body).some(message => /origin evidence/.test(message)), body);
+});
+
 test("guard options fail closed across aliases, overrides and mixed calls", () => {
   for (const options of ["{auth:false}", "{auth:true,...unknown}", "{auth:true,[key]:false}", "{auth:true,auth:false}"]) {
     const { files, policy } = fixture(`import {guarded} from "@/lib/security/barrel"; export function POST(request){return guarded(request,${options},()=>new Response("ok"));}`);

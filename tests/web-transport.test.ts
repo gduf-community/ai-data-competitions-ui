@@ -270,3 +270,85 @@ test("hall of fame BFF capabilities allow only declared methods and reject publi
     true,
   );
 });
+test("actual proxy preserves public denial, access failures, CSRF cookies and successful page handoff", async () => {
+  const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: "trusted", API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: "x-real-ip" };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  Object.assign(process.env, values);
+  try {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../src/proxy");
+    const { CSRF_COOKIE_NAME } = await import("../src/lib/security/csrf-shared");
+    const request = (path: string, cookie?: string) => new NextRequest(config.web.origin + path, { headers: { host: config.web.host, "x-real-ip": "127.0.0.1", ...(cookie ? { cookie } : {}) } });
+    let requests = 0;
+    globalThis.fetch = async () => { requests++; throw new Error("must not contact API"); };
+    process.env.WEB_RELEASE_MODE = "public";
+    for (const path of ["/me", "/admin/official-awards", "/sign-in", "/competitions/test/apply"]) {
+      const response = await proxy(request(path));
+      assert.equal(response.status, 503); assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+      assert.equal(response.headers.has("set-cookie"), false);
+    }
+    assert.equal(requests, 0);
+    process.env.WEB_RELEASE_MODE = "trusted";
+    for (const path of ["/login", "/register"]) {
+      const response = await proxy(request(path));
+      assert.equal(response.status, 307); assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+      assert.equal(new URL(response.headers.get("location")!).pathname, path === "/login" ? "/sign-in" : "/sign-up");
+      const cookie = response.cookies.get(CSRF_COOKIE_NAME)!;
+      assert.match(cookie.value, /^[A-Za-z0-9_-]{43}$/); assert.equal(cookie.secure, true); assert.equal(cookie.sameSite, "strict"); assert.equal(cookie.httpOnly, false);
+      const existing = await proxy(request(path, `${CSRF_COOKIE_NAME}=existing`));
+      assert.equal(existing.headers.has("set-cookie"), false);
+    }
+    assert.equal(requests, 0);
+    for (const status of [403, 503]) {
+      globalThis.fetch = async () => new Response("untrusted gate body", { status });
+      const response = await proxy(request("/competitions?year=2026"));
+      assert.equal(response.status, status === 403 ? 307 : 503); assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+      if (status === 403) assert.equal(new URL(response.headers.get("location")!).pathname, "/errors/forbidden");
+      assert.equal(response.headers.has("set-cookie"), false); assert.ok(!(await response.text()).includes("untrusted gate body"));
+    }
+    globalThis.fetch = async () => { throw new Error("API unavailable"); };
+    const failed = await proxy(request("/competitions"));
+    assert.equal(failed.status, 503); assert.equal(failed.headers.get("cache-control"), "private, no-store, max-age=0");
+    globalThis.fetch = async (url, options) => {
+      assert.equal(String(url), config.api.origin + "/api/web/access?path=%2Fcompetitions");
+      assert.equal(new Headers(options?.headers).get("authorization"), "Bearer " + config.serviceToken);
+      assert.equal(new Headers(options?.headers).get("cookie"), "session=synthetic");
+      assert.equal(options?.redirect, "manual");
+      return new Response(null, { status: 200 });
+    };
+    const success = await proxy(request("/competitions?year=2026", "session=synthetic"));
+    assert.equal(success.status, 200); assert.equal(success.headers.get("x-middleware-next"), "1");
+    assert.equal(success.headers.get("x-middleware-request-x-web-current-path"), "/competitions?year=2026");
+    assert.equal(success.headers.has("cache-control"), false); assert.equal(await success.text(), "");
+    assert.equal(success.cookies.has(CSRF_COOKIE_NAME), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(previous)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
+});
+
+test("actual BFF keeps private failures and upstream public asset cache semantics", async () => {
+  const values = { API_ORIGIN: config.api.origin, WEB_TRUSTED_ORIGIN: config.web.origin, WEB_RELEASE_MODE: "trusted", API_SERVICE_TOKEN: config.serviceToken, WEB_CLIENT_IP_HEADER: "x-real-ip" };
+  const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  Object.assign(process.env, values);
+  try {
+    const { GET, POST } = await import("../src/app/api/[...path]/route");
+    globalThis.fetch = async () => { throw new Error("API unavailable"); };
+    const response = await GET(new Request(config.web.origin + "/api/me/session", { headers: { host: config.web.host } }));
+    assert.equal(response.status, 502); assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+    const foreign = await POST(new Request(config.web.origin + "/api/applications", { method: "POST", headers: { host: config.web.host, origin: "https://foreign.invalid" } }));
+    assert.equal(foreign.status, 403); assert.equal(foreign.headers.get("cache-control"), "private, no-store, max-age=0");
+    process.env.WEB_RELEASE_MODE = "public";
+    globalThis.fetch = async () => new Response("public asset", { headers: { "Cache-Control": "public, max-age=3600" } });
+    const asset = await GET(new Request(config.web.origin + "/api/portal/assets?key=synthetic"));
+    assert.equal(asset.status, 200); assert.equal(asset.headers.get("cache-control"), "public, max-age=3600"); assert.equal(await asset.text(), "public asset");
+    globalThis.fetch = async () => new Response("uncached asset");
+    const uncached = await GET(new Request(config.web.origin + "/api/portal/assets?key=synthetic"));
+    assert.equal(uncached.headers.get("cache-control"), "private, no-store, max-age=0"); assert.equal(await uncached.text(), "uncached asset");
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of Object.entries(previous)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
+});
