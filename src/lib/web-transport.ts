@@ -16,6 +16,10 @@ export function getTransportConfig() {
   return { api, web, business, clientIpHeader, serviceToken };
 }
 export type TransportConfig = ReturnType<typeof getTransportConfig>;
+/** Private transport responses use this exact policy; public upstream caching stays separate. */
+export function privateNoStoreHeaders() {
+  return { "Cache-Control": "private, no-store, max-age=0" };
+}
 export function permittedPublicServerRead(pathname: string) {
   const url = new URL(pathname, "http://web.invalid");
   const path = url.pathname;

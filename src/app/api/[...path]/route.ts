@@ -1,6 +1,6 @@
 // Browser capability policy lives in web-transport.ts; recompile chain on policy edits.
 import { relayUpload } from "@/lib/upload-relay";
-import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability, validOfficialAwardDownload } from "@/lib/web-transport";
+import { getTransportConfig, forwardedHeaders, permittedBrowserRequest, hasBrowserApiCapability, validOfficialAwardDownload, privateNoStoreHeaders } from "@/lib/web-transport";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const hop = new Set(["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "content-length", "content-encoding", "set-cookie"]);
@@ -39,8 +39,8 @@ async function checkedDownloadBody(body: ReadableStream<Uint8Array> | null, form
 }
 async function relay(request: Request) {
   const config = getTransportConfig();
-  if (!hasBrowserApiCapability(request, config)) return Response.json({ message: "接口不存在。" }, { status: 404, headers: { "Cache-Control": "private, no-store, max-age=0" } });
-  if (!permittedBrowserRequest(request, config)) return Response.json({ message: "当前来源不能访问业务接口。" }, { status: 403, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+  if (!hasBrowserApiCapability(request, config)) return Response.json({ message: "接口不存在。" }, { status: 404, headers: privateNoStoreHeaders() });
+  if (!permittedBrowserRequest(request, config)) return Response.json({ message: "当前来源不能访问业务接口。" }, { status: 403, headers: privateNoStoreHeaders() });
   const target = new URL(request.url); target.protocol = config.api.protocol; target.host = config.api.host;
   try {
     const options: RequestInit & { duplex?: "half" } = {
@@ -53,7 +53,7 @@ async function relay(request: Request) {
       : await fetch(target, options);
     if (upstream.ok && !validOfficialAwardDownload(target, upstream.headers)) {
       await upstream.body?.cancel();
-      return Response.json({ message: "下载文件协议不合法，请稍后重试。" }, { status: 502, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+      return Response.json({ message: "下载文件协议不合法，请稍后重试。" }, { status: 502, headers: privateNoStoreHeaders() });
     }
     const body = upstream.ok && /^\/api\/admin\/official-awards\/competitions\/[^/]+\/export$/.test(target.pathname)
       ? await checkedDownloadBody(upstream.body as ReadableStream<Uint8Array> | null, target.searchParams.get("format"), request.signal) : upstream.body;
@@ -65,8 +65,8 @@ async function relay(request: Request) {
     responseHeaders.set(
       "Cache-Control",
       forcePrivateNoStore
-        ? "private, no-store, max-age=0"
-        : upstream.headers.get("cache-control") ?? "private, no-store, max-age=0",
+        ? privateNoStoreHeaders()["Cache-Control"]
+        : upstream.headers.get("cache-control") ?? privateNoStoreHeaders()["Cache-Control"],
     );
     if (config.business) for (const cookie of upstream.headers.getSetCookie()) responseHeaders.append("set-cookie", cookie);
     const location = responseHeaders.get("location");
@@ -77,7 +77,7 @@ async function relay(request: Request) {
     return new Response(body as ReadableStream<Uint8Array> | null, { status: upstream.status, headers: responseHeaders });
   } catch (error) {
     if (request.signal.aborted) throw error;
-    return Response.json({ message: "服务暂不可用，请稍后重试。" }, { status: 502, headers: { "Cache-Control": "private, no-store, max-age=0" } });
+    return Response.json({ message: "服务暂不可用，请稍后重试。" }, { status: 502, headers: privateNoStoreHeaders() });
   }
 }
 export { relay as GET, relay as HEAD, relay as POST, relay as PUT, relay as PATCH, relay as DELETE, relay as OPTIONS };
