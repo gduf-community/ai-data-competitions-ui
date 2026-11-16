@@ -168,7 +168,9 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | POST `/api/me/experience-posts` | 当前自助创建入口停用 | 403；管理员邀请草稿；`/me/experiences/new` 实际重定向到列表 |
 | GET / PUT / DELETE `/api/me/experience-posts/[id]` | PUT `{title?,content?,awardLevel?}` | GET/PUT `{data}`；DELETE `{success:true}` |
 | POST `/api/me/experience-posts/[id]/submit`、`/withdraw`、`/offline` | 对应文章动作 | 沿现有服务端状态校验，成功后刷新 |
-| GET / POST / PUT / DELETE `/api/me/hall-of-fame` | PUT `{tag,bio?}`；tag 1–120，bio 最长 500 | GET `{entry}` 可为 null；POST 403；PUT `{id,status}`；DELETE `{success:true}`；需已有邀请/有效记录 |
+| GET / POST / PUT / DELETE `/api/me/hall-of-fame` | 首次 `invited`/`candidate` PUT 传展示快照（`displayName/displayGrade/displayCollege/displayMajor`）、`tag/bio`、`photoKey/photoThumbKey`、`publicConsent: true` 与可选 `expectedRevision`；`active` 仅允许 `{tag, bio, expectedRevision?}` | GET `{entry}` 可为 null；POST 403；PUT 推进至 `candidate`（待审未公开）；DELETE `{success:true}` |
+| GET / POST `/api/me/hall-of-fame/photo-requests` | POST `{photoKey,photoThumbKey?,expectedRevision}` | GET `{requests,currentRevision?,permissions?}`（仅会话本人，不含审核人/私有 key）；POST 201 创建待审申请，待审存在或版本冲突 409 |
+| DELETE `/api/me/hall-of-fame/photo-requests/[id]` | 本人 `pending` 申请 ID（UUID） | 204/200 空或确认体；若与审批竞争返回 409 时重拉服务端终态并刷新页面 |
 | GET / POST `/api/me/notices/read` | POST `{noticeIds: UUID[]}`，1–100 个 | GET `{noticeIds}`；POST `{success:true}`；匿名已读在本地维护 |
 
 个人资料 PUT 可选字段：`name/studentNo/college/major/grade/phone/nickname/gender/birthday/schoolName/department/enrollmentYear/educationLevel/inSchoolStatus/publicBio/skillTags/publicShowAvatar/publicShowCollegeMajor/publicShowTitles`。`gender=male/female/other/null`，`inSchoolStatus=yes/no/graduated/null`；入学年份 1990–2100 或 null，简介最长 500，技能最多 10 个、每个最长 30。字段是否允许 null 按 DTO/现有编辑器逐项处理，不把空值泛化到所有字段。
@@ -261,7 +263,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | --- | --- | --- |
 | GET/HEAD `/api/portal/assets` | `key`、64 位小写 hex `version`，可选 `check=1` | 默认文件字节；check 返回 `{version}`；当前资格/版本失效 404，格式不符 415；按源站 Cache-Control 重新验证 |
 | GET/HEAD `/api/uploads` | 单个 `key` | 历史/私有素材按 API 规则读取；public BFF 仅接受规范公开候选路径及唯一 key 参数 |
-| POST `/api/uploads` | multipart `scope,files`，按范围带 `competitionId` 或 `clubSlug`；旧 clubId 仅兼容且不得与 slug 冲突 | 201 `{files:[{publicUrl,...}]}`；scope 为 notice/competition/avatar/club，文件类型/数量/大小按当前 API 规则 |
+| POST `/api/uploads` | multipart `scope,files`，按范围带 `competitionId` 或 `clubSlug`；旧 clubId 仅兼容且不得与 slug 冲突 | 201 `{files:[{publicUrl,...}]}` 或 `{files:[{photoKey,photoThumbKey?,previewUrl?}]}`；scope 为 notice/competition/avatar/club/`hall_portrait`，其中 `hall_portrait`（PNG/JPEG/WebP，前端 5 MiB 预校验）仅存私有待审草稿，不替换公开图或 `users.image` |
 | GET/HEAD `/api/competitions/[id]/official-link` | 比赛 ID | 公开官网跳转，按响应 Location 导航，不解析 JSON |
 | GET/HEAD `/api/notices/[id]/open` | 通知 ID | 通知目标跳转，按 Location 导航 |
 
@@ -396,7 +398,9 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/me/experience-posts/[id]/offline` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/submit` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/withdraw` | POST | POST | — | — |  |
-| `/api/me/hall-of-fame` | DELETE/GET/POST/PUT | DELETE/GET/POST/PUT | — | — | 自助 POST 403，已有邀请流程另处理 |
+| `/api/me/hall-of-fame` | DELETE/GET/POST/PUT | DELETE/GET/POST/PUT | — | — | 自助 POST 403；`invited`/`candidate`/`active` 分级契约（Web #204） |
+| `/api/me/hall-of-fame/photo-requests` | GET/POST | GET/HEAD/POST | — | — | 正式成员本人换照申请列表与发起（Web #208） |
+| `/api/me/hall-of-fame/photo-requests/[id]` | DELETE | DELETE | — | — | UUID 路径；撤回本人 pending 换照申请（Web #208） |
 | `/api/me/notices/read` | GET/POST | GET/POST | — | — |  |
 | `/api/me/profile` | GET/PUT | GET/PUT | — | — |  |
 | `/api/me/session` | GET | GET | — | — |  |
