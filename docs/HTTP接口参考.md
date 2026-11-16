@@ -214,8 +214,13 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | GET `/api/admin/experience-posts` | `status=draft/pending_review/published/offline` 可选 | `{data,permissions}` |
 | POST `/api/admin/experience-posts/invite` | `{userId,competitionId,awardLevel?,title?}`，前两个为 UUID | 201 `{data}`，为用户创建受邀草稿 |
 | POST `/api/admin/experience-posts/[id]/review` | `{action:approve/reject/offline,comment?}` | `{success:true}` |
-| GET / POST `/api/admin/hall-of-fame` | POST `{email,tag?,bio?,adminBio?,status?,displayOrder?}` | GET `{data,permissions}`；POST 201 `{data}`，默认 invited |
-| GET / PUT / DELETE `/api/admin/hall-of-fame/[id]` | PUT 可改 tag/bio/adminBio/status/displayOrder | GET/PUT `{data}`；DELETE `{success:true}`；非 invited 状态要求非空 tag |
+| GET / POST `/api/admin/hall-of-fame` | POST `{userId,level,memberStatus,achievementYear,eventYear,inductionReason,tag?}` | GET `{data,permissions}`；POST 201 `{data}`，默认 invited（API 过渡期兼容旧 email） |
+| GET `/api/admin/hall-of-fame/candidates` | `?q=` 非空姓名关键词 | `{users:[{id,name,grade,college,major,alreadyInvited,maskedHint?}]}`；空白不请求 |
+| GET / PUT / DELETE `/api/admin/hall-of-fame/[id]` | PUT 携带 `expectedRevision`、展示快照、memberStatus、status、tag、bio、adminBio、displayOrder（不可直接改 level） | GET/PUT `{data}`；409 冲突保留本地输入；DELETE 仅受控撤回未公开邀请，正式成员使用隐藏归档 |
+| POST `/api/admin/hall-of-fame/[id]/milestones` | `{eventType,fromLevel,toLevel,achievementYear,eventYear,reason,expectedRevision}` | 事务写入履历与等级并推进 revision；409 不静默覆盖 |
+| GET `/api/admin/hall-of-fame/photo-requests` | `status?,page?,pageSize?` | `{data,total?,page?,pageSize?,permissions:{canManage,canViewPreview}}` |
+| GET `/api/admin/hall-of-fame/photo-requests/[id]/preview` | 申请 ID | 授权私有待审新照二进制流，BFF 强制 `private, no-store` |
+| POST `/api/admin/hall-of-fame/photo-requests/[id]/review` | `{action:"approve"|"reject",expectedRevision,reason?}` | 驳回必填 reason；409 保留意见并刷新终态，不重放批准 |
 | GET `/api/admin/dashboard` | 当前管理身份 | `{stats,reviewTrend,statusDistribution}` |
 | GET `/api/admin/analytics` | 当前授权作用域 | `AdminAnalyticsPayload`；generatedAt/scope/assumptions/methodology/overview/competitions/funnel/users/notifications/risk |
 | GET `/api/admin/search` | `target,q/keyword,mode,page,pageSize` 与目标允许的筛选字段 | `{target,keywordType,data,pagination:{page,pageSize,total}}`；权限/敏感精确检索按目标决定，页长最多 200 |
@@ -226,7 +231,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 通用后台搜索 target 仅为 users/questions/notices/events。对应可筛选字段分别是 status；status/competition_id；status/priority/competition_id；event_type/user_id。敏感字段搜索/明文可见性仍由 API 当前权限控制，数据字段和允许筛选字段不是同一集合，不增加公共 URL 分享。
 
-通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂创建/更新支持的 status 为 invited/candidate/active，不因本地类型含 hidden 就自行发送 hidden。
+通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂后台管理工作台（`Web #203/#205/#209`）支持姓名候选搜索、`expectedRevision` 并发版本控制、配置驱动进阶记录与私有待审照片对比审核；正式成员通过状态置 `hidden` 归档以保留履历，督导维持只读视图。
 
 当前奖状管理、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
 
@@ -332,7 +337,12 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/admin/experience-posts/[id]/review` | POST | POST | — | — |  |
 | `/api/admin/experience-posts/invite` | POST | POST | — | — |  |
 | `/api/admin/hall-of-fame` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/hall-of-fame/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — |  |
+| `/api/admin/hall-of-fame/candidates` | GET | GET/HEAD | — | — | 姓名搜索候选（Web #203） |
+| `/api/admin/hall-of-fame/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — | 排除 `candidates`/`photo-requests` 保留字 |
+| `/api/admin/hall-of-fame/[id]/milestones` | POST | POST | — | — | 原子定级与进阶履历（Web #205） |
+| `/api/admin/hall-of-fame/photo-requests` | GET | GET/HEAD | — | — | 待审照片申请分页列表（Web #209） |
+| `/api/admin/hall-of-fame/photo-requests/[id]/preview` | GET | GET/HEAD | — | — | UUID 路径；BFF 强制 `private, no-store` |
+| `/api/admin/hall-of-fame/photo-requests/[id]/review` | POST | POST | — | — | UUID 路径；照片审批通过/驳回（Web #209） |
 | `/api/admin/notices` | GET/POST | GET/POST | — | — |  |
 | `/api/admin/notices/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
 | `/api/admin/search` | GET | GET | — | — |  |
