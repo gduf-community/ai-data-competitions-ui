@@ -117,3 +117,23 @@ test("client notification enhancement preserves user-scoped storage and the read
   assert.equal(JSON.stringify(requests), JSON.stringify([["/api/me/notices/read", { method: "POST", json: { noticeIds: ["notice-1"] }, keepalive: true }]]));
   sync.cleanup?.();
 });
+
+test("late server read snapshots cannot undo local reads or cross user boundaries", () => {
+  const storage = new Map(), requests = [];
+  const state = evaluate("src/lib/notice-read-state.ts", {
+    "@/lib/http-client": { requestJSON: async (...args) => { requests.push(args); } },
+    "@/lib/safe-storage": { getSafeStorageItem: key => storage.get(key) ?? null,
+      setSafeStorageItem: (key, value) => { storage.set(key, value); return true; } },
+  }, { window: { dispatchEvent() {} }, Event });
+  state.markNoticesRead(["local-read"], "user-a");
+  state.replaceReadNoticeIdsFromServer([], "user-a");
+  assert.equal(storage.get("read_notice_ids:user-a"), '["local-read"]');
+  state.replaceReadNoticeIdsFromServer(["server-read", "server-read"], "user-a");
+  assert.equal(storage.get("read_notice_ids:user-a"), '["local-read","server-read"]');
+  state.replaceReadNoticeIdsFromServer(["other-user-read"], "user-b");
+  assert.equal(storage.get("read_notice_ids:user-b"), '["other-user-read"]');
+  assert.equal(storage.get("read_notice_ids:user-a"), '["local-read","server-read"]');
+  state.replaceReadNoticeIdsFromServer(["anonymous"], null);
+  assert.equal(storage.has("read_notice_ids"), false);
+  assert.equal(requests.length, 1, "merging server state must not replay read writes");
+});
