@@ -29,6 +29,7 @@ export function permittedPublicServerRead(pathname: string) {
 // Browser capabilities are separate from server-only public DTO reads. Every method is explicit.
 // 官方获奖名单的动态段按 UUID 校验，锚定路径且只放开表中方法（#138 修订后的白名单）。
 const AWARD_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const HOF_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolean }> = [
   { path: /^\/api\/notices\/published$/, methods: ["GET", "HEAD"], public: true },
   { path: /^\/api\/portal\/assets$/, methods: ["GET", "HEAD"], public: true },
@@ -56,6 +57,8 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: new RegExp(`^/api/me/award-certificates/${AWARD_UUID}/members$`), methods: ["GET", "HEAD", "POST"] },
   { path: new RegExp(`^/api/me/award-certificates/${AWARD_UUID}/members/${AWARD_UUID}$`), methods: ["DELETE"] },
   { path: /^\/api\/me\/hall-of-fame$/, methods: ["GET", "HEAD", "POST", "PUT", "DELETE"] },
+  { path: /^\/api\/me\/hall-of-fame\/photo-requests$/, methods: ["GET", "HEAD", "POST"] },
+  { path: new RegExp(`^/api/me/hall-of-fame/photo-requests/${HOF_UUID}$`), methods: ["DELETE"] },
   { path: /^\/api\/me\/experience-posts$/, methods: ["GET", "HEAD", "POST"] },
   { path: /^\/api\/me\/experience-posts\/[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PUT", "DELETE"] },
   { path: /^\/api\/me\/experience-posts\/[A-Za-z0-9_-]+\/(?:submit|withdraw|offline)$/, methods: ["POST"] },
@@ -68,7 +71,12 @@ const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolea
   { path: /^\/api\/admin\/(?:competitions|applications|notices|hall-of-fame)$/, methods: ["GET", "HEAD", "POST"] },
   { path: /^\/api\/admin\/competitions\/[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PATCH", "DELETE"] },
   { path: /^\/api\/admin\/(?:users|award-certificates|notices)\/[A-Za-z0-9_-]+$/, methods: ["PATCH", "DELETE"] },
-  { path: /^\/api\/admin\/hall-of-fame\/[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PUT", "DELETE"] },
+  { path: /^\/api\/admin\/hall-of-fame\/(?!candidates$|photo-requests$)[A-Za-z0-9_-]+$/, methods: ["GET", "HEAD", "PUT", "DELETE"] },
+  { path: /^\/api\/admin\/hall-of-fame\/candidates$/, methods: ["GET", "HEAD"] },
+  { path: /^\/api\/admin\/hall-of-fame\/(?!candidates$|photo-requests$)[A-Za-z0-9_-]+\/milestones$/, methods: ["POST"] },
+  { path: /^\/api\/admin\/hall-of-fame\/photo-requests$/, methods: ["GET", "HEAD"] },
+  { path: new RegExp(`^/api/admin/hall-of-fame/photo-requests/${HOF_UUID}/preview$`), methods: ["GET", "HEAD"] },
+  { path: new RegExp(`^/api/admin/hall-of-fame/photo-requests/${HOF_UUID}/review$`), methods: ["POST"] },
   { path: /^\/api\/admin\/applications\/(?:export|[A-Za-z0-9_-]+)$/, methods: ["GET", "HEAD"] },
   { path: new RegExp(`^/api/admin/official-awards/competitions/${AWARD_UUID}$`), methods: ["GET"] },
   { path: new RegExp(`^/api/admin/official-awards/competitions/${AWARD_UUID}/export$`), methods: ["GET"] },

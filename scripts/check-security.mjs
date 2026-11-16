@@ -14,6 +14,8 @@ const policyPath = ".github/security-policy.json";
 // Only reviewed mechanisms have capabilities. Ordinary routes and wrappers are
 // reachable symbols, never security controls merely because they are called.
 const mechanismControls = new Map([
+  ["src/lib/web-transport.ts#hasBrowserApiCapability", ["authorization"]],
+  ["src/lib/web-transport.ts#permittedBrowserRequest", ["origin"]],
   ["src/lib/security/origin-guard.ts#assertSameOrigin", ["origin"]],
   ["src/lib/security/rate-limit.ts#enforceRateLimit", ["rateLimit"]],
   ["src/lib/security/response-headers.ts#jsonWithPrivateNoStore", ["cache"]],
