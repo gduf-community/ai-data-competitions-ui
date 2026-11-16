@@ -19,7 +19,7 @@ function deferred() {
 
 function mount(file, name, initialProps, dependencies = {}, globals = {}) {
   let cursor = 0, dirty = false, props = initialProps, tree;
-  const slots = [], effects = [];
+  const slots = [], effects = [], layouts = [];
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const hooks = {
     useState(initial) {
@@ -33,6 +33,11 @@ function mount(file, name, initialProps, dependencies = {}, globals = {}) {
       if (same(slots[i]?.deps, deps)) return;
       effects.push(() => { slots[i]?.cleanup?.(); slots[i] = { deps, cleanup: callback() }; });
     },
+    useLayoutEffect(callback, deps) {
+      const i = cursor++;
+      if (same(slots[i]?.deps, deps)) return;
+      layouts.push(() => { slots[i]?.cleanup?.(); slots[i] = { deps, cleanup: callback() }; });
+    },
     useMemo(callback, deps) {
       const i = cursor++;
       if (!same(slots[i]?.deps, deps)) slots[i] = { deps, value: callback() };
@@ -43,12 +48,12 @@ function mount(file, name, initialProps, dependencies = {}, globals = {}) {
   const loaded = new Map();
   function evaluate(path) {
     if (loaded.has(path)) return loaded.get(path);
-    const module = { exports: {} };
-    loaded.set(path, module.exports);
+    const evaluated = { exports: {} };
+    loaded.set(path, evaluated.exports);
     const code = ts.transpileModule(fs.readFileSync(new URL("../" + path, import.meta.url), "utf8"), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText;
-    vm.runInNewContext(code, { module, exports: module.exports, Error, AbortController, ...globals, require: id => {
+    vm.runInNewContext(code, { module: evaluated, exports: evaluated.exports, Error, AbortController, ...globals, require: id => {
       if (id === "react") return hooks;
       if (id === "react/jsx-runtime") return { jsx: (type, props, key) => ({ type, props, key }), jsxs: (type, props, key) => ({ type, props, key }) };
       if (id in dependencies) return dependencies[id];
@@ -58,10 +63,16 @@ function mount(file, name, initialProps, dependencies = {}, globals = {}) {
       if (id.startsWith("@/components/") || id === "lucide-react") return new Proxy({}, { get: (_, value) => String(value) });
       return require(id);
     } });
-    return module.exports;
+    return evaluated.exports;
   }
   const component = evaluate(file)[name];
-  const draw = () => { cursor = 0; return Array.isArray(props) ? component(...props) : component(props); };
+  const draw = () => {
+    cursor = 0;
+    let value = Array.isArray(props) ? component(...props) : component(props);
+    while (typeof value?.type === "function") value = value.type(value.props);
+    while (layouts.length) layouts.shift()();
+    return value;
+  };
   return {
     render(next = props) {
       props = next;
@@ -118,7 +129,8 @@ for (const kind of ["correction", "void"]) {
       const pending = deferred();
       const d = dialog(kind, () => pending.promise);
       d.submit();
-      d.ui.render({ ...d.props, award: row("award-b"), baseline: row("award-b") });
+      // The next UI has committed, but passive effect cleanup has not run yet.
+      d.ui.renderBeforeEffects({ ...d.props, award: row("award-b"), baseline: row("award-b") });
       pending.resolve({ ok: status === 200, status, json: async () => ({ message: "旧请求错误" }) });
       await turn();
       assert.equal(d.submitted(), 0);
@@ -163,6 +175,7 @@ test("list: refresh is pending in its first render, before the effect runs", asy
 });
 
 test("list: switched queries ignore old success, error and finally even if abort is ignored", async () => {
+  for (const status of [200, 403, 500]) {
   const requests = [];
   const list = mount("src/hooks/use-official-award-list.ts", "useOfficialAwardList", ["a", "q=old", "old", 0], {
     "@/lib/contracts/official-awards": { parseOfficialAwardList: value => value },
@@ -172,11 +185,53 @@ test("list: switched queries ignore old success, error and finally even if abort
   list.render();
   list.render(["b", "q=new", "new", 0]);
   assert.equal(requests[0].signal.aborted, true);
-  requests[0].resolve({ ok: true, status: 200, json: async () => ({ competitionId: "a", items: [row()] }) });
+  requests[0].resolve({ ok: status === 200, status, json: async () => ({ competitionId: "a", items: [row()], message: "旧错误" }) });
   await turn();
   assert.equal(list.render().loading, true); assert.equal(list.render().data, null);
   requests[1].resolve({ ok: true, status: 200, json: async () => ({ competitionId: "b", items: [row("b")] }) });
   await turn();
   assert.equal(list.render().loading, false); assert.equal(list.render().data.competitionId, "b");
   list.unmount();
+  }
+});
+
+test("correction: loading the latest values rebases subsequent edits and keeps the reason", async () => {
+  const payloads = [];
+  const d = dialog("correction", async (_url, init) => { payloads.push(JSON.parse(init.body)); return { ok: true, status: 200 }; });
+  d.ui.render({ ...d.props, award: { ...row(), version: 2, teamName: "他人团队" }, conflict: true });
+  node(d.ui.render(), n => n.type === "Button" && n.props.children === "载入最新值").props.onClick();
+  node(d.ui.render(), n => n.props?.id === "teamName").props.onChange({ target: { value: "原团队" } });
+  d.submit(); await turn();
+  assert.equal(payloads[0].expectedVersion, 2);
+  assert.equal(payloads[0].fields.teamName, "原团队");
+  assert.equal(payloads[0].reason, "核对官方原文");
+});
+
+test("page: conflict waits for its own refresh; closing releases the wait and read failures retain the dialog", () => {
+  let requestedRefresh = 0;
+  let currentList = { loading: false, kind: "ok", data: { items: [row()] }, rows: [row()], settledRefreshKey: 0 };
+  const page = mount("src/app/(dashboard)/admin/official-awards/competitions/[competitionId]/page.tsx", "default", {}, {
+    "next/navigation": { useParams: () => ({ competitionId: "competition-a" }) },
+    "@/hooks/use-official-award-query": { useOfficialAwardQuery: () => ({ filters: {}, query: "", identity: "a", filterQuery: "" }) },
+    "@/hooks/use-official-award-export": { useOfficialAwardExport: () => ({ exporting: null }) },
+    "@/hooks/use-official-award-list": { useOfficialAwardList: (_competition, _query, _identity, refreshKey) => { requestedRefresh = refreshKey; return currentList; } },
+  });
+  const correction = () => node(page.render(), n => n.type === "OfficialAwardCorrectionDialog");
+  node(page.render(), n => n.type === "OfficialAwardTable").props.onCorrect(row());
+  const oldConflictCallback = correction().props.onConflict;
+  node(page.render(), n => n.type === "OfficialAwardTable").props.onRetry();
+  oldConflictCallback();
+  assert.equal(correction().props.waiting, true, "the previous list response is not a conflict refresh");
+  assert.equal(requestedRefresh, 2, "conflict refresh must not reuse a captured generation");
+  currentList = { loading: false, kind: "forbidden", data: null, rows: [], settledRefreshKey: 2 };
+  assert.equal(correction().props.award.awardId, "award-a", "a failed read must not hide the user's form");
+  assert.equal(correction().props.conflictLost, true);
+  correction().props.onRetryConflict();
+  assert.equal(correction().props.waiting, true);
+  correction().props.onClose();
+  currentList = { loading: false, kind: "ok", data: { items: [row("award-b")] }, rows: [row("award-b")], settledRefreshKey: 3 };
+  node(page.render(), n => n.type === "OfficialAwardTable").props.onCorrect(row("award-b"));
+  assert.equal(correction().props.waiting, false);
+  assert.equal(correction().props.conflictLost, false);
+  page.unmount();
 });
