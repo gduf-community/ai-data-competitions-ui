@@ -37,7 +37,7 @@ function exporter() {
       return refs[index] as { current: T };
     },
     useCallback<T>(callback: T) { return callback; },
-    useEffect(callback: () => void | (() => void), dependencies: readonly unknown[]) {
+    useLayoutEffect(callback: () => void | (() => void), dependencies: readonly unknown[]) {
       const index = effectIndex++, previous = effects[index];
       if (previous && dependencies.every((value, position) => Object.is(value, previous.dependencies[position]))) return;
       pendingEffects.push(() => {
