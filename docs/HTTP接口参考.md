@@ -80,8 +80,8 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | `/api/notices/published` | `limit`；`{notices: PublishedNoticeRecord[]}` | 通知页、导航铃铛、弹窗；导航使用最多 20 条 SSR 记录 |
 | `/api/awards` | `{awards: AwardGalleryRow[]}` | 当前奖状长廊 |
 | `/api/awards/[id]` | `{award: PublicAwardDetail}` | 单张奖状详情 |
-| `/api/hall-of-fame` | `{entries: PublicHallOfFameEntry[]}` | 名人堂 |
-| `/api/profiles/[id]` | `{profile: PublicProfile}` | 公开人物资料与经验列表 |
+| `/api/hall-of-fame` | 默认返回 `{entries: PublicHallOfFameEntry[]}`；开启 `HALL_OF_FAME_HIERARCHY_ENABLED` 后总览消费 `?view=names`（`PublicHallOfFameNamesOverview`）、详情页消费 `?view=level&level=1|2|3`（`PublicHallOfFameLevelDetail`） | 公开名人堂总览与等级详情页（Web #206） |
+| `/api/profiles/[id]` | `{profile: PublicProfile}`（含正式展示快照 `level/memberStatus/portraitUrl/portraitThumbUrl`、稳定序 `milestones` 与 `experiencePosts`） | 公开人物资料、进阶履历与经验展示页（Web #207） |
 | `/api/profiles/[id]/experiences/[postId]` | `{post: PublicExperiencePost}` | 公开经验详情 |
 | `/api/clubs/[slug]` | `{data: {contacts}}`；公开联系人仅消费 `contactType/label/value` | 社团详情 |
 | `/api/clubs/[slug]/contents` | `type` 为四种社团内容之一，`limit`；`{data: ClubContentSummaryRow[]}` | 社团分类内容列表 |
@@ -375,7 +375,7 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/competitions/[id]` | GET | — | — | — | trusted SSR 报名配置，浏览器不开放 |
 | `/api/competitions/[id]/official-link` | GET | GET | GET/HEAD | 是 |  |
 | `/api/competitions/[id]/showcase` | GET | — | — | 是 |  |
-| `/api/hall-of-fame` | GET | — | — | 是 |  |
+| `/api/hall-of-fame` | GET | — | — | 是 | 支持 `?view=names` / `?view=level&level=1\|2\|3`（受 `HALL_OF_FAME_HIERARCHY_ENABLED` 渐进控制） |
 | `/api/health` | GET | — | — | — | API 运维健康，不经 Web BFF |
 | `/api/homepage` | GET | — | — | 是 |  |
 | `/api/me/applications` | GET | GET | — | — |  |
