@@ -49,7 +49,7 @@ test("A/B render aggregates without certificate images or selection instructions
   for (const html of [overview, year]) { assert.doesNotMatch(html, /<img|选择年份后查看|选择比赛后查看/); assert.match(html, /当前所在/); }
   assert.match(year, /2030年获奖比赛/); assert.match(year, /aria-current="page"/);
 });
-test("overview year directory links to in-page sections and marks the current year", () => {
+test("overview year directory ascends, scrolls without hashes and marks the current year", () => {
   const otherId = "55555555-5555-4555-8555-555555555555";
   const other = { ...summary, competitionId: otherId, competitionTitle: "合成另一比赛" };
   const html = renderToStaticMarkup(React.createElement(AwardOverview, { data: {
@@ -60,10 +60,11 @@ test("overview year directory links to in-page sections and marks the current ye
     ],
   } }));
   assert.match(html, /aria-label="获奖年份目录"/);
-  assert.match(html, /href="#award-year-2030"/);
-  assert.match(html, /href="#award-year-2029"/);
+  assert.match(html, /<button type="button"/);
+  assert.doesNotMatch(html, /href="#award-year-/);
   assert.match(html, /id="award-year-2030"/);
   assert.match(html, /id="award-year-2029"/);
+  assert.ok(html.indexOf("2029年") < html.indexOf("2030年"), "directory years must ascend");
   assert.equal((html.match(/aria-current="location"/g) ?? []).length, 1);
   assert.match(html, /aria-current="location"[^>]*>[\s\S]*?2030年/);
   assert.doesNotMatch(html, /获奖比赛分类目录|创新创业/);
