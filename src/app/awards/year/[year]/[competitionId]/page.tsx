@@ -27,7 +27,7 @@ function parseLevelFilters(value: string | string[] | undefined): string[] | und
 
 export default async function AwardCompetitionPage({ params, searchParams }: {
   params: Promise<{ year: string; competitionId: string }>;
-  searchParams: Promise<{ cursor?: string | string[]; page?: string | string[]; levels?: string | string[] }>;
+  searchParams: Promise<{ cursor?: string | string[]; page?: string | string[]; levels?: string | string[]; excludeLevels?: string | string[] }>;
 }) {
   const input = await params;
   const year = parseAwardYear(input.year);
@@ -36,15 +36,17 @@ export default async function AwardCompetitionPage({ params, searchParams }: {
   const cursor = query.cursor;
   const requestedPage = parsePageNumber(query.page);
   const levels = parseLevelFilters(query.levels);
-  if (year === null || competitionId === null || Array.isArray(cursor) || requestedPage === null || levels === null ||
+  const excludeLevels = parseLevelFilters(query.excludeLevels);
+  if (year === null || competitionId === null || Array.isArray(cursor) || requestedPage === null ||
+    levels === null || excludeLevels === null || (levels && excludeLevels) ||
     (cursor !== undefined && !awardCursorPattern.test(cursor)) || (cursor !== undefined && requestedPage !== undefined)) notFound();
   // Numbered navigation is the default; legacy cursor links keep working.
   const page = cursor === undefined ? requestedPage ?? 1 : undefined;
-  const data = await listAwardsByCompetition(year, competitionId, { cursor, page, levels }).catch((error: unknown) => {
+  const data = await listAwardsByCompetition(year, competitionId, { cursor, page, levels, excludeLevels }).catch((error: unknown) => {
     if (error instanceof WebApiError && error.status === 400) notFound();
     throw error;
   });
   if (!data) notFound();
   if (page !== undefined && data.page.pageCount != null && page > data.page.pageCount) notFound();
-  return <AwardCompetition data={data} selectedLevels={levels} />;
+  return <AwardCompetition data={data} selectedLevels={levels} excludedLevels={excludeLevels} />;
 }

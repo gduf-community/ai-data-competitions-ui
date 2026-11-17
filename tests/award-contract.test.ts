@@ -5,8 +5,8 @@ import { z } from "zod";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MultiSelectFilter } from "@/components/admin/multi-select-filter";
-import { AWARD_LEVEL_OPTIONS, displayAwardLevel } from "@/lib/award-level";
-import { AWARD_LEVEL_MAX_LENGTH, AWARD_LEVEL_TEXT_MAX_LENGTH } from "@/lib/contracts/profiles";
+import { AWARD_LEVEL_OPTIONS, AWARD_YEAR_OPTIONS, displayAwardLevel } from "@/lib/award-level";
+import { AWARD_LEVEL_MAX_LENGTH, AWARD_LEVEL_TEXT_MAX_LENGTH, MAX_AWARD_YEAR, MIN_AWARD_YEAR } from "@/lib/contracts/profiles";
 
 import {
   awardGalleryRowSchema,
@@ -38,6 +38,15 @@ test("award display preserves custom and historical grades without equating meda
   }
   assert.equal(displayAwardLevel({ awardScope: "其他", awardLevel: "市级优胜奖" }), "市级优胜奖");
   assert.equal(displayAwardLevel({ awardScope: "省级", awardLevel: "金奖", awardLevelText: "省级 金奖" }), "省级 金奖");
+});
+
+test("award year options mirror the API's 1900–2100 contract", () => {
+  assert.equal(MIN_AWARD_YEAR, 1900);
+  assert.equal(MAX_AWARD_YEAR, 2100);
+  assert.equal(AWARD_YEAR_OPTIONS[0], 2100);
+  assert.equal(AWARD_YEAR_OPTIONS.at(-1), 1900);
+  assert.ok(AWARD_YEAR_OPTIONS.includes(1999));
+  assert.equal(AWARD_YEAR_OPTIONS.length, MAX_AWARD_YEAR - MIN_AWARD_YEAR + 1);
 });
 
 test("missing filter options remain visible and removable after a list refresh", () => {

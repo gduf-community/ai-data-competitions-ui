@@ -1,3 +1,5 @@
+import { MAX_AWARD_YEAR, MIN_AWARD_YEAR } from "@/lib/contracts/profiles";
+
 export const AWARD_SCOPE_OPTIONS = [
   "亚洲级",
   "世界级",
@@ -24,11 +26,10 @@ export const AWARD_LEVEL_OPTIONS = [
 export type AwardScope = (typeof AWARD_SCOPE_OPTIONS)[number];
 export type AwardLevel = (typeof AWARD_LEVEL_OPTIONS)[number];
 
-// 获奖年份选项：从当前年份往前推至 2000 年，供上传/编辑时选择。
-const CURRENT_YEAR = new Date().getFullYear();
+// 获奖年份选项与 API 的 1900–2100 契约一致，覆盖历史证书，降序排列。
 export const AWARD_YEAR_OPTIONS = Array.from(
-  { length: CURRENT_YEAR - 2000 + 1 },
-  (_, index) => CURRENT_YEAR - index,
+  { length: MAX_AWARD_YEAR - MIN_AWARD_YEAR + 1 },
+  (_, index) => MAX_AWARD_YEAR - index,
 );
 
 /** 「其他」一律视为空值；其余保留原文（含「级」字）。 */

@@ -7,6 +7,9 @@ import {
 // 与 API profiles 契约保持一致；按 JS/HTML 的 UTF-16 长度计数。
 export const AWARD_LEVEL_TEXT_MAX_LENGTH = 120;
 export const AWARD_LEVEL_MAX_LENGTH = 120;
+/** Mirrors the API award year window so upload/edit controls never offer a rejected value. */
+export const MIN_AWARD_YEAR = 1900;
+export const MAX_AWARD_YEAR = 2100;
 
 export type AwardStatus = "pending" | "approved" | "rejected";
 

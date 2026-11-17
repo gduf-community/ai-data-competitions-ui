@@ -9,9 +9,10 @@ export function permittedAwardGalleryServerRead(pathname: string) {
 }
 
 export const MAX_AWARD_PAGE_NUMBER = 10000;
-export const MAX_AWARD_LEVEL_FILTERS = 30;
+/** Matches the API filter cap; include and exclude representations share it. */
+export const MAX_AWARD_LEVEL_FILTERS = 100;
 
-export function galleryHref(selection: { year?: number; competition?: string; cursor?: string; page?: number; levels?: string[] }) {
+export function galleryHref(selection: { year?: number; competition?: string; cursor?: string; page?: number; levels?: string[]; excludeLevels?: string[] }) {
   if (selection.year === undefined) {
     if (selection.competition) throw new Error("A competition requires a year");
     return "/awards";
@@ -22,7 +23,9 @@ export function galleryHref(selection: { year?: number; competition?: string; cu
   const competitionId = parseAwardCompetitionId(selection.competition);
   if (!competitionId) throw new Error("Invalid award competition");
   if (selection.cursor && selection.page !== undefined) throw new Error("A page selection cannot include a cursor");
+  if (selection.levels?.length && selection.excludeLevels?.length) throw new Error("Award level filters cannot include and exclude at once");
   if (selection.levels && selection.levels.length > MAX_AWARD_LEVEL_FILTERS) throw new Error("Too many award level filters");
+  if (selection.excludeLevels && selection.excludeLevels.length > MAX_AWARD_LEVEL_FILTERS) throw new Error("Too many excluded award level filters");
   const params = new URLSearchParams();
   if (selection.cursor) params.set("cursor", selection.cursor);
   else if (selection.page !== undefined) {
@@ -30,9 +33,11 @@ export function galleryHref(selection: { year?: number; competition?: string; cu
     // Page one keeps the canonical URL without a page parameter.
     if (selection.page > 1) params.set("page", String(selection.page));
   }
-  for (const level of selection.levels ?? []) {
-    if (!level.trim() || [...level].length > 120 || level.includes("\0")) throw new Error("Invalid award level filter");
-    params.append("levels", level);
+  for (const [name, levels] of [["levels", selection.levels], ["excludeLevels", selection.excludeLevels]] as const) {
+    for (const level of levels ?? []) {
+      if (!level.trim() || [...level].length > 120 || level.includes("\0")) throw new Error("Invalid award level filter");
+      params.append(name, level);
+    }
   }
   const base = `/awards/year/${year}/${competitionId}`;
   return params.size ? `${base}?${params}` : base;
