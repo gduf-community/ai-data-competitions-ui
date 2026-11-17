@@ -79,7 +79,7 @@
     },
     {
       "entry": "src/app/api/[...path]/route.ts",
-      "sha256": "59df29598bd08b4a9c856a99c3c6eae37137a62a7bede139ab6b0bd8d44412d5",
+      "sha256": "de35d9f523c1adb1c8c3ce5e2f478f617348721100fa998930bd7141d68adfb2",
       "handlers": {
         "GET": {
           "controls": {
@@ -211,7 +211,7 @@
     },
     {
       "entry": "src/proxy.ts",
-      "sha256": "9850fc63acbe0e09c734c18ba20859a43be4f7bd8c3629286f642315b5ac7f40",
+      "sha256": "6bb9edbb78633dfcf483e7a6e8e58052edaebd35eed7de5152de648953c77e8b",
       "handlers": {
         "proxy": {
           "controls": {
