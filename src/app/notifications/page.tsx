@@ -6,26 +6,16 @@ import { Section } from "@/components/marketing/section";
 import { NoticeCompetitionLink, NotificationsReadSync } from "@/components/notifications/notifications-read-sync";
 import { RichTextContent } from "@/components/shared/rich-text-content";
 import { Card, CardContent } from "@/components/ui/card";
-import { getOptionalWebSession as auth } from "@/lib/web-session";
 import { listPublishedNotices } from "@/lib/web-data";
 import { formatNoticeDate } from "@/lib/notice-format";
 
 export default async function NotificationsPage() {
-  const [session, publishedNotices] = await Promise.all([
-    auth(),
-    listPublishedNotices(100),
-  ]);
-  const currentUser = session?.user
-    ? { name: session.user.name ?? "未命名用户", role: session.user.role }
-    : null;
-
-
+  const publishedNotices = await listPublishedNotices(100);
   return (
     <div className="min-h-screen bg-background">
-      <PortalNavbar currentUser={currentUser} />
+      <PortalNavbar />
       <NotificationsReadSync
         noticeIds={publishedNotices.map((notice) => notice.id)}
-        userId={session?.user?.id ?? null}
       />
       <Section className="pb-16">
         <div className="mx-auto max-w-3xl space-y-8">
