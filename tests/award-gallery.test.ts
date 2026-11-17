@@ -32,6 +32,10 @@ test("year links are canonical and cursor state is URL encoded", () => {
   assert.equal(galleryHref({}), "/awards");
   assert.equal(galleryHref({ year: 2030 }), "/awards/year/2030");
   assert.equal(galleryHref({ year: 2030, competition: competitionId, cursor: "a+b/=" }), `/awards/year/2030/${competitionId}?cursor=a%2Bb%2F%3D`);
+  assert.equal(galleryHref({ year: 2030, competition: competitionId, page: 1 }), `/awards/year/2030/${competitionId}`);
+  assert.equal(galleryHref({ year: 2030, competition: competitionId, page: 4 }), `/awards/year/2030/${competitionId}?page=4`);
+  assert.throws(() => galleryHref({ year: 2030, competition: competitionId, page: 0 }));
+  assert.throws(() => galleryHref({ year: 2030, competition: competitionId, page: 2, cursor: "a" }));
   assert.throws(() => galleryHref({ competition: competitionId }));
 });
 test("public schemas strip private fields and reject oversized certificate pages", () => {
@@ -79,6 +83,24 @@ test("C renders full-event totals, current-page counts, verified members and rev
   assert.match(html, /合成成员甲、合成成员乙/); assert.doesNotMatch(html, />合成上传者</);
   assert.match(html, /cursor=previous/); assert.match(html, /cursor=next/); assert.match(html, /年度总览/);
   assert.match(html, new RegExp(`/awards/${competitionId}`));
+});
+test("numbered pagination shows a window, the current page and a jump form", () => {
+  const html = renderToStaticMarkup(React.createElement(AwardCompetition, { data: {
+    ...page, certificateCount: 336,
+    page: { limit: 24, nextCursor: "next", previousCursor: "previous", pageNumber: 4, pageCount: 14 },
+  } }));
+  const base = `/awards/year/2030/${competitionId}`;
+  assert.match(html, /aria-label="获奖证书分页"/);
+  assert.match(html, new RegExp(`href="${base}\\?page=3"`));
+  assert.match(html, new RegExp(`href="${base}\\?page=5"`));
+  assert.match(html, new RegExp(`href="${base}\\?page=14"`));
+  assert.match(html, /上一页/); assert.match(html, /下一页/);
+  assert.match(html, /【4】\/14页/);
+  assert.match(html, /aria-current="page"[^>]*>4</);
+  assert.match(html, /…/);
+  assert.match(html, new RegExp(`action="${base}"`));
+  assert.match(html, /name="page"/); assert.match(html, /max="14"/);
+  assert.doesNotMatch(html, /cursor=/);
 });
 test("C preserves the API order when a level appears in multiple runs", () => {
   const awards = [
