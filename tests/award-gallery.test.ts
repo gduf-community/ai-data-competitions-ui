@@ -95,12 +95,39 @@ test("numbered pagination shows a window, the current page and a jump form", () 
   assert.match(html, new RegExp(`href="${base}\\?page=5"`));
   assert.match(html, new RegExp(`href="${base}\\?page=14"`));
   assert.match(html, /上一页/); assert.match(html, /下一页/);
-  assert.match(html, /【4】\/14页/);
+  assert.match(html, />4\/14页</);
   assert.match(html, /aria-current="page"[^>]*>4</);
   assert.match(html, /…/);
   assert.match(html, new RegExp(`action="${base}"`));
   assert.match(html, /name="page"/); assert.match(html, /max="14"/);
   assert.doesNotMatch(html, /cursor=/);
+});
+test("level buttons toggle multi-select filters and keep them while paging", () => {
+  const base = `/awards/year/2030/${competitionId}`;
+  const data: AwardCompetitionCertificates = {
+    ...page, certificateCount: 260,
+    levels: [{ level: "一等奖", certificateCount: 200 }, { level: "二等奖", certificateCount: 50 }, { level: "三等奖", certificateCount: 10 }],
+    page: { limit: 24, nextCursor: null, previousCursor: null, pageNumber: 2, pageCount: 9 },
+  };
+  const filtered = renderToStaticMarkup(React.createElement(AwardCompetition, { data, selectedLevels: ["一等奖", "二等奖"] }))
+    .replace(/<!-- -->/g, "");
+  const second = encodeURIComponent("二等奖");
+  const first = encodeURIComponent("一等奖");
+  assert.match(filtered, /aria-label="按奖项等级筛选"/);
+  assert.match(filtered, /aria-current="true"[^>]*>一等奖/);
+  assert.match(filtered, /当前筛选<span[^>]*>250份/);
+  assert.match(filtered, /2\/9页/);
+  // Removing a level keeps the remaining filter; adding the third level resets to all.
+  assert.match(filtered, new RegExp(`href="${base}\\?levels=${second}"`));
+  assert.match(filtered, new RegExp(`href="${base}\\?page=3&amp;levels=${first}&amp;levels=${second}"`));
+  assert.match(filtered, /name="levels" value="一等奖"/); assert.match(filtered, /name="levels" value="二等奖"/);
+  const all = renderToStaticMarkup(React.createElement(AwardCompetition, { data }));
+  assert.doesNotMatch(all, /当前筛选/);
+  // Paging and the jump form stay unfiltered while every level is selected; only a pill's own toggle links carry `levels`.
+  assert.match(all, new RegExp(`href="${base}\\?page=3"`));
+  assert.doesNotMatch(all, /[?&]page=\d+&amp;levels=/);
+  assert.doesNotMatch(all, /name="levels"/);
+  assert.equal((all.match(/aria-current="true"/g) ?? []).length, 3);
 });
 test("C preserves the API order when a level appears in multiple runs", () => {
   const awards = [
