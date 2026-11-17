@@ -7,7 +7,7 @@ import { X, Megaphone } from "lucide-react";
 import { fetchClientSessionUser } from "@/lib/auth/client-session";
 import {
   markNoticeRead,
-  replaceReadNoticeIdsFromServer,
+  mergeReadNoticeIdsFromServer,
   isNoticeRead,
 } from "@/lib/notice-read-state";
 import { formatNoticeDate } from "@/lib/notice-format";
@@ -126,7 +126,7 @@ export function NoticePopup() {
           setUserId(currentUserId);
           if (currentUserId && readResponse?.ok) {
             const readPayload = (await readResponse.json()) as { noticeIds?: string[] };
-            replaceReadNoticeIdsFromServer(
+            mergeReadNoticeIdsFromServer(
               readPayload.noticeIds ?? [],
               currentUserId,
             );

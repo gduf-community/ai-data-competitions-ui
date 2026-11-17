@@ -126,14 +126,14 @@ test("late server read snapshots cannot undo local reads or cross user boundarie
       setSafeStorageItem: (key, value) => { storage.set(key, value); return true; } },
   }, { window: { dispatchEvent() {} }, Event });
   state.markNoticesRead(["local-read"], "user-a");
-  state.replaceReadNoticeIdsFromServer([], "user-a");
+  state.mergeReadNoticeIdsFromServer([], "user-a");
   assert.equal(storage.get("read_notice_ids:user-a"), '["local-read"]');
-  state.replaceReadNoticeIdsFromServer(["server-read", "server-read"], "user-a");
+  state.mergeReadNoticeIdsFromServer(["server-read", "server-read"], "user-a");
   assert.equal(storage.get("read_notice_ids:user-a"), '["local-read","server-read"]');
-  state.replaceReadNoticeIdsFromServer(["other-user-read"], "user-b");
+  state.mergeReadNoticeIdsFromServer(["other-user-read"], "user-b");
   assert.equal(storage.get("read_notice_ids:user-b"), '["other-user-read"]');
   assert.equal(storage.get("read_notice_ids:user-a"), '["local-read","server-read"]');
-  state.replaceReadNoticeIdsFromServer(["anonymous"], null);
+  state.mergeReadNoticeIdsFromServer(["anonymous"], null);
   assert.equal(storage.has("read_notice_ids"), false);
   assert.equal(requests.length, 1, "merging server state must not replay read writes");
 });
