@@ -24,7 +24,7 @@ export function galleryHref(selection: { year?: number; competition?: string; cu
 // Unknown fields are stripped before public API responses cross the RSC/client boundary.
 const count = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const year = z.number().int().min(1000).max(9999);
-const summary = z.object({ competitionId: z.string().uuid(), competitionTitle: z.string(), certificateCount: count });
+const summary = z.object({ competitionId: z.string().uuid(), competitionTitle: z.string(), category: z.string(), certificateCount: count });
 const level = z.object({ level: z.string(), certificateCount: count });
 const cursor = z.string().regex(awardCursorPattern).nullable();
 export const awardYearSummariesSchema = z.object({
