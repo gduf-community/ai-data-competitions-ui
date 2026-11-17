@@ -4,8 +4,10 @@ import type { AwardYearSummaries } from "@/lib/contracts/award-gallery";
 import { galleryHref } from "@/lib/award-gallery";
 import { GalleryAction, GalleryCompetitionCard, GalleryFrame } from "./frame";
 import { AwardCount } from "./motion";
+import { AwardYearToc } from "./year-toc";
 
 export function AwardOverview({ data }: { data: AwardYearSummaries }) {
+  const years = [...data.years].sort((a, b) => a.year - b.year);
   const counts = [
     { value: data.totals.certificateCount, unit: "份", label: "获奖证书" },
     { value: data.totals.competitionCount, unit: "项", label: "获奖比赛" },
@@ -33,37 +35,49 @@ export function AwardOverview({ data }: { data: AwardYearSummaries }) {
           暂无已通过审核的获奖证书。
         </p>
       )}
-      <div className="space-y-5">
-        {data.years.map(year => (
-          <section key={year.year} className="rounded-xl border-2 border-primary/20 p-5 sm:p-7">
-            <div className="mb-6 flex flex-wrap items-center gap-4">
-              <h2 className="text-2xl font-semibold text-primary">{year.year}年</h2>
-              <p className="text-sm text-muted-foreground">
-                已公开{year.competitionCount}项比赛、{year.certificateCount}份获奖证书。
-              </p>
-              <GalleryAction href={galleryHref({ year: year.year })} className="sm:ml-auto">
-                查看年度比赛
-              </GalleryAction>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {year.competitions.map(entry => (
-                <GalleryCompetitionCard key={entry.competitionId}>
-                  <Link
-                    prefetch={false}
-                    href={galleryHref({ year: year.year, competition: entry.competitionId })}
-                    className="flex h-full min-h-11 flex-col gap-5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
-                  >
-                    <h3 className="text-sm font-semibold leading-7 break-words">{entry.competitionTitle}</h3>
-                    <p className="mt-auto whitespace-nowrap text-primary">
-                      <strong className="text-2xl tabular-nums">{entry.certificateCount}</strong>
-                      <span className="ml-1 text-sm text-muted-foreground">份证书</span>
-                    </p>
-                  </Link>
-                </GalleryCompetitionCard>
-              ))}
-            </div>
-          </section>
-        ))}
+      <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {years.length > 0 && (
+          <div className="mb-5 lg:sticky lg:top-24 lg:mb-0">
+            <AwardYearToc years={years.map(({ year, competitionCount }) => ({ year, competitionCount }))} />
+          </div>
+        )}
+        <div className="min-w-0 space-y-5">
+          {years.map(year => (
+            <section
+              key={year.year}
+              id={`award-year-${year.year}`}
+              data-award-year={year.year}
+              className="scroll-mt-28 rounded-xl border-2 border-primary/20 p-5 sm:p-7"
+            >
+              <div className="mb-6 flex flex-wrap items-center gap-4">
+                <h2 className="text-2xl font-semibold text-primary">{year.year}年</h2>
+                <p className="text-sm text-muted-foreground">
+                  已公开{year.competitionCount}项比赛、{year.certificateCount}份获奖证书。
+                </p>
+                <GalleryAction href={galleryHref({ year: year.year })} className="sm:ml-auto">
+                  查看年度比赛
+                </GalleryAction>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {year.competitions.map(entry => (
+                  <GalleryCompetitionCard key={entry.competitionId}>
+                    <Link
+                      prefetch={false}
+                      href={galleryHref({ year: year.year, competition: entry.competitionId })}
+                      className="flex h-full min-h-11 flex-col gap-5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                    >
+                      <h3 className="text-sm font-semibold leading-7 break-words">{entry.competitionTitle}</h3>
+                      <p className="mt-auto whitespace-nowrap text-primary">
+                        <strong className="text-2xl tabular-nums">{entry.certificateCount}</strong>
+                        <span className="ml-1 text-sm text-muted-foreground">份证书</span>
+                      </p>
+                    </Link>
+                  </GalleryCompetitionCard>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       </div>
     </GalleryFrame>
   );

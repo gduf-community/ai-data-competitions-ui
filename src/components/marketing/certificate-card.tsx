@@ -1,11 +1,21 @@
 import Link from "next/link";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Card } from "@/components/ui/card";
+import { displayAwardLevel } from "@/lib/award-level";
 import type { AwardShowcaseRow } from "@/lib/contracts/profiles";
 import { cn } from "@/lib/utils";
 
+type CertificateCardAward = Pick<
+  AwardShowcaseRow,
+  "id" | "competitionTitle" | "awardLevel" | "imageUrl" | "memberNames" | "userName"
+> & {
+  awardScope?: string | null;
+  awardLevelText?: string | null;
+  awardYear?: number | null;
+};
+
 interface CertificateCardProps {
-  award: Pick<AwardShowcaseRow, "id" | "competitionTitle" | "awardLevel" | "imageUrl" | "memberNames" | "userName">;
+  award: CertificateCardAward;
   variant?: "gallery" | "featured";
   level?: string;
   nearViewport?: boolean;
@@ -17,7 +27,8 @@ export function CertificateCard({ award, variant = "gallery", level, nearViewpor
   const details = (
     <div className={cn("min-w-0 space-y-1 p-3", !featured && "leading-relaxed")}>
       <p className={cn("text-sm break-words text-foreground", featured && "line-clamp-1 font-medium")}>{award.competitionTitle}</p>
-      {featured && award.awardLevel && <p className="text-xs text-primary">{award.awardLevel}</p>}
+      {featured && displayAwardLevel(award) && <p className="text-xs text-primary">{displayAwardLevel(award)}</p>}
+      {featured && award.awardYear != null && <p className="text-xs text-muted-foreground">年份：{award.awardYear}</p>}
       <p className={cn("text-xs break-words text-muted-foreground", featured && "line-clamp-2")}>{members}</p>
     </div>
   );
