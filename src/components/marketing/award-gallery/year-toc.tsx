@@ -10,6 +10,7 @@ export interface AwardYearTocItem {
 
 export function AwardYearToc({ years }: { years: AwardYearTocItem[] }) {
   const [active, setActive] = useState(years[0]?.year ?? null);
+  const ordered = [...years].sort((a, b) => a.year - b.year);
 
   useEffect(() => {
     const sections = years
@@ -29,22 +30,32 @@ export function AwardYearToc({ years }: { years: AwardYearTocItem[] }) {
     return () => observer.disconnect();
   }, [years]);
 
+  // Scroll without writing a location hash: a hash history entry makes the
+  // browser restore "#award-year-…" after returning from a certificate page.
+  function jumpTo(year: number) {
+    setActive(year);
+    const target = document.getElementById(`award-year-${year}`);
+    if (!target) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
+
   if (!years.length) return null;
 
   return (
     <nav aria-label="获奖年份目录" className="rounded-xl border border-border/70 bg-background/70 p-2">
       <p className="px-3 py-2 text-xs font-medium tracking-wide text-muted-foreground">按年份浏览</p>
       <ul className="space-y-0.5">
-        {years.map(({ year, competitionCount }) => {
+        {ordered.map(({ year, competitionCount }) => {
           const isActive = year === active;
           return (
             <li key={year}>
-              <a
-                href={`#award-year-${year}`}
+              <button
+                type="button"
                 aria-current={isActive ? "location" : undefined}
-                onClick={() => setActive(year)}
+                onClick={() => jumpTo(year)}
                 className={cn(
-                  "flex items-center justify-between gap-2 rounded-md border-l-2 px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  "flex w-full cursor-pointer items-center justify-between gap-2 rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   isActive
                     ? "border-primary bg-primary/10 font-semibold text-primary"
                     : "border-transparent text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-foreground",
@@ -52,7 +63,7 @@ export function AwardYearToc({ years }: { years: AwardYearTocItem[] }) {
               >
                 <span className="tabular-nums">{year}年</span>
                 <span className="text-xs tabular-nums">{competitionCount}项</span>
-              </a>
+              </button>
             </li>
           );
         })}
