@@ -4,11 +4,11 @@
 
 浏览器 → Web 页面/BFF → API → PostgreSQL / Object Storage。公开业务 JSON 由服务端读取；授权、事务与存储管理由 API 执行。
 
-源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。浏览器、CI 和部署证据保留各自日期。
+概览核对：2026-11-18，API main `46933d828c3a58fbd12b2712e6ad5a60fde2452d`、Web main `099da0af7082808bc3b80604844ea27cd30f5ade`。本文同步源码与任务入口；历史测试、远程 CI、浏览器和生产记录保留各自日期与版本。
 
 ## 本地启动
 
-固定 Node.js **22.23.3**、pnpm **10.34.5**；当前 Next.js/eslint-config-next **16.3.8**、React/react-dom **19.2.3**，以 [package.json](./package.json) 与唯一 [pnpm-lock.yaml](./pnpm-lock.yaml) 为准。
+固定 Node.js **22.23.3**、pnpm **10.34.5**；当前 Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**，以 [package.json](./package.json) 与唯一 [pnpm-lock.yaml](./pnpm-lock.yaml) 为准。
 
 ```bash
 pnpm install --frozen-lockfile
@@ -32,7 +32,7 @@ PowerShell 使用 `Copy-Item .env.example .env.local`。Web 默认 `http://local
 | 选择验证命令与联调范围 | [测试与验收](./docs/测试与验收.md) |
 | 查看自动检查、产物与发布边界 | [CI 与构建](./docs/CI与构建.md) |
 
-[荣誉展示图片加载与分页计划](./docs/荣誉展示图片加载与分页计划.md)：P0 分层分页与图片预算、P1 缓存协商、P2 缩略图及实测验收，当前为待实现目标。
+[荣誉展示图片加载与分页计划](./docs/荣誉展示图片加载与分页计划.md)：年度/赛事/证书分层、24条分页和近视口图片已合入；缓存协商、缩略图及真实环境性能验收继续按任务推进。
 
 [文档总入口](./docs/README.md)还包含视觉、浏览器兼容、协作和历史材料。[设计与调研](./docs/设计与调研.md)收录完整 UI 案例研究、搜索/组件研究、首页与模板方案，以及从 API 迁回的社团文案和原始意见稿。
 
@@ -40,7 +40,7 @@ PowerShell 使用 `Copy-Item .env.example .env.local`。Web 默认 `http://local
 
 ## 检查与构建
 
-[名人堂改造开发计划](./docs/名人堂改造开发计划.md)：三级名单、人物档案、姓名邀请和照片审核的7个Web任务及跨仓依赖；当前为待实现计划，完整用户报告由API仓维护。
+[名人堂改造开发计划](./docs/名人堂改造开发计划.md)：合同 C0 与数据模型 A1 已合入 API main，Web W1–W7 页面/组件已合入；API 业务 PR #205–#210 仍为开放堆叠，真实接口联调、存量迁移及集成验收尚未完成。三级展示开关默认关闭，合并页面不代表已启用或发布。 完整用户方案由API仓维护。
 
 ```bash
 pnpm check:framework
@@ -49,13 +49,13 @@ pnpm run ci
 
 `ci` 依次执行 lint/Web 边界、typegen/typecheck、前端/传输/产物测试和生产构建；`check:framework` 是独立命令，由远程 CI 在 ci 前执行。也可单独运行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`。`pnpm start` 启动已有构建，不启动 API、不执行数据库迁移。
 
-[Web CI](./.github/workflows/ci.yml) 对 push/PR 自动运行，也可手动检查；API CI 保持手动。两仓停止 GitHub CD；构建/上传 artifact 与平台部署分别核验，见[CI 说明](./docs/CI与构建.md)。
+[Web CI](./.github/workflows/ci.yml) 对 push/PR 自动运行，也可手动检查；API CI 在PR review获批准或手动触发后核验精确HEAD。两仓停止 GitHub CD；构建/上传 artifact 与平台部署分别核验，见[CI 说明](./docs/CI与构建.md)。
 
 ## 业务与协作边界
 
 - 比赛和问答使用 SSR 服务端搜索/分页，默认每页 20、最多 50；URL 恢复查询/筛选/页码。Regex 默认关闭，要求两端开关与 API 能力一致。
 - 社团使用统一后台、有效授权、真实封面、直接发布及已发布内容编辑；revision 冲突保留输入，旧审核写入口退役。真实存储、真机输入与存量切换仍按任务验收。
-- 当前荣誉为奖状长廊与单张详情；年度 A/B/C 属于后续计划。经验文章、名人堂走受邀流程。
+- 荣誉按年度→赛事→最多24条证书分页，单张详情旧链接保留；个人奖状支持范围/奖级/年份及修改重审。官方获奖已有[名单、更正/撤销与双视图导出](./docs/官方获奖名单.md)，完整导入向导另行交付。经验文章、名人堂走受邀流程。
 - SQL 查询台已删除，固定分析保留；安全动作目前只有 IP 放行/回滚具备实际执行器。
 
 [Project #2](https://github.com/orgs/gduf-community/projects/2)统一管理 [Web Issue](https://github.com/gduf-community/ai-data-competitions-ui/issues) 与 [API Issue](https://github.com/gduf-community/competition-Q-A-website/issues)。跨仓保留一个主任务，两侧分别交付 PR 并绑定精确 companion SHA，见[协作指南](./docs/开源协作指南.md)。

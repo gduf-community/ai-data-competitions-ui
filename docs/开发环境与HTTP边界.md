@@ -1,12 +1,12 @@
 # 开发环境与 HTTP 边界
 
-2026-10-21 现网已迁至ECS，精确版本、资源事故和更新边界见[部署记录](阿里云ECS部署.md)；源码整合不等于生产发布。
+2026-10-21的ECS部署、事故恢复与配置交接见[历史记录](阿里云ECS部署.md)；当前线上版本需独立核验。
 
-源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。变量来自 [.env.example](../.env.example)、[传输配置](../src/lib/web-transport.ts) 和 [proxy](../src/proxy.ts)。本文提供开发/联调方法，生产密钥与真实运行材料保存在受限环境。
+概览/入口核对：2026-11-18，Web main `099da0af7082808bc3b80604844ea27cd30f5ade`、API main `46933d828c3a58fbd12b2712e6ad5a60fde2452d`；历史执行记录保留原版本和日期。变量来自 [.env.example](../.env.example)、[传输配置](../src/lib/web-transport.ts) 和 [proxy](../src/proxy.ts)。本文提供开发/联调方法，生产密钥与真实运行材料保存在受限环境。
 
 ## 工具链和两个运行进程
 
-使用 Node.js **22.23.3**、pnpm **10.34.5**；Next.js/eslint-config-next **16.4.1**、React/react-dom **19.2.3**。冻结安装并执行 `pnpm check:framework`；CI、manifest 与包管理版本检查见[CI 文档](./CI与构建.md)。不要为文档示例重生成锁文件。
+使用 Node.js **22.23.3**、pnpm **10.34.5**；Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**。冻结安装并执行 `pnpm check:framework`；CI、manifest 与包管理版本检查见[CI 文档](./CI与构建.md)。不要为文档示例重生成锁文件。
 
 1. 在 API 仓库按其[开发说明](https://github.com/gduf-community/competition-Q-A-website#readme)配置独立合成数据库、认证等后端变量，启动 `pnpm dev --port 3001`。数据库迁移/seed 由 API 的显式工具负责，Web 不执行。
 2. 在 Web 复制 `.env.example` 为 `.env.local`，两端注入同一随机服务凭据。可本地执行 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` 生成测试值；不要提交生成值或把它写成 NEXT_PUBLIC_ 变量。
@@ -86,12 +86,12 @@ API 应仅私网可达，Web 不直连数据库/对象存储管理端；入口�
 
 超时及服务器返回unconfirmed均提示“发送确认失败/结果未确认，邮件仍可能发出”，不承诺未发送、未送达或已撤销。服务器有独立30秒预算并取消provider请求；浏览器取消不是唯一保护，数据库清理仍是尽力执行。
 
-## 当前部署的通用上传适配
+## 通用上传适配与历史部署记录
 
 仅 `/api/uploads` 从 Web proxy matcher 排除；BFF继续执行真实方法能力、Host/Origin、客户端IP校验及服务token注入，用户Authorization仍不转发。API配对版本在该Route Handler内执行原transport校验，不能独立部署仅排除matcher的版本。头像/证书入口不变。
 
 上传专用Undici Agent只用于通用上传POST，单连接且每进程只允许一个正在等待响应的上传；并发返回503。`BFF_UPLOAD_TIMEOUT_SECONDS`默认1260，限制60至1800整数，需要重启生效；同时限制响应头等待及总时限，响应body空闲限时60秒、连接10秒。SSR读取仍15秒，未修改全局dispatcher。API的对应变量为`UPLOAD_TIMEOUT_SECONDS`，默认1200。该逻辑已包含在已部署4fefbe6b配对中；合成慢存储与目标请求验收不等于未来任意真实网络负载保证。
 
-上传默认总时限：API UPLOAD_TIMEOUT_SECONDS=1200，Web BFF_UPLOAD_TIMEOUT_SECONDS=1260，外层上传专用读取时限建议至少1320秒，使API先取消存储、清理临时文件并释放槽，BFF随后兜底。自定义配置必须保留该先后顺序；不能沿用120秒外层超时。仅上传位置可关闭nginx请求缓冲并使用HTTP/1.1，避免额外整包落盘；当前正式nginx已采用该参数，准确配置与验收边界见[部署记录](./阿里云ECS部署.md)。
+上传默认总时限：API UPLOAD_TIMEOUT_SECONDS=1200，Web BFF_UPLOAD_TIMEOUT_SECONDS=1260，外层上传专用读取时限建议至少1320秒，使API先取消存储、清理临时文件并释放槽，BFF随后兜底。自定义配置必须保留该先后顺序；不能沿用120秒外层超时。仅上传位置可关闭nginx请求缓冲并使用HTTP/1.1，避免额外整包落盘；2026-10-21部署记录中的正式nginx已采用该参数，准确配置与验收边界见[部署记录](./阿里云ECS部署.md)。
 
 API #162 第二阶段同步修复认证/Schema/HTML 与工具传递依赖；全依赖审计、CodeQL、Gitleaks 和入口继承见[CI 门禁](./CI与构建.md)。影响开发/CI 及未来构建，本次不部署、不改变生产实例，无新增业务环境变量。
