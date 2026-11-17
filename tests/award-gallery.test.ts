@@ -15,7 +15,7 @@ import { AwardYear } from "../src/components/marketing/award-gallery/year";
 
 const require = createRequire(import.meta.url);
 const competitionId = "11111111-1111-4111-8111-111111111111";
-const summary = { competitionId, competitionTitle: "合成比赛完整名称", category: "学科竞赛", certificateCount: 200 };
+const summary = { competitionId, competitionTitle: "合成比赛完整名称", certificateCount: 200 };
 const page: AwardCompetitionCertificates = { ...summary, year: 2030, levels: [{ level: "一等奖", certificateCount: 200 }],
   awards: [{ id: competitionId, userName: "合成上传者", memberNames: ["合成成员甲", "合成成员乙"], competitionTitle: "历史名称", awardLevel: "一等奖", level: "一等奖", imageUrl: "/api/portal/assets?fixture=1" }],
   page: { limit: 24, nextCursor: "next", previousCursor: "previous" } };
@@ -49,23 +49,25 @@ test("A/B render aggregates without certificate images or selection instructions
   for (const html of [overview, year]) { assert.doesNotMatch(html, /<img|选择年份后查看|选择比赛后查看/); assert.match(html, /当前所在/); }
   assert.match(year, /2030年获奖比赛/); assert.match(year, /aria-current="page"/);
 });
-test("overview directory rail groups competitions by category and links canonically", () => {
+test("overview year directory links to in-page sections and marks the current year", () => {
   const otherId = "55555555-5555-4555-8555-555555555555";
-  const other = { ...summary, competitionId: otherId, competitionTitle: "合成另一比赛", category: "创新创业" };
-  const uncategorized = { ...summary, competitionId: "66666666-6666-4666-8666-666666666666", competitionTitle: "合成未分类比赛", category: "  " };
+  const other = { ...summary, competitionId: otherId, competitionTitle: "合成另一比赛" };
   const html = renderToStaticMarkup(React.createElement(AwardOverview, { data: {
     totals: { yearCount: 2, competitionCount: 3, certificateCount: 600 },
     years: [
-      { year: 2030, competitionCount: 2, certificateCount: 400, competitions: [summary, uncategorized] },
-      { year: 2029, competitionCount: 1, certificateCount: 200, competitions: [other] },
+      { year: 2030, competitionCount: 2, certificateCount: 400, competitions: [summary, other] },
+      { year: 2029, competitionCount: 1, certificateCount: 200, competitions: [{ ...summary, competitionId: "66666666-6666-4666-8666-666666666666" }] },
     ],
   } }));
-  assert.match(html, /aria-label="获奖比赛分类目录"/);
-  assert.match(html, /tabular-nums">3<\/span> 个分类/);
-  for (const category of ["学科竞赛", "创新创业", "未分类"]) assert.match(html, new RegExp(`>${category}<`));
-  assert.match(html, new RegExp(`href="/awards/year/2029/${otherId}"`));
-  assert.match(html, new RegExp(`href="/awards/year/2030/${competitionId}"`));
-  assert.doesNotMatch(renderToStaticMarkup(React.createElement(AwardOverview, { data: { totals: { yearCount: 0, competitionCount: 0, certificateCount: 0 }, years: [] } })), /获奖比赛分类目录/);
+  assert.match(html, /aria-label="获奖年份目录"/);
+  assert.match(html, /href="#award-year-2030"/);
+  assert.match(html, /href="#award-year-2029"/);
+  assert.match(html, /id="award-year-2030"/);
+  assert.match(html, /id="award-year-2029"/);
+  assert.equal((html.match(/aria-current="location"/g) ?? []).length, 1);
+  assert.match(html, /aria-current="location"[^>]*>[\s\S]*?2030年/);
+  assert.doesNotMatch(html, /获奖比赛分类目录|创新创业/);
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(AwardOverview, { data: { totals: { yearCount: 0, competitionCount: 0, certificateCount: 0 }, years: [] } })), /获奖年份目录/);
 });
 test("C renders full-event totals, current-page counts, verified members and reversible links", () => {
   const html = renderToStaticMarkup(React.createElement(AwardCompetition, { data: page }));

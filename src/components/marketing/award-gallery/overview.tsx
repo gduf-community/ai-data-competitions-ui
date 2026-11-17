@@ -2,9 +2,9 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import type { AwardYearSummaries } from "@/lib/contracts/award-gallery";
 import { galleryHref } from "@/lib/award-gallery";
-import { AwardCategoryRail } from "./category-rail";
 import { GalleryAction, GalleryCompetitionCard, GalleryFrame } from "./frame";
 import { AwardCount } from "./motion";
+import { AwardYearToc } from "./year-toc";
 
 export function AwardOverview({ data }: { data: AwardYearSummaries }) {
   const counts = [
@@ -34,15 +34,20 @@ export function AwardOverview({ data }: { data: AwardYearSummaries }) {
           暂无已通过审核的获奖证书。
         </p>
       )}
-      <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start lg:gap-6">
         {data.years.length > 0 && (
           <div className="mb-5 lg:sticky lg:top-24 lg:mb-0">
-            <AwardCategoryRail data={data} />
+            <AwardYearToc years={data.years.map(({ year, competitionCount }) => ({ year, competitionCount }))} />
           </div>
         )}
         <div className="min-w-0 space-y-5">
           {data.years.map(year => (
-            <section key={year.year} className="rounded-xl border-2 border-primary/20 p-5 sm:p-7">
+            <section
+              key={year.year}
+              id={`award-year-${year.year}`}
+              data-award-year={year.year}
+              className="scroll-mt-28 rounded-xl border-2 border-primary/20 p-5 sm:p-7"
+            >
               <div className="mb-6 flex flex-wrap items-center gap-4">
                 <h2 className="text-2xl font-semibold text-primary">{year.year}年</h2>
                 <p className="text-sm text-muted-foreground">
