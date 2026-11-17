@@ -52,7 +52,7 @@ API CI 自动响应 PR/main push 并保留手动 workflow_dispatch，其模块�
 
 `scripts/check-security.mjs` 追踪 Route Handler、proxy、BFF、上传下载/导入导出及可执行脚本的源码依赖闭包；新增 Server Action 违反现有分仓边界，直接拒绝。既有入口只保留精确摘要基线，**不代表已证明全部旧代码安全**。入口或传递 helper 变化后，在 `.github/security-policy.json` 更新对应 `reviews`：当前闭包摘要、每个 HTTP method 的认证、功能/对象/字段授权、当前权限、Origin/CSRF、限流、Schema、正文/响应上界、缓存、敏感数据、审计、状态机依据，以及实际负向测试的文件和标题。不适用项须写 `not-applicable: ` 和具体理由；首次基线来自真实 base 源码，后续使用 base policy，PR 自改 baseline 不能跳过门禁。
 
-Web 传输层的 `permittedBrowserRequest` 只有在 handler 顶层明确 `if (!predicate(...))` 后无条件返回 4xx 或抛错时才获得 Origin 信用；忽略返回、反向/组合/嵌套条件与符号遮蔽不授信，未知形态需重新核对。`privateNoStoreHeaders` 仅登记私有响应缓存能力；二者不能证明身份、业务授权或当前权限。BFF/proxy 的精确 review 逐项说明 API 职责与 Web 职责，并关联实际入口的拒绝、缓存和 Cookie 回归。公开素材仍沿用 API 的缓存策略，成功页面 handoff 不新增私有缓存头；没有更新历史 baseline 或漏洞例外来绕过变更检查。
+Web 传输层的 `permittedBrowserRequest` 只有在 handler 顶层明确 `if (!predicate(...))` 后无条件返回 4xx 或抛错时才获得 Origin 信用；忽略返回、反向/组合/嵌套条件与符号遮蔽不授信，未知形态需重新核对。`privateNoStoreHeaders` 仅登记私有响应缓存能力；二者不能证明身份、业务授权或当前权限。BFF/proxy 的精确 review 逐项说明 API 职责与 Web 职责，并关联实际入口的拒绝、缓存和 Cookie 回归。公开素材仍沿用 API 的缓存策略，成功页面 handoff 不新增私有缓存头；官方获奖路径和名人堂待审照片预览强制私有 no-store，传输回归同时检查上游误给 public 缓存头时仍不能覆盖该保护。合并后的同一入口只保留一份当前 review，并保留各功能的负向测试关联；没有更新历史 baseline 或漏洞例外来绕过变更检查。
 
 静态 AST 识别导入别名、barrel 和公共包装函数委托，包括 `withApiGuard`、`officialAwardRequest`、`clubContentCommand`。普通 Route、函数和包装器只有可达性，不自动拥有任何控制能力；证明必须指向 `mechanismControls` 中显式登记的具体机制，且只获得对应控制（例如 scope 断言只获得 authorization）。`withApiGuard` 单独按调用选项判定，只有明确 `auth:true` 才算认证，当前权限同时要求认证和 requireCurrentAuthorization；spread/计算属性、禁用的 Origin 分支及相互冲突的调用不获得保障。未知机制按失败处理，需审查具体实现后登记，不按函数名称或前缀猜测。该检查确认机制引用，仍不证明所有分支的完整业务语义或参数作用域。静态引用与测试标题只能建立可复核的证据关联，不能证明完整业务语义；业务授权必须由实际负向测试和独立维护者 Review 共同核对，不以 PR 模板填表代替测试。修改公共 helper 可能影响多个入口，应逐项复核，不能批量补不适用绕过。
 

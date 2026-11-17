@@ -340,6 +340,9 @@ test("actual BFF keeps private failures and upstream public asset cache semantic
     assert.equal(response.status, 502); assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
     const foreign = await POST(new Request(config.web.origin + "/api/applications", { method: "POST", headers: { host: config.web.host, origin: "https://foreign.invalid" } }));
     assert.equal(foreign.status, 403); assert.equal(foreign.headers.get("cache-control"), "private, no-store, max-age=0");
+    globalThis.fetch = async () => new Response("private photo preview", { headers: { "Cache-Control": "public, max-age=3600" } });
+    const preview = await GET(new Request(config.web.origin + "/api/admin/hall-of-fame/photo-requests/30000000-0000-4000-8000-000000000301/preview", { headers: { host: config.web.host } }));
+    assert.equal(preview.status, 200); assert.equal(preview.headers.get("cache-control"), "private, no-store, max-age=0"); assert.equal(await preview.text(), "private photo preview");
     process.env.WEB_RELEASE_MODE = "public";
     globalThis.fetch = async () => new Response("public asset", { headers: { "Cache-Control": "public, max-age=3600" } });
     const asset = await GET(new Request(config.web.origin + "/api/portal/assets?key=synthetic"));
