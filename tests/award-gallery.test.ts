@@ -65,8 +65,11 @@ test("overview year directory ascends, scrolls without hashes and marks the curr
   assert.match(html, /id="award-year-2030"/);
   assert.match(html, /id="award-year-2029"/);
   assert.ok(html.indexOf("2029年") < html.indexOf("2030年"), "directory years must ascend");
+  assert.ok(html.indexOf('id="award-year-2029"') < html.indexOf('id="award-year-2030"'), "year sections must ascend");
   assert.equal((html.match(/aria-current="location"/g) ?? []).length, 1);
-  assert.match(html, /aria-current="location"[^>]*>[\s\S]*?2030年/);
+  const firstButton = html.slice(html.indexOf("<button"), html.indexOf("</button>"));
+  assert.match(firstButton, /aria-current="location"/);
+  assert.match(firstButton, /2029年/);
   assert.doesNotMatch(html, /获奖比赛分类目录|创新创业/);
   assert.doesNotMatch(renderToStaticMarkup(React.createElement(AwardOverview, { data: { totals: { yearCount: 0, competitionCount: 0, certificateCount: 0 }, years: [] } })), /获奖年份目录/);
 });
