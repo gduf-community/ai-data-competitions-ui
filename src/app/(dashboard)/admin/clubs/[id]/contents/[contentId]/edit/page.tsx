@@ -35,6 +35,7 @@ export default async function EditClubContentPage({
 
   return (
     <ClubContentEditor
+      key={`${clubSlug}:${content.id}`}
       clubId={clubSlug}
       mode="edit"
       contentId={content.id}

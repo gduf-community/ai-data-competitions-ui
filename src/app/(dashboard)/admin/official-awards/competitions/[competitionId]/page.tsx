@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { ClipboardList, Trophy, UserCheck, Users } from "lucide-react";
 
@@ -24,10 +24,19 @@ const PAGE_SIZE = 20;
 export default function OfficialAwardCompetitionPage() {
   const params = useParams<{ competitionId: string }>();
   const competitionId = String(params?.competitionId ?? "");
+  return <OfficialAwardCompetition key={competitionId} competitionId={competitionId} />;
+}
 
+function OfficialAwardCompetition({ competitionId }: { competitionId: string }) {
   const query = useOfficialAwardQuery(competitionId, PAGE_SIZE);
   const [refreshKey, setRefreshKey] = useState(0);
+  const refreshSequence = useRef(0);
   const list = useOfficialAwardList(competitionId, query.query, query.identity, refreshKey);
+  const refreshList = () => {
+    const next = ++refreshSequence.current;
+    setRefreshKey(next);
+    return next;
+  };
 
   const [exportView, setExportView] = useState<ExportView>("award");
   // 导出只带筛选，不带 cursor/limit（#138：导出当前筛选的全部结果）。
@@ -39,16 +48,16 @@ export default function OfficialAwardCompetitionPage() {
   const [voiding, setVoiding] = useState<OfficialAwardRow | null>(null);
   const [conflict, setConflict] = useState(false);
   const [conflictLost, setConflictLost] = useState(false);
-  // 记录「冲突发生时列表的刷新代际」，只有真正拿到新一代响应才回填版本。
-  const [conflictWait, setConflictWait] = useState<{ awardId: string; revision: number } | null>(null);
+  // Only the response requested by this conflict may update the editable version.
+  const [conflictWait, setConflictWait] = useState<{ awardId: string; refreshKey: number } | null>(null);
 
   useEffect(() => {
     if (!conflictWait) return;
+    if (list.loading || list.settledRefreshKey !== conflictWait.refreshKey) return;
     if (!list.loading && list.kind !== "ok") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setConflict(true); setConflictLost(true); setConflictWait(null); return;
     }
-    if (list.revision <= conflictWait.revision) return;
     const fresh = list.data?.items.find((item) => item.awardId === conflictWait.awardId);
     if (!fresh) {
       // 记录已离开当前筛选/页：不能冒充已回填，提示用户重新打开。
@@ -61,7 +70,7 @@ export default function OfficialAwardCompetitionPage() {
     setVoiding((prev) => (prev && prev.awardId === fresh.awardId ? fresh : prev));
     setConflict(true);
     setConflictWait(null);
-  }, [conflictWait, list.data, list.revision, list.loading, list.kind]);
+  }, [conflictWait, list.data, list.settledRefreshKey, list.loading, list.kind]);
 
   const refreshAfterMutation = () => {
     setEditing(null);
@@ -69,12 +78,14 @@ export default function OfficialAwardCompetitionPage() {
     setVoiding(null);
     setConflict(false);
     setConflictLost(false);
-    setRefreshKey((value) => value + 1);
+    setConflictWait(null);
+    refreshList();
   };
 
   const handleConflict = (awardId: string) => {
-    setConflictWait({ awardId, revision: list.revision });
-    setRefreshKey((value) => value + 1);
+    const next = refreshList();
+    setConflictLost(false);
+    setConflictWait({ awardId, refreshKey: next });
   };
 
   // 切换赛事时清空与该赛事绑定的临时状态，避免把上一场的弹窗/展开带到新赛事。
@@ -100,7 +111,7 @@ export default function OfficialAwardCompetitionPage() {
   const showStats = list.kind === "ok" && !list.loading && Boolean(list.data);
   const stat = (value: number) => (showStats ? String(value) : "—");
 
-  if (list.kind === "forbidden" || list.kind === "notfound") {
+  if ((list.kind === "forbidden" || list.kind === "notfound") && !editing && !voiding) {
     return (
       <div className="px-3 pb-8 sm:px-4 lg:px-6">
         <EmptyState
@@ -226,14 +237,16 @@ export default function OfficialAwardCompetitionPage() {
             onCorrect={(row) => {
               setConflict(false);
               setConflictLost(false);
+              setConflictWait(null);
               setEditingBaseline(row);
               setEditing(row);
             }}
-            onRetry={() => setRefreshKey((value) => value + 1)}
+            onRetry={refreshList}
             onToggle={toggleExpanded}
             onVoid={(row) => {
               setConflict(false);
               setConflictLost(false);
+              setConflictWait(null);
               setVoiding(row);
             }}
             rows={list.rows}
@@ -252,14 +265,16 @@ export default function OfficialAwardCompetitionPage() {
             onCorrect={(row) => {
               setConflict(false);
               setConflictLost(false);
+              setConflictWait(null);
               setEditingBaseline(row);
               setEditing(row);
             }}
-            onRetry={() => setRefreshKey((value) => value + 1)}
+            onRetry={refreshList}
             onToggle={toggleExpanded}
             onVoid={(row) => {
               setConflict(false);
               setConflictLost(false);
+              setConflictWait(null);
               setVoiding(row);
             }}
             rows={list.rows}
@@ -274,6 +289,7 @@ export default function OfficialAwardCompetitionPage() {
       </div>
 
       <OfficialAwardCorrectionDialog
+        key={`correct-${editing?.awardId ?? "closed"}`}
         award={editing}
         baseline={editingBaseline}
         conflict={conflict}
@@ -284,12 +300,15 @@ export default function OfficialAwardCompetitionPage() {
           setEditingBaseline(null);
           setConflict(false);
           setConflictLost(false);
+          setConflictWait(null);
         }}
+        onRetryConflict={() => handleConflict(editing?.awardId ?? "")}
         onConflict={() => handleConflict(editing?.awardId ?? "")}
         onSubmitted={refreshAfterMutation}
       />
 
       <OfficialAwardVoidDialog
+        key={`void-${voiding?.awardId ?? "closed"}`}
         waiting={Boolean(conflictWait)}
         conflictLost={conflictLost}
         award={voiding}
@@ -298,7 +317,9 @@ export default function OfficialAwardCompetitionPage() {
           setVoiding(null);
           setConflict(false);
           setConflictLost(false);
+          setConflictWait(null);
         }}
+        onRetryConflict={() => handleConflict(voiding?.awardId ?? "")}
         onConflict={() => handleConflict(voiding?.awardId ?? "")}
         onSubmitted={refreshAfterMutation}
       />

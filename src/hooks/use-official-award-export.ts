@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import {
   EXPORT_VIEW_LABEL,
@@ -26,14 +26,21 @@ type ExportScope = {
  */
 export function useOfficialAwardExport(competitionId: string, filterQuery: string) {
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
-  const [controller, setController] = useState<AbortController | null>(null);
+  // The ref owns the request synchronously; rendered progress is only presentation.
+  const controller = useRef<AbortController | null>(null);
 
   const cancel = useCallback(() => {
-    controller?.abort();
-  }, [controller]);
+    controller.current?.abort();
+    controller.current = null;
+    setExporting(null);
+  }, []);
+
+  // An export belongs to the competition and filters that the user confirmed.
+  useLayoutEffect(() => () => cancel(), [competitionId, filterQuery, cancel]);
 
   const run = useCallback(
     async (format: ExportFormat, view: ExportView, scope: ExportScope) => {
+      if (controller.current) return;
       const label = `${EXPORT_VIEW_LABEL[view]}，共 ${scope.awardCount} 项奖 / ${scope.memberCount} 人次`;
       if (!confirmI18n(`将按当前筛选导出（${label}），导出会记录审计日志，是否继续？`)) return;
 
@@ -42,13 +49,14 @@ export function useOfficialAwardExport(competitionId: string, filterQuery: strin
       params.set("format", format);
 
       const next = new AbortController();
-      setController(next);
+      controller.current = next;
       setExporting(format);
       try {
         const response = await fetch(
           `/api/admin/official-awards/competitions/${encodeURIComponent(competitionId)}/export?${params.toString()}`,
           { cache: "no-store", signal: next.signal },
         );
+        if (next.signal.aborted || controller.current !== next) return;
         if (!response.ok) {
           const payload = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
           throw new Error(exportErrorMessage(response.status, payload));
@@ -62,6 +70,8 @@ export function useOfficialAwardExport(competitionId: string, filterQuery: strin
           throw new Error("服务未返回合法的附件响应，已取消下载。");
         }
         const blob = await response.blob();
+        // A fulfilled body may race with cancel even if fetch itself observed abort.
+        if (next.signal.aborted || controller.current !== next) return;
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
@@ -72,12 +82,15 @@ export function useOfficialAwardExport(competitionId: string, filterQuery: strin
         URL.revokeObjectURL(url);
         toast.success(`已导出：${filename}`);
       } catch (cause) {
-        if (!next.signal.aborted) {
+        if (!next.signal.aborted && controller.current === next) {
           toast.error(cause instanceof Error ? cause.message : "导出失败");
         }
       } finally {
-        setExporting(null);
-        setController(null);
+        // A cancelled request may finish after the user has started another export.
+        if (controller.current === next) {
+          controller.current = null;
+          setExporting(null);
+        }
       }
     },
     [competitionId, filterQuery],

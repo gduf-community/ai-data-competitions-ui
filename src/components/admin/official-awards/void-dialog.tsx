@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OfficialAwardRow } from "@/lib/contracts/official-awards";
 import { toast } from "@/lib/i18n/toast";
-import { fetchWithCsrf } from "@/lib/security/csrf-client";
+import { useOfficialAwardCommand } from "@/hooks/use-official-award-command";
 
 type Props = {
   award: OfficialAwardRow | null;
@@ -25,11 +25,12 @@ type Props = {
   onClose: () => void;
   onSubmitted: () => void;
   onConflict: () => void;
+  onRetryConflict?: () => void;
 };
 
-export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost, onClose, onSubmitted, onConflict }: Props) {
+export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost, onClose, onSubmitted, onConflict, onRetryConflict }: Props) {
   const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { submitting, submit: submitCommand } = useOfficialAwardCommand(award?.awardId);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -42,29 +43,14 @@ export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost
       toast.error("请填写撤销原因，便于审计追溯。");
       return;
     }
-    setSubmitting(true);
-    try {
-      const response = await fetchWithCsrf(`/api/admin/official-awards/${award.awardId}/void`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expectedVersion: award.version, reason: reason.trim() }),
-      });
-      if (response.status === 409) {
-        onConflict();
-        toast.error("版本冲突：正在读取最新版本，请等待并核对后重新操作。");
-        return;
-      }
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(body.message ?? `撤销失败（HTTP ${response.status}）`);
-      }
-      toast.success("已撤销该获奖事实，正在重新查询名单。");
-      onSubmitted();
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "撤销失败");
-    } finally {
-      setSubmitting(false);
-    }
+    await submitCommand({
+      url: `/api/admin/official-awards/${award.awardId}/void`, method: "POST",
+      payload: { expectedVersion: award.version, reason: reason.trim() },
+      onConflict, onSubmitted,
+      successMessage: "已撤销该获奖事实，正在重新查询名单。",
+      conflictMessage: "版本冲突：正在读取最新版本，请等待并核对后重新操作。",
+      failureMessage: "撤销失败",
+    });
   };
 
   return (
@@ -77,14 +63,16 @@ export function OfficialAwardVoidDialog({ award, conflict, waiting, conflictLost
           </DialogDescription>
         </DialogHeader>
         {conflict ? (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {conflictLost ? "无法在当前结果中取得最新记录，请关闭并清空筛选后重新打开。" : `已加载最新版本（v${award?.version ?? "-"}），请确认后重新提交。`}
-          </p>
+          <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <p>{conflictLost ? "未能取得最新记录，输入仍保留。可重试读取；若记录已离开筛选，请复制原因后重新查询。" : `已加载最新版本（v${award?.version ?? "-"}），请确认后重新提交。`}</p>
+            {conflictLost && onRetryConflict ? <Button type="button" size="sm" variant="outline" disabled={waiting || submitting} onClick={onRetryConflict}>重试读取最新版本</Button> : null}
+          </div>
         ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="voidReason">撤销原因（必填）</Label>
           <Input
             id="voidReason"
+            disabled={submitting || waiting}
             placeholder="例如：该团队实际未获奖，官方原文核对有误"
             value={reason}
             onChange={(event) => setReason(event.target.value)}

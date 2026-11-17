@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, Send, Trash2, XCircle } from "lucide-react";
@@ -9,7 +9,7 @@ import { toast } from "@/lib/i18n/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { requestJSON } from "@/lib/http-client";
+import { HttpRequestError, requestJSON } from "@/lib/http-client";
 import { confirmI18n } from "@/lib/i18n/client";
 import type { ClubContentRow } from "@/lib/contracts/clubs";
 import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
@@ -55,6 +55,12 @@ export function ClubContentManageList({
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const filtered = useMemo(() => {
     if (statusFilter === "all") return contents;
@@ -65,7 +71,8 @@ export function ClubContentManageList({
     contentId: string,
     action: "publish" | "offline" | "delete",
   ) {
-    if (loading || ((action === "delete" || action === "offline") && !confirmI18n(action === "delete" ? "确认删除该内容？" : "确认下线该内容？"))) return;
+    if (loadingRef.current || !mountedRef.current || ((action === "delete" || action === "offline") && !confirmI18n(action === "delete" ? "确认删除该内容？" : "确认下线该内容？"))) return;
+    loadingRef.current = true;
     setLoading(contentId);
     try {
       const url =
@@ -74,12 +81,16 @@ export function ClubContentManageList({
           : `/api/admin/clubs/${clubId}/contents/${contentId}/${action}`;
       const method = action === "delete" ? "DELETE" : "POST";
       await requestJSON(url, { method, json: { expectedRevision: contents.find(item => item.id === contentId)?.revision }, expect: "empty" });
+      if (!mountedRef.current) return;
       toast.success(action === "publish" ? "已发布" : action === "offline" ? "已下线" : "已删除");
       router.refresh();
     } catch (error) {
+      if (!mountedRef.current) return;
       toast.error(error instanceof Error ? error.message : "操作失败");
+      if (error instanceof HttpRequestError && error.status === 409) router.refresh();
     } finally {
-      setLoading(null);
+      loadingRef.current = false;
+      if (mountedRef.current) setLoading(null);
     }
   }
 
@@ -148,7 +159,7 @@ export function ClubContentManageList({
                     {!governance && item.allowedActions?.includes("publish") ? (
                       <Button
                         size="sm"
-                        disabled={isLoading}
+                        disabled={Boolean(loading)}
                         onClick={() => handleAction(item.id, "publish")}
                       >
                         <Send className="mr-1 size-3.5" />
@@ -159,7 +170,7 @@ export function ClubContentManageList({
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={isLoading}
+                        disabled={Boolean(loading)}
                         onClick={() => handleAction(item.id, "offline")}
                       >
                         <XCircle className="mr-1 size-3.5" />
@@ -170,7 +181,7 @@ export function ClubContentManageList({
                       <Button
                         variant="destructive"
                         size="sm"
-                        disabled={isLoading}
+                        disabled={Boolean(loading)}
                         onClick={() => handleAction(item.id, "delete")}
                       >
                         <Trash2 className="mr-1 size-3.5" />

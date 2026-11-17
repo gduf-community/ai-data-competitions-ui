@@ -101,13 +101,14 @@ export function markNoticesRead(ids: string[], userId?: string | null) {
   }
 }
 
-export function replaceReadNoticeIdsFromServer(
+export function mergeReadNoticeIdsFromServer(
   ids: string[],
   userId?: string | null,
 ) {
   const key = getReadStateKey(userId);
   if (!key) return;
-  const normalized = [...new Set(ids.filter(Boolean))];
+  // Read state is append-only. An older GET can finish after a local read/POST.
+  const normalized = [...new Set([...getReadNoticeIds(userId), ...ids.filter(Boolean)])];
   if (setSafeStorageItem(key, JSON.stringify(normalized))) {
     notifyUpdated();
   }
