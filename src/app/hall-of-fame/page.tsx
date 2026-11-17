@@ -1,16 +1,45 @@
 import Link from "next/link";
 import { Award } from "lucide-react";
 
+import { HallOfFameLevelsOverview } from "@/components/marketing/hall-of-fame-level-section";
+import { resolvePublicHallOfFamePortraitSrc } from "@/components/profile/hall-of-fame-milestone-list";
+import { PortalFooter } from "@/components/marketing/portal-footer";
+import { PortalNavbar } from "@/components/marketing/portal-navbar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PortalNavbar } from "@/components/marketing/portal-navbar";
-import { PortalFooter } from "@/components/marketing/portal-footer";
-import { getHallOfFameEntries } from "@/lib/web-data";
+import { isHallOfFameHierarchyEnabled } from "@/lib/hall-of-fame";
+import {
+  getHallOfFameEntries,
+  getHallOfFameNamesOverview,
+} from "@/lib/web-data";
 
 export default async function HallOfFamePage() {
-  const entries = await getHallOfFameEntries();
+  const hierarchyEnabled = isHallOfFameHierarchyEnabled();
 
+  if (hierarchyEnabled) {
+    const overview = await getHallOfFameNamesOverview();
+
+    return (
+      <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
+        <PortalNavbar />
+        <main className="mx-auto max-w-5xl px-4 py-12 md:px-6">
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-slate-950">名人堂</h1>
+              <p className="text-sm text-slate-500">
+                按入选等级完整展示在各类竞赛中表现突出的同学名单，点击姓名可查看正式档案与进阶履历。
+              </p>
+            </div>
+            <HallOfFameLevelsOverview overview={overview} />
+          </div>
+        </main>
+        <PortalFooter />
+      </div>
+    );
+  }
+
+  const entries = await getHallOfFameEntries();
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f7f3ea_0%,#fcfbf8_38%,#f5f1e8_100%)]">
@@ -28,17 +57,19 @@ export default async function HallOfFamePage() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {entries.map((entry) => {
                 const initial = entry.userName.charAt(0);
+                const safeSrc =
+                  resolvePublicHallOfFamePortraitSrc(entry) ?? undefined;
                 return (
                   <Link
                     key={entry.id}
-                    href={`/profile/${entry.userId}`}
-                    className="block"
+                    href={`/profile/${encodeURIComponent(entry.userId)}`}
+                    className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
                   >
                     <Card className="h-full border-slate-200/70 bg-white/92 shadow-sm transition-shadow hover:shadow-md">
                       <CardContent className="flex flex-col items-center gap-4 p-6 text-center">
                         <Avatar className="size-20 border border-slate-200/70">
                           <AvatarImage
-                            src={entry.userImage ?? undefined}
+                            src={safeSrc}
                             alt={`${entry.userName} 头像`}
                             className="object-cover"
                           />
@@ -61,16 +92,24 @@ export default async function HallOfFamePage() {
                         <p className="text-sm leading-6 text-slate-600">
                           {entry.bio}
                         </p>
-                        <p className="text-xs text-slate-400">
-                          {entry.college}
-                        </p>
+                        {entry.college ? (
+                          <p className="text-xs text-slate-400">
+                            {entry.college}
+                          </p>
+                        ) : null}
                       </CardContent>
                     </Card>
                   </Link>
                 );
               })}
             </div>
-          ) : null}
+          ) : (
+            <Card className="border-dashed border-slate-300 bg-white/86">
+              <CardContent className="p-8 text-center">
+                <p className="text-sm text-slate-500">当前暂无公开名人堂成员</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
       <PortalFooter />
