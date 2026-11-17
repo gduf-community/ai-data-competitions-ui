@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 import { AWARD_LEVEL_OPTIONS, AWARD_SCOPE_OPTIONS, displayAwardLevel } from "@/lib/award-level";
-import { LoadingStatus } from "@/components/shared/euler-bridge-loader";
+import { awardReviewListState } from "@/lib/admin-award-review";
+import { buildPageWindow } from "@/lib/page-window";
 
 interface AwardCertificate {
   id: string;
@@ -61,44 +62,6 @@ const statusOptions = [
   { value: "rejected", label: "已驳回" },
   { value: "all", label: "全部" },
 ];
-
-function buildPageItems(pageCount: number, currentPage: number) {
-  if (pageCount <= 7) {
-    return Array.from({ length: pageCount }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, pageCount, currentPage]);
-
-  if (currentPage > 1) pages.add(currentPage - 1);
-  if (currentPage < pageCount) pages.add(currentPage + 1);
-
-  if (currentPage <= 3) {
-    pages.add(2);
-    pages.add(3);
-    pages.add(4);
-  }
-
-  if (currentPage >= pageCount - 2) {
-    pages.add(pageCount - 1);
-    pages.add(pageCount - 2);
-    pages.add(pageCount - 3);
-  }
-
-  const sortedPages = [...pages]
-    .filter((page) => page >= 1 && page <= pageCount)
-    .sort((a, b) => a - b);
-
-  const items: Array<number | "ellipsis"> = [];
-  for (const page of sortedPages) {
-    const lastItem = items[items.length - 1];
-    if (typeof lastItem === "number" && page - lastItem > 1) {
-      items.push("ellipsis");
-    }
-    items.push(page);
-  }
-
-  return items;
-}
 
 export default function AdminAwardReviewsPage() {
   const [awards, setAwards] = useState<AwardCertificate[]>([]);
@@ -366,7 +329,8 @@ export default function AdminAwardReviewsPage() {
     currentPage * pageSize,
   );
 
-  const pageItems = buildPageItems(totalPages, currentPage);
+  const pageItems = buildPageWindow(currentPage, totalPages, { edgePadding: true });
+  const listState = awardReviewListState({ loading, total: awards.length, visible: visibleAwards.length });
 
   return (
     <div className="px-4 lg:px-6">
@@ -494,14 +458,18 @@ export default function AdminAwardReviewsPage() {
           </div>
         </div>
 
-        {loading ? (
+        {listState === "loading" ? (
           <p className="text-sm text-muted-foreground">加载中...</p>
-        ) : visibleAwards.length === 0 ? (
-          <p className="text-sm text-muted-foreground"><LoadingStatus>加载中...</LoadingStatus></p>
-        ) : awards.length === 0 ? (
+        ) : listState === "empty" ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
               暂无奖状
+            </CardContent>
+          </Card>
+        ) : listState === "filtered-empty" ? (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              没有符合筛选条件的奖状，请调整筛选。
             </CardContent>
           </Card>
         ) : (

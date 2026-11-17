@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AdminDataTable } from "@/components/admin/admin-data-table";
+import { awardReviewListState } from "@/lib/admin-award-review";
+import { buildPageWindow } from "@/lib/page-window";
 import { buildCompetitionRequest, competitionToForm, createDefaultCompetitionFormValues, CompetitionEditor } from "@/components/admin/competition-editor";
 import { createApplicationSchema } from "@/components/competitions/application-form";
 import type { Competition } from "@/lib/types";
@@ -31,6 +33,22 @@ test("create editor initializes independent defaults without structuredClone", t
   }
   assert.equal(buildCompetitionRequest(second).title, "");
   assert.ok(renderToStaticMarkup(createElement(CompetitionEditor, { submitting: false, onSave: async () => undefined, onCancel: () => undefined })).includes("<input"));
+});
+
+test("shared page window preserves the admin and public pagination shapes", () => {
+  assert.deepEqual(buildPageWindow(1, 8, { edgePadding: true }), [1, 2, 3, 4, "ellipsis", 8]);
+  assert.deepEqual(buildPageWindow(8, 8, { edgePadding: true }), [1, "ellipsis", 5, 6, 7, 8]);
+  assert.deepEqual(buildPageWindow(4, 8, { edgePadding: true }), [1, "ellipsis", 3, 4, 5, "ellipsis", 8]);
+  assert.deepEqual(buildPageWindow(1, 20, { radius: 2 }), [1, 2, 3, "ellipsis", 20]);
+  assert.deepEqual(buildPageWindow(10, 20, { radius: 2 }), [1, "ellipsis", 8, 9, 10, 11, 12, "ellipsis", 20]);
+  assert.deepEqual(buildPageWindow(0, 0), [1]);
+});
+
+test("award review separates loading, empty API results and empty filters", () => {
+  assert.equal(awardReviewListState({ loading: true, total: 5, visible: 2 }), "loading");
+  assert.equal(awardReviewListState({ loading: false, total: 0, visible: 0 }), "empty");
+  assert.equal(awardReviewListState({ loading: false, total: 5, visible: 0 }), "filtered-empty");
+  assert.equal(awardReviewListState({ loading: false, total: 5, visible: 1 }), "list");
 });
 
 test("remote table renders the supplied page once and reports the server total", () => {

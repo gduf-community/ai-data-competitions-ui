@@ -1,6 +1,8 @@
 "use client";
 
-import { Fragment, useState, type ReactNode } from "react";import { matchSearchText, parseSearchQuery } from "@/lib/search";
+import { Fragment, useState, type ReactNode } from "react";
+import { buildPageWindow } from "@/lib/page-window";
+import { matchSearchText, parseSearchQuery } from "@/lib/search";
 import {
   flexRender,
   getCoreRowModel,
@@ -54,44 +56,6 @@ type AdminDataTableProps<TData> = {
   };
 } & ({ pagination?: never; rowCount?: never; onPaginationChange?: never }
   | { pagination: PaginationState; rowCount: number; onPaginationChange: OnChangeFn<PaginationState> });
-
-function buildPageItems(pageCount: number, currentPage: number) {
-  if (pageCount <= 7) {
-    return Array.from({ length: pageCount }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, pageCount, currentPage]);
-
-  if (currentPage > 1) pages.add(currentPage - 1);
-  if (currentPage < pageCount) pages.add(currentPage + 1);
-
-  if (currentPage <= 3) {
-    pages.add(2);
-    pages.add(3);
-    pages.add(4);
-  }
-
-  if (currentPage >= pageCount - 2) {
-    pages.add(pageCount - 1);
-    pages.add(pageCount - 2);
-    pages.add(pageCount - 3);
-  }
-
-  const sortedPages = [...pages]
-    .filter((page) => page >= 1 && page <= pageCount)
-    .sort((a, b) => a - b);
-
-  const items: Array<number | "ellipsis"> = [];
-  for (const page of sortedPages) {
-    const lastItem = items[items.length - 1];
-    if (typeof lastItem === "number" && page - lastItem > 1) {
-      items.push("ellipsis");
-    }
-    items.push(page);
-  }
-
-  return items;
-}
 
 export function AdminDataTable<TData>({
   data,
@@ -163,7 +127,7 @@ export function AdminDataTable<TData>({
   const totalRows = pagination ? rowCount : isExternalSearch
     ? data.length
     : table.getFilteredRowModel().rows.length;
-  const pageItems = buildPageItems(pageCount, currentPage);
+  const pageItems = buildPageWindow(currentPage, pageCount, { edgePadding: true });
 
   return (
     <div className="space-y-4" aria-busy={loading}>

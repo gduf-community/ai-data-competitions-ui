@@ -37,6 +37,10 @@ test("year links are canonical and cursor state is URL encoded", () => {
   assert.throws(() => galleryHref({ year: 2030, competition: competitionId, page: 0 }));
   assert.throws(() => galleryHref({ year: 2030, competition: competitionId, page: 2, cursor: "a" }));
   assert.throws(() => galleryHref({ competition: competitionId }));
+  assert.equal(galleryHref({ year: 2030, competition: competitionId, excludeLevels: ["一等奖"] }), `/awards/year/2030/${competitionId}?excludeLevels=${encodeURIComponent("一等奖")}`);
+  assert.throws(() => galleryHref({ year: 2030, competition: competitionId, levels: ["一等奖"], excludeLevels: ["二等奖"] }));
+  assert.doesNotThrow(() => galleryHref({ year: 2030, competition: competitionId, excludeLevels: Array.from({ length: 100 }, (_, index) => `等级${index}`) }));
+  assert.throws(() => galleryHref({ year: 2030, competition: competitionId, excludeLevels: Array.from({ length: 101 }, (_, index) => `等级${index}`) }));
 });
 test("public schemas strip private fields and reject oversized certificate pages", () => {
   const parsed = awardCompetitionCertificatesSchema.parse({ ...page, email: "private-marker", awards: [{ ...page.awards[0], studentNo: "private-marker" }] });
@@ -111,16 +115,18 @@ test("level buttons toggle multi-select filters and keep them while paging", () 
   };
   const filtered = renderToStaticMarkup(React.createElement(AwardCompetition, { data, selectedLevels: ["一等奖", "二等奖"] }))
     .replace(/<!-- -->/g, "");
-  const second = encodeURIComponent("二等奖");
+  const third = encodeURIComponent("三等奖");
   const first = encodeURIComponent("一等奖");
   assert.match(filtered, /aria-label="按奖项等级筛选"/);
   assert.match(filtered, /aria-current="true"[^>]*>一等奖/);
   assert.match(filtered, /当前筛选<span[^>]*>250份/);
   assert.match(filtered, /2\/9页/);
-  // Removing a level keeps the remaining filter; adding the third level resets to all.
-  assert.match(filtered, new RegExp(`href="${base}\\?levels=${second}"`));
-  assert.match(filtered, new RegExp(`href="${base}\\?page=3&amp;levels=${first}&amp;levels=${second}"`));
-  assert.match(filtered, /name="levels" value="一等奖"/); assert.match(filtered, /name="levels" value="二等奖"/);
+  // Two of three selected is smaller as an exclusion; removing one leaves an inclusion.
+  assert.match(filtered, new RegExp(`href="${base}\\?excludeLevels=${third}"`));
+  assert.match(filtered, new RegExp(`href="${base}\\?page=3&amp;excludeLevels=${third}"`));
+  assert.match(filtered, new RegExp(`href="${base}\\?levels=${first}"`));
+  assert.match(filtered, /name="excludeLevels" value="三等奖"/);
+  assert.doesNotMatch(filtered, /name="levels"/);
   const all = renderToStaticMarkup(React.createElement(AwardCompetition, { data }));
   assert.doesNotMatch(all, /当前筛选/);
   // Paging and the jump form stay unfiltered while every level is selected; only a pill's own toggle links carry `levels`.
@@ -128,6 +134,25 @@ test("level buttons toggle multi-select filters and keep them while paging", () 
   assert.doesNotMatch(all, /[?&]page=\d+&amp;levels=/);
   assert.doesNotMatch(all, /name="levels"/);
   assert.equal((all.match(/aria-current="true"/g) ?? []).length, 3);
+});
+test("more than 30 custom levels close over include/exclude without SSR throw", () => {
+  const base = `/awards/year/2030/${competitionId}`;
+  const levels = Array.from({ length: 32 }, (_, index) => ({ level: `自定义等级${index + 1}`, certificateCount: 1 }));
+  const data: AwardCompetitionCertificates = {
+    ...page, certificateCount: 32, levels,
+    awards: [{ ...page.awards[0], level: levels[0].level }],
+    page: { limit: 24, nextCursor: null, previousCursor: null, pageNumber: 1, pageCount: 2 },
+  };
+  const html = renderToStaticMarkup(React.createElement(AwardCompetition, { data })).replace(/<!-- -->/g, "");
+  assert.equal((html.match(/aria-current="true"/g) ?? []).length, 32);
+  // Deselecting one of 32 is expressible as a single exclusion rather than 31 includes.
+  assert.match(html, new RegExp(`href="${base}\\?excludeLevels=${encodeURIComponent("自定义等级1")}"`));
+  const excluded = renderToStaticMarkup(React.createElement(AwardCompetition, { data, excludedLevels: ["自定义等级1"] }))
+    .replace(/<!-- -->/g, "");
+  assert.equal((excluded.match(/aria-current="true"/g) ?? []).length, 31);
+  assert.match(excluded, /当前筛选<span[^>]*>31份/);
+  assert.match(excluded, /name="excludeLevels" value="自定义等级1"/);
+  assert.match(excluded, new RegExp(`href="${base}\\?page=2&amp;excludeLevels=${encodeURIComponent("自定义等级1")}"`));
 });
 test("C preserves the API order when a level appears in multiple runs", () => {
   const awards = [
