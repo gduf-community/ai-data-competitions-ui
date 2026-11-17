@@ -22,6 +22,7 @@ export default async function NewClubContentPage({
 
   return (
     <ClubContentEditor
+      key={clubSlug}
       clubId={clubSlug}
       mode="create"
       defaultValues={{

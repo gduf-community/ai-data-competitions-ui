@@ -62,3 +62,34 @@ test("#138 BFF：非 UUID 动态段、额外子路径与通配路径拒绝", () 
     assert.equal(hasBrowserApiCapability(request("GET", path), config), false, `${path} 应拒绝`);
   }
 });
+
+test("官方名单 UUID 与 API 的 RFC 9562 输入域一致，路径和方法边界保持", () => {
+  const ids = [
+    COMPETITION.toUpperCase(),
+    ...Array.from({ length: 8 }, (_, index) => `a0a0a0a0-0000-${index + 1}000-9000-000000000001`),
+    "00000000-0000-0000-0000-000000000000",
+    "ffffffff-ffff-ffff-ffff-ffffffffffff",
+  ];
+  for (const id of ids) {
+    const paths = [
+      ["GET", `/api/admin/official-awards/competitions/${id}`],
+      ["GET", `/api/admin/official-awards/competitions/${id}/export`],
+      ["PATCH", `/api/admin/official-awards/${id}`],
+      ["POST", `/api/admin/official-awards/${id}/void`],
+    ];
+    for (const [method, path] of paths) {
+      assert.equal(hasBrowserApiCapability(request(method, path), config), true, `${method} ${path}`);
+      assert.equal(hasBrowserApiCapability(request(method, path), { ...config, business: false }), false);
+      assert.equal(hasBrowserApiCapability(request("DELETE", path), config), false);
+      assert.equal(hasBrowserApiCapability(request(method, path + "/extra"), config), false);
+    }
+    // 同一 UUID 校验也用于本人奖状成员；仍要求 trusted。
+    const memberPath = `/api/me/award-certificates/${id}/members/${id}`;
+    assert.equal(hasBrowserApiCapability(request("DELETE", memberPath), config), true);
+    assert.equal(hasBrowserApiCapability(request("DELETE", memberPath), { ...config, business: false }), false);
+  }
+  for (const id of ["award-1", COMPETITION.replace("-4000-", "-9000-"), COMPETITION.replace("-9000-", "-7000-"), COMPETITION + "a", COMPETITION.replaceAll("-", "")]) {
+    assert.equal(hasBrowserApiCapability(request("GET", `/api/admin/official-awards/competitions/${id}`), config), false, id);
+    assert.equal(hasBrowserApiCapability(request("DELETE", `/api/me/award-certificates/${COMPETITION}/members/${id}`), config), false, id);
+  }
+});

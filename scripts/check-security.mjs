@@ -11,11 +11,12 @@ export const matrix = {
   web: ["anonymous", "origin", "public-trusted", "upload-download", "sensitive-data"],
 };
 const policyPath = ".github/security-policy.json";
+const webOriginPredicate = "src/lib/web-transport.ts#permittedBrowserRequest";
 // Only reviewed mechanisms have capabilities. Ordinary routes and wrappers are
 // reachable symbols, never security controls merely because they are called.
 const mechanismControls = new Map([
   ["src/lib/web-transport.ts#hasBrowserApiCapability", ["authorization"]],
-  ["src/lib/web-transport.ts#permittedBrowserRequest", ["origin"]],
+  ["src/lib/web-transport.ts#privateNoStoreHeaders", ["cache"]],
   ["src/lib/security/origin-guard.ts#assertSameOrigin", ["origin"]],
   ["src/lib/security/rate-limit.ts#enforceRateLimit", ["rateLimit"]],
   ["src/lib/security/response-headers.ts#jsonWithPrivateNoStore", ["cache"]],
@@ -150,6 +151,24 @@ export function sourceGraph(files) {
   }
   function witnesses(entry, method) {
     const seen = new Set(), found = new Map();
+    const entryModule = modules.get(entry);
+    const handlers = new Set((method ? [method] : entries.get(entry)?.methods ?? []).map(symbol => entryModule?.declarations.get(entryModule.exports.get(symbol) ?? symbol)));
+    function denies(statement) {
+      if (ts.isBlock(statement)) {
+        if (statement.statements.length !== 1) return false;
+        statement = statement.statements[0];
+      }
+      if (ts.isThrowStatement(statement)) return true;
+      if (!ts.isReturnStatement(statement) || !statement.expression) return false;
+      const value = statement.expression;
+      const response = ts.isNewExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === "Response";
+      const json = ts.isCallExpression(value) && ts.isPropertyAccessExpression(value.expression) && ts.isIdentifier(value.expression.expression) && value.expression.expression.text === "Response" && value.expression.name.text === "json";
+      if (!response && !json) return false;
+      const options = value.arguments?.[1];
+      if (!options || !ts.isObjectLiteralExpression(options) || options.properties.some(property => !ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name))) return false;
+      const status = options.properties.filter(property => property.name && (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)) && property.name.text === "status");
+      return status.length === 1 && ts.isNumericLiteral(status[0].initializer) && Number(status[0].initializer.text) >= 400 && Number(status[0].initializer.text) < 500;
+    }
     function canonical(file, symbol) {
       const visited = new Set();
       while (!visited.has(`${file}#${symbol}`)) {
@@ -191,7 +210,21 @@ export function sourceGraph(files) {
           if (name && !shadowed.has(name)) {
             const binding = sourceModule.imports.get(name);
             const target = binding ? canonical(binding.file, binding.symbol === "*" && ts.isPropertyAccessExpression(callee) ? callee.name.text : binding.symbol) : canonical(file, name);
-            if (target.file === "src/lib/security/api-guard.ts" && target.symbol === "withApiGuard") {
+            if (`${target.file}#${target.symbol}` === webOriginPredicate) {
+              // This boolean predicate grants nothing when merely called. Only
+              // the BFF's direct if (!predicate(...)) -> unconditional 4xx/throw
+              // shape is recognized; unknown and nested conditions get no credit.
+              const negation = current.parent, statement = negation?.parent, caps = new Set();
+              let locallyShadowed = shadowed.has("Response") || sourceModule.imports.has("Response") || sourceModule.declarations.has("Response");
+              function checkBinding(item) {
+                if (ts.isVariableDeclaration(item) && bindings(item.name).some(binding => binding === name || binding === "Response") || (ts.isFunctionDeclaration(item) || ts.isClassDeclaration(item)) && item.name && [name, "Response"].includes(item.name.text)) locallyShadowed = true;
+                ts.forEachChild(item, checkBinding);
+              }
+              if (node.body) checkBinding(node.body);
+              if (!locallyShadowed && file === entry && handlers.has(node) && ts.isPrefixUnaryExpression(negation) && negation.operator === ts.SyntaxKind.ExclamationToken && ts.isIfStatement(statement) && statement.expression === negation && statement.parent === node.body && denies(statement.thenStatement)) caps.add("origin");
+              const previous = found.get(webOriginPredicate);
+              found.set(webOriginPredicate, previous ? new Set([...previous].filter(control => caps.has(control))) : caps);
+            } else if (target.file === "src/lib/security/api-guard.ts" && target.symbol === "withApiGuard") {
               // This wrapper's optional branches are evaluated from this call's
               // options. Do not traverse its implementation and credit disabled
               // auth/rate/origin branches as unconditional caller guarantees.

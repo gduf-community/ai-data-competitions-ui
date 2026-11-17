@@ -46,7 +46,7 @@ export default async function ManageClubContentsPage({
         }
       />
       {session?.user.roles.some(role => role === "super_admin" || role === "temporary_admin") ? <Link href={`/admin/clubs/${clubSlug}/settings`} className="text-sm underline">联系方式设置</Link> : null}
-      <ClubContentManageList clubId={clubSlug} contents={contents} />
+      <ClubContentManageList key={clubSlug} clubId={clubSlug} contents={contents} />
     </div>
   );
 }

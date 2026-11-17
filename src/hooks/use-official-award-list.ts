@@ -13,9 +13,11 @@ type ListResult = {
   message: string;
   /** 该结果对应的数据身份；与当前 identity 不一致时不得展示。 */
   identity: string;
+  requestKey: string;
+  refreshKey: number;
 };
 
-const EMPTY: ListResult = { kind: "ok", data: null, message: "", identity: "" };
+const EMPTY: ListResult = { kind: "ok", data: null, message: "", identity: "", requestKey: "", refreshKey: -1 };
 
 /**
  * 列表加载：把结果与 (competitionId, filters, cursor) 绑定。
@@ -28,17 +30,16 @@ export function useOfficialAwardList(
   refreshKey: number,
 ) {
   const [result, setResult] = useState<ListResult>(EMPTY);
-  // 每次拿到新响应就递增，供调用方判断「这是不是我等待的那次刷新」。
-  const [revision, setRevision] = useState(0);
-  const [refreshing, setRefreshing] = useState(true);
+  // Refreshes of the same URL are distinct requests, including before effects commit.
+  const requestKey = JSON.stringify([competitionId, query, identity, refreshKey]);
 
   useEffect(() => {
     if (!competitionId) return;
     let active = true;
     const controller = new AbortController();
+    const owner = { identity, requestKey, refreshKey };
 
     const run = async () => {
-      setRefreshing(true);
       try {
         const response = await fetch(
           `/api/admin/official-awards/competitions/${encodeURIComponent(competitionId)}?${query}`,
@@ -51,14 +52,14 @@ export function useOfficialAwardList(
               kind: "forbidden",
               data: null,
               message: payload.message ?? "你没有查看该比赛获奖名单的权限。",
-              identity,
+              ...owner,
             });
           }
           return;
         }
         if (response.status === 404) {
           if (active) {
-            setResult({ kind: "notfound", data: null, message: "比赛不存在，或该比赛还没有导入官方名单。", identity });
+            setResult({ kind: "notfound", data: null, message: "比赛不存在，或该比赛还没有导入官方名单。", ...owner });
           }
           return;
         }
@@ -69,18 +70,15 @@ export function useOfficialAwardList(
         const payload = parseOfficialAwardList(await response.json());
         if (payload.competitionId !== competitionId) throw new Error("获奖名单响应不属于当前比赛。");
         if (!active) return;
-        setResult({ kind: "ok", data: payload, message: "", identity });
-        setRevision((value) => value + 1);
+        setResult({ kind: "ok", data: payload, message: "", ...owner });
       } catch (cause) {
         if (!active || controller.signal.aborted) return;
         setResult({
           kind: "error",
           data: null,
           message: cause instanceof Error ? cause.message : "加载获奖名单失败",
-          identity,
+          ...owner,
         });
-      } finally {
-        if (active) setRefreshing(false);
       }
     };
 
@@ -89,15 +87,16 @@ export function useOfficialAwardList(
       active = false;
       controller.abort();
     };
-  }, [competitionId, identity, query, refreshKey]);
+  }, [competitionId, identity, query, refreshKey, requestKey]);
 
   const current = result.identity === identity;
   const data = current ? result.data : null;
-  const kind: AwardListKind = current ? result.kind : "ok";
-  const loading = refreshing || !current;
+  const settled = result.requestKey === requestKey;
+  const kind: AwardListKind = settled ? result.kind : "ok";
+  const loading = Boolean(competitionId) && !settled;
 
   return {
-    revision,
+    settledRefreshKey: settled ? result.refreshKey : null,
     loading,
     kind,
     message: current ? result.message : "",

@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { z } from "zod";
 
 // Transport policy only. Identity, authorization and transactions remain in the API.
 export function getTransportConfig() {
@@ -15,6 +16,10 @@ export function getTransportConfig() {
   return { api, web, business, clientIpHeader, serviceToken };
 }
 export type TransportConfig = ReturnType<typeof getTransportConfig>;
+/** Private transport responses use this exact policy; public upstream caching stays separate. */
+export function privateNoStoreHeaders() {
+  return { "Cache-Control": "private, no-store, max-age=0" };
+}
 export function permittedPublicServerRead(pathname: string) {
   const url = new URL(pathname, "http://web.invalid");
   const path = url.pathname;
@@ -28,7 +33,8 @@ export function permittedPublicServerRead(pathname: string) {
 }
 // Browser capabilities are separate from server-only public DTO reads. Every method is explicit.
 // 官方获奖名单的动态段按 UUID 校验，锚定路径且只放开表中方法（#138 修订后的白名单）。
-const AWARD_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+// API 使用 z.uuid()；复用其公开正则，移除首尾锚点后嵌入已有锚定路径。
+const AWARD_UUID = z.regexes.uuid().source.slice(1, -1);
 const HOF_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const browserApiPolicy: Array<{ path: RegExp; methods: string[]; public?: boolean }> = [
   { path: /^\/api\/notices\/published$/, methods: ["GET", "HEAD"], public: true },

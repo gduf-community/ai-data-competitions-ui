@@ -9,7 +9,7 @@ import { usePublishedNotices } from "@/components/notifications/notice-popup";
 import {
   getReadNoticeIds,
   markNoticeRead,
-  replaceReadNoticeIdsFromServer,
+  mergeReadNoticeIdsFromServer,
   NOTICE_READ_EVENT,
 } from "@/lib/notice-read-state";
 import { formatNoticeDate } from "@/lib/notice-format";
@@ -48,7 +48,7 @@ export function NotificationBell() {
         setUserId(sessionUser?.id ?? null);
         if (sessionUser?.id && readResponse?.ok) {
           const readPayload = (await readResponse.json()) as { noticeIds?: string[] };
-          replaceReadNoticeIdsFromServer(
+          mergeReadNoticeIdsFromServer(
             readPayload.noticeIds ?? [],
             sessionUser.id,
           );

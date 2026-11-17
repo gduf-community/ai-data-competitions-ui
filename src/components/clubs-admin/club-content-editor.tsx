@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Send } from "lucide-react";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RichTextField } from "@/components/forms/rich-text-field";
 import { ClubCoverUploadField } from "@/components/clubs-admin/club-cover-upload-field";
+import { RichTextContent } from "@/components/shared/rich-text-content";
 import {
   Form,
   FormControl,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { fetchWithCsrf } from "@/lib/security/csrf-client";
 import { confirmI18n } from "@/lib/i18n/client";
+import { sanitizeRichTextHtml } from "@/lib/security/html-sanitize";
 
 const CONTENT_TYPE_OPTIONS = [
   { value: "recruitment", label: "招新信息" },
@@ -109,24 +111,45 @@ export function ClubContentEditor({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  const submittingRef = useRef(false);
+  const coverUploadingRef = useRef(false);
+  const mountedRef = useRef(true);
   const savedRef = useRef({ id: contentId, revision: initialRevision });
   const commandRef = useRef<string | null>(null);
   const pendingPublishRef = useRef<string | null>(null);
+  const conflictRef = useRef(false);
+  const conflictRequestRef = useRef<AbortController | null>(null);
+  const [versionConflict, setVersionConflict] = useState(false);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const [savedStatus, setSavedStatus] = useState(initialStatus);
+  const [hasSavedContent, setHasSavedContent] = useState(Boolean(contentId));
+  const [latestContent, setLatestContent] = useState<{ revision: number; status: string; values: FormValues } | null>(null);
+  const [editorVersion, setEditorVersion] = useState(0);
+  const [initialValues] = useState(() => ({
+    ...defaultValues,
+    recruitmentStartAt: toDatetimeLocalValue(defaultValues.recruitmentStartAt),
+    recruitmentEndAt: toDatetimeLocalValue(defaultValues.recruitmentEndAt),
+    eventStartAt: toDatetimeLocalValue(defaultValues.eventStartAt),
+    eventEndAt: toDatetimeLocalValue(defaultValues.eventEndAt),
+  }));
+  const baselineRef = useRef(initialValues);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      conflictRequestRef.current?.abort();
+    };
+  }, []);
 
   const form = useForm<FormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
-      ...defaultValues,
-      recruitmentStartAt: toDatetimeLocalValue(defaultValues.recruitmentStartAt),
-      recruitmentEndAt: toDatetimeLocalValue(defaultValues.recruitmentEndAt),
-      eventStartAt: toDatetimeLocalValue(defaultValues.eventStartAt),
-      eventEndAt: toDatetimeLocalValue(defaultValues.eventEndAt),
-    },
+    defaultValues: initialValues,
   });
 
-  const contentType = useWatch({ control: form.control, name: "contentType" });
-  const coverImage = useWatch({ control: form.control, name: "coverImage" });
+  const watchedValues = useWatch({ control: form.control });
+  const contentType = watchedValues.contentType;
+  const coverImage = watchedValues.coverImage ?? null;
   useEffect(() => {
     if (!form.formState.isDirty || submitting) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -135,9 +158,9 @@ export function ClubContentEditor({
   }, [form.formState.isDirty, submitting]);
 
   const canSubmitAfterSave =
-    mode === "create" ||
-    initialStatus === "draft" ||
-    initialStatus === "offline";
+    (!hasSavedContent && mode === "create") ||
+    savedStatus === "draft" ||
+    savedStatus === "offline";
 
   function buildPayload(values: FormValues) {
     const base = {
@@ -168,7 +191,8 @@ export function ClubContentEditor({
   }
 
   async function save(values: FormValues, submitAfterSave: boolean) {
-    if (coverUploading || submitting) return;
+    if (coverUploading || submitting || coverUploadingRef.current || submittingRef.current || conflictRef.current || !mountedRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const payload = buildPayload(values);
@@ -183,34 +207,60 @@ export function ClubContentEditor({
           body: JSON.stringify({ commandId: commandRef.current, contentType: values.contentType, ...payload }),
         });
         const body = await res.json().catch(() => ({}));
+        if (!mountedRef.current) return;
         if (!res.ok) {
           if (body.field === "coverImage") {
             form.setError("coverImage", { message: body.message });
             document.getElementById("club-cover-upload")?.focus();
           }
+          if (res.status === 409 && body.code === "VERSION_CONFLICT") {
+            // commandId is the content ID. A lost creation response can be recovered
+            // without creating a second draft or borrowing another editor's revision.
+            savedRef.current = { id: commandRef.current ?? undefined, revision: undefined };
+            setHasSavedContent(true);
+            conflictRef.current = true;
+            setVersionConflict(true);
+            setLatestContent(null);
+          }
           throw new Error(body.message ?? "创建失败");
         }
+        if (typeof body.data?.id !== "string" || !Number.isInteger(body.data?.revision) || body.data.revision < 1) throw new Error("创建响应缺少有效内容或版本，请重试。");
         savedId = body.data?.id;
         savedRef.current = { id: savedId, revision: body.data?.revision };
+        setHasSavedContent(true);
+        setSavedStatus(body.data?.status ?? "draft");
       } else if (!samePendingPublish) {
+        const previousPayload: Record<string, unknown> = buildPayload(baselineRef.current);
+        const changedPayload = Object.fromEntries(Object.entries(payload)
+          .filter(([field, value]) => value !== previousPayload[field]));
         const res = await fetchWithCsrf(
           `/api/admin/clubs/${clubId}/contents/${savedId}`,
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...payload, expectedRevision: savedRef.current.revision }),
+            body: JSON.stringify({ ...changedPayload, expectedRevision: savedRef.current.revision }),
           },
         );
         const body = await res.json().catch(() => ({ message: "保存失败" }));
+        if (!mountedRef.current) return;
         if (!res.ok) {
           if (body.field === "coverImage") {
             form.setError("coverImage", { message: body.message });
             document.getElementById("club-cover-upload")?.focus();
           }
-          throw new Error(body.code === "VERSION_CONFLICT" ? "内容已被更新，请保留当前编辑并重新加载核对。" : body.message);
+          if (body.code === "VERSION_CONFLICT") {
+            conflictRef.current = true;
+            setVersionConflict(true);
+            setLatestContent(null);
+          }
+          throw new Error(body.code === "VERSION_CONFLICT" ? "内容已被更新，请读取最新内容并核对。" : body.message);
         }
+        if (!Number.isInteger(body.data?.revision) || body.data.revision < 1) throw new Error("保存响应缺少有效版本，请重试并核对最新内容。");
         savedRef.current = { id: savedId, revision: body.data?.revision };
       }
+      baselineRef.current = { ...values };
+      // A different successful save makes the previous publish shortcut stale.
+      if (!samePendingPublish) pendingPublishRef.current = null;
 
       if (submitAfterSave && savedId) {
         pendingPublishRef.current = JSON.stringify(payload);
@@ -218,10 +268,17 @@ export function ClubContentEditor({
           `/api/admin/clubs/${clubId}/contents/${savedId}/publish`,
           { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedRevision: savedRef.current.revision }) },
         );
+        if (!mountedRef.current) return;
         if (!submitRes.ok) {
           const body = await submitRes
             .json()
             .catch(() => ({ message: "发布失败" }));
+          if (!mountedRef.current) return;
+          if (body.code === "VERSION_CONFLICT") {
+            conflictRef.current = true;
+            setVersionConflict(true);
+            setLatestContent(null);
+          }
           throw new Error(body.message);
         }
         toast.success("已发布");
@@ -232,13 +289,75 @@ export function ClubContentEditor({
       router.push(`/admin/clubs/${clubId}/contents`);
       router.refresh();
     } catch (error) {
+      if (!mountedRef.current) return;
       const message = error instanceof Error ? error.message : "操作失败";
       form.setError("root", { message });
       toast.error(message);
     } finally {
-      setSubmitting(false);
+      submittingRef.current = false;
+      if (mountedRef.current) setSubmitting(false);
     }
   }
+
+  async function loadLatestContent() {
+    if (!savedRef.current.id || conflictRequestRef.current || submittingRef.current) return;
+    const request = new AbortController();
+    conflictRequestRef.current = request;
+    setConflictLoading(true);
+    setLatestContent(null);
+    try {
+      const res = await fetchWithCsrf(`/api/admin/clubs/${clubId}/contents/${savedRef.current.id}`, { signal: request.signal });
+      const body = await res.json();
+      if (!mountedRef.current || request.signal.aborted) return;
+      if (!res.ok) throw new Error(body.message ?? "读取最新内容失败，请重试。");
+      if (body.canEdit !== true) throw new Error("该内容当前不可编辑。当前输入已保留，请联系社团管理人员核对。");
+      const data = body.data;
+      if (!Number.isInteger(data?.revision) || data.revision < 1) throw new Error("最新内容缺少有效版本，请重试。");
+      setLatestContent({
+        revision: data.revision, status: data.status,
+        values: {
+          contentType: data.contentType, title: data.title, content: data.content, coverImage: data.coverImage,
+          recruitmentStartAt: toDatetimeLocalValue(data.recruitmentStartAt ?? ""),
+          recruitmentEndAt: toDatetimeLocalValue(data.recruitmentEndAt ?? ""), registrationUrl: data.registrationUrl ?? "",
+          eventStartAt: toDatetimeLocalValue(data.eventStartAt ?? ""), eventEndAt: toDatetimeLocalValue(data.eventEndAt ?? ""),
+          eventLocation: data.eventLocation ?? "",
+        },
+      });
+    } catch (error) {
+      if (mountedRef.current && !request.signal.aborted) form.setError("root", { message: error instanceof Error ? error.message : "读取最新内容失败，请重试。" });
+    } finally {
+      if (conflictRequestRef.current === request) conflictRequestRef.current = null;
+      if (mountedRef.current && !request.signal.aborted) setConflictLoading(false);
+    }
+  }
+
+  function acceptLatestContent() {
+    if (!latestContent || conflictLoading || submittingRef.current || !mountedRef.current) return;
+    if (!confirmI18n("已核对两份内容？将保留你尚未保存的修改，并更新未修改字段；双方修改的同一字段会保留你的输入。再次保存前请确认这些内容。")) return;
+    const local = form.getValues();
+    for (const field of Object.keys(latestContent.values) as Array<keyof FormValues>) {
+      if (field === "contentType" || local[field] === baselineRef.current[field]) {
+        form.setValue(field, latestContent.values[field], { shouldDirty: true, shouldValidate: true });
+      }
+    }
+    baselineRef.current = latestContent.values;
+    savedRef.current = { ...savedRef.current, revision: latestContent.revision };
+    pendingPublishRef.current = null;
+    setSavedStatus(latestContent.status);
+    conflictRef.current = false;
+    setVersionConflict(false);
+    setLatestContent(null);
+    setEditorVersion(version => version + 1);
+    form.clearErrors("root");
+  }
+
+  const conflictLabels: Record<keyof FormValues, string> = {
+    contentType: "内容类型", title: "标题", content: "正文", coverImage: "封面图",
+    recruitmentStartAt: "报名开始时间", recruitmentEndAt: "报名截止时间", registrationUrl: "报名链接",
+    eventStartAt: "活动开始时间", eventEndAt: "活动结束时间", eventLocation: "活动地点",
+  };
+  const conflictDifferences = latestContent ? (Object.keys(latestContent.values) as Array<keyof FormValues>)
+    .filter(field => watchedValues[field] !== latestContent.values[field]) : [];
 
   return (
     <div className="space-y-6">
@@ -270,7 +389,7 @@ export function ClubContentEditor({
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={mode === "edit" || Boolean(savedRef.current.id)}
+                      disabled={mode === "edit" || hasSavedContent}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -285,7 +404,7 @@ export function ClubContentEditor({
                         ))}
                       </SelectContent>
                     </Select>
-                    {mode === "edit" || savedRef.current.id ? (
+                    {mode === "edit" || hasSavedContent ? (
                       <p className="text-xs text-muted-foreground">
                         内容类型创建后不可修改。
                       </p>
@@ -402,9 +521,10 @@ export function ClubContentEditor({
 
               <div className="sm:col-span-2">
                 <ClubCoverUploadField
+                  key={`${clubId}:${contentId ?? "new"}`}
                   clubId={clubId}
                   value={coverImage}
-                  onUploadingChange={setCoverUploading}
+                  onUploadingChange={uploading => { coverUploadingRef.current = uploading; setCoverUploading(uploading); }}
                   error={form.formState.errors.coverImage?.message}
                   onChange={(url) =>
                     form.setValue("coverImage", url, { shouldDirty: true, shouldValidate: true })
@@ -431,7 +551,7 @@ export function ClubContentEditor({
                         description="支持段落、列表与链接。"
                         value={field.value}
                         onChange={field.onChange}
-                        editorKey={contentId ?? "new"}
+                        editorKey={`${contentId ?? "new"}:${editorVersion}`}
                       />
                     </FormControl>
                     <FormMessage />
@@ -442,20 +562,39 @@ export function ClubContentEditor({
           </Card>
 
           {form.formState.errors.root ? <p role="alert" className="text-sm text-destructive">{form.formState.errors.root.message} 编辑内容已保留。</p> : null}
+          {versionConflict ? (
+            <section className="space-y-3 rounded-lg border border-border p-4" aria-label="内容冲突核对">
+              <p className="text-sm">当前输入已保留。先读取最新内容核对，再继续保存。</p>
+              <Button type="button" variant="outline" loading={conflictLoading} disabled={conflictLoading} onClick={() => void loadLatestContent()}>读取最新内容</Button>
+              {latestContent ? <>
+                <p className="text-sm">以下字段与最新内容不同。继续后保留你尚未保存的修改，未修改字段使用最新内容；同一字段双方都修改时会保留你的输入，请逐项核对。内容类型以已创建内容为准。</p>
+                {conflictDifferences.length === 0 ? <p className="text-sm">当前输入与最新内容一致。</p> : conflictDifferences.map(field => (
+                  <div key={field} className="space-y-2 border-t border-border pt-3">
+                    <h2 className="text-sm font-medium">{conflictLabels[field]}</h2>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div><p className="text-xs font-medium">当前输入</p>{field === "content" ? <RichTextContent html={sanitizeRichTextHtml(watchedValues.content ?? "")} /> : <p className="break-all text-sm">{watchedValues[field] || "（空）"}</p>}</div>
+                      <div><p className="text-xs font-medium">最新内容</p>{field === "content" ? <RichTextContent html={sanitizeRichTextHtml(latestContent.values.content)} /> : <p className="break-all text-sm">{latestContent.values[field] || "（空）"}</p>}</div>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" onClick={acceptLatestContent}>已核对，合并后继续编辑</Button>
+              </> : null}
+            </section>
+          ) : null}
           <div className="flex gap-2">
             <Button loading={submitting}
               type="button"
               variant="outline"
-              disabled={submitting || coverUploading}
+              disabled={submitting || coverUploading || versionConflict}
               onClick={event => { void form.handleSubmit(values => save(values, false))(event); }}
             >
               <Save className="mr-1 size-4" />
-              {submitting ? "保存中..." : initialStatus === "published" ? "保存并更新公开内容" : "保存"}
+              {submitting ? "保存中..." : savedStatus === "published" ? "保存并更新公开内容" : "保存"}
             </Button>
             {canSubmitAfterSave ? (
               <Button loading={submitting}
                 type="button"
-                disabled={submitting || coverUploading}
+                disabled={submitting || coverUploading || versionConflict}
                 onClick={event => { void form.handleSubmit(values => save(values, true))(event); }}
               >
                 <Send className="mr-1 size-4" />
