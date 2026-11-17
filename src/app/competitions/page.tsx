@@ -50,6 +50,10 @@ export default async function CompetitionsPage({ searchParams }: {
   }>("/api/competitions?" + query); }
   catch (error) { if (!(error instanceof WebApiError)) throw error; return <main role="alert" className="p-8"><p>{error.publicMessage}</p><Link href={"/competitions?" + urlParams}>重试搜索</Link> · <Link href="/competitions">重置搜索</Link></main>; }
   const { competitions, total, years } = result;
+  // The API returns year buckets newest first; the filter chips read as a
+  // timeline, so render them oldest first. The default selected year above
+  // still comes from the latest bucket.
+  const yearOptions = [...years].sort((a, b) => a.year - b.year);
   const href = (nextPage: number, nextYear = year) => {
     const navigation = serializeSearchQuery({ ...search, page: nextPage }, urlParams);
 
@@ -68,7 +72,7 @@ export default async function CompetitionsPage({ searchParams }: {
           <div className="mx-auto max-w-7xl space-y-8">
             <PageHeader eyebrow="Competitions" title="比赛列表" description="按年份、报名状态和关键词浏览比赛，支持模糊与完整匹配，按年份和状态筛选。" />
             <nav aria-label="比赛年份" className="flex flex-wrap gap-3 border-t border-border/70 pt-6">
-              {years.map(item => (
+              {yearOptions.map(item => (
                 <Link key={item.year ?? "all"} href={href(1, item.year)} aria-current={year === item.year ? "page" : undefined}
                   className={`rounded-full border px-4 py-2 text-sm transition-colors ${year === item.year ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:border-primary/40"}`}>
                   {item.year} 年<span className="ml-2 text-xs opacity-80">{item.total}</span>
