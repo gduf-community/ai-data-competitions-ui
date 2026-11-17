@@ -79,11 +79,12 @@ export async function listAwardCompetitionsByYear(year: number) {
   if (data.year !== year) throw new Error("Invalid award year response");
   return data;
 }
-export async function listAwardsByCompetition(year: number, competitionId: string, options: { cursor?: string; page?: number } = {}) {
-  const query = options.cursor !== undefined
-    ? `?cursor=${encodeURIComponent(options.cursor)}`
-    : options.page !== undefined ? `?page=${options.page}` : "";
-  const payload = await readOptionalAPI(`/api/awards/years/${year}/${id(competitionId)}${query}`);
+export async function listAwardsByCompetition(year: number, competitionId: string, options: { cursor?: string; page?: number; levels?: string[] } = {}) {
+  const params = new URLSearchParams();
+  if (options.cursor !== undefined) params.set("cursor", options.cursor);
+  else if (options.page !== undefined) params.set("page", String(options.page));
+  for (const level of options.levels ?? []) params.append("levels", level);
+  const payload = await readOptionalAPI(`/api/awards/years/${year}/${id(competitionId)}${params.size ? `?${params}` : ""}`);
   if (!payload) return null;
   const data = awardCompetitionCertificatesSchema.parse(payload);
   if (data.year !== year || data.competitionId !== competitionId) throw new Error("Invalid award competition response");

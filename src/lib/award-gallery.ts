@@ -9,8 +9,9 @@ export function permittedAwardGalleryServerRead(pathname: string) {
 }
 
 export const MAX_AWARD_PAGE_NUMBER = 10000;
+export const MAX_AWARD_LEVEL_FILTERS = 30;
 
-export function galleryHref(selection: { year?: number; competition?: string; cursor?: string; page?: number }) {
+export function galleryHref(selection: { year?: number; competition?: string; cursor?: string; page?: number; levels?: string[] }) {
   if (selection.year === undefined) {
     if (selection.competition) throw new Error("A competition requires a year");
     return "/awards";
@@ -21,14 +22,20 @@ export function galleryHref(selection: { year?: number; competition?: string; cu
   const competitionId = parseAwardCompetitionId(selection.competition);
   if (!competitionId) throw new Error("Invalid award competition");
   if (selection.cursor && selection.page !== undefined) throw new Error("A page selection cannot include a cursor");
-  const base = `/awards/year/${year}/${competitionId}`;
-  if (selection.cursor) return `${base}?cursor=${encodeURIComponent(selection.cursor)}`;
-  if (selection.page !== undefined) {
+  if (selection.levels && selection.levels.length > MAX_AWARD_LEVEL_FILTERS) throw new Error("Too many award level filters");
+  const params = new URLSearchParams();
+  if (selection.cursor) params.set("cursor", selection.cursor);
+  else if (selection.page !== undefined) {
     if (!Number.isInteger(selection.page) || selection.page < 1 || selection.page > MAX_AWARD_PAGE_NUMBER) throw new Error("Invalid award page number");
-    // Page one keeps the canonical URL without a query string.
-    if (selection.page > 1) return `${base}?page=${selection.page}`;
+    // Page one keeps the canonical URL without a page parameter.
+    if (selection.page > 1) params.set("page", String(selection.page));
   }
-  return base;
+  for (const level of selection.levels ?? []) {
+    if (!level.trim() || [...level].length > 120 || level.includes("\0")) throw new Error("Invalid award level filter");
+    params.append("levels", level);
+  }
+  const base = `/awards/year/${year}/${competitionId}`;
+  return params.size ? `${base}?${params}` : base;
 }
 
 // Unknown fields are stripped before public API responses cross the RSC/client boundary.

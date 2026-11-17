@@ -7,6 +7,9 @@ import { GalleryAction, GalleryFrame } from "./frame";
 const pageChip = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3 text-sm tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 const inactiveChip = `${pageChip} border-border bg-background text-foreground hover:border-primary/40`;
 const activeChip = `${pageChip} border-primary bg-primary font-semibold text-primary-foreground`;
+const levelChip = "inline-flex min-h-10 items-center rounded-full border px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+const levelOn = `${levelChip} border-primary bg-primary/10 font-medium text-primary`;
+const levelOff = `${levelChip} border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground`;
 
 /** First, last, and a window around the current page; gaps collapse to an ellipsis. */
 export function awardPageItems(current: number, total: number): (number | "gap")[] {
@@ -21,10 +24,20 @@ export function awardPageItems(current: number, total: number): (number | "gap")
   return items;
 }
 
-export function AwardCompetition({ data }: { data: AwardCompetitionCertificates }) {
-  const selection = { year: data.year, competition: data.competitionId };
+export function AwardCompetition({ data, selectedLevels }: { data: AwardCompetitionCertificates; selectedLevels?: string[] }) {
+  const allLevels = data.levels.map(level => level.level);
+  // No `levels` parameter means every level is selected.
+  const selected = selectedLevels?.length ? allLevels.filter(level => selectedLevels.includes(level)) : allLevels;
+  const filterActive = (selectedLevels?.length ?? 0) > 0;
+  const filteredCount = data.levels.filter(level => selected.includes(level.level)).reduce((sum, level) => sum + level.certificateCount, 0);
+  const selection = { year: data.year, competition: data.competitionId, levels: filterActive ? selected : undefined };
   const currentPage = data.page.pageNumber ?? null;
   const pageCount = data.page.pageCount ?? null;
+  const toggleHref = (level: string) => {
+    const next = selected.includes(level) ? selected.filter(item => item !== level) : allLevels.filter(item => selected.includes(item) || item === level);
+    // Selecting every level again drops the parameter, restoring the default-all view.
+    return galleryHref({ year: data.year, competition: data.competitionId, levels: next.length === allLevels.length ? undefined : next });
+  };
   const groups: { level: string; start: number; awards: PublicGalleryCertificate[] }[] = [];
   // Keep API order. Even older API responses with interleaved levels keep their cursor order.
   for (const [index, award] of data.awards.entries()) {
@@ -43,14 +56,27 @@ export function AwardCompetition({ data }: { data: AwardCompetitionCertificates 
       <div className="space-y-8">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            已公开<span className="whitespace-nowrap">{data.certificateCount}份</span>获奖证书，本页<span className="whitespace-nowrap">{data.awards.length}份</span>。
+            已公开<span className="whitespace-nowrap">{data.certificateCount}份</span>获奖证书，
+            {filterActive && <>当前筛选<span className="whitespace-nowrap">{filteredCount}份</span>，</>}
+            本页<span className="whitespace-nowrap">{data.awards.length}份</span>。
           </p>
-          <ul aria-label="全赛事奖项等级统计" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            {data.levels.map(level => (
-              <li key={level.level} className="min-w-0 break-words">
-                {level.level} <span className="whitespace-nowrap">{level.certificateCount}份</span>
-              </li>
-            ))}
+          <ul aria-label="按奖项等级筛选" className="flex flex-wrap gap-2">
+            {data.levels.map(({ level, certificateCount }) => {
+              const isOn = selected.includes(level);
+              return (
+                <li key={level} className="min-w-0 break-words">
+                  <Link
+                    prefetch={false}
+                    aria-current={isOn ? "true" : undefined}
+                    title={isOn ? `取消筛选${level}` : `筛选${level}`}
+                    className={isOn ? levelOn : levelOff}
+                    href={toggleHref(level)}
+                  >
+                    {level}<span className="ml-2 text-xs tabular-nums opacity-75">{certificateCount}份</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
         {!data.awards.length && (
@@ -97,8 +123,9 @@ export function AwardCompetition({ data }: { data: AwardCompetitionCertificates 
               ) : (
                 <span aria-disabled="true" className={`${pageChip} border-border text-muted-foreground opacity-50`}>下一页</span>
               )}
-              <span className="text-sm text-muted-foreground">【{currentPage}】/{pageCount}页</span>
-              <form action={galleryHref(selection)} method="get" className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{currentPage}/{pageCount}页</span>
+              <form action={galleryHref({ year: data.year, competition: data.competitionId })} method="get" className="flex items-center gap-2">
+                {filterActive && selected.map(level => <input key={level} type="hidden" name="levels" value={level} />)}
                 <label htmlFor="award-page-jump" className="text-sm text-muted-foreground">跳转</label>
                 <input
                   id="award-page-jump"
