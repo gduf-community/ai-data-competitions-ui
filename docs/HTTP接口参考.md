@@ -13,7 +13,11 @@
 
 更正 PATCH 使用 `{expectedVersion,reason,fields,members,advisors}`，成员为 operation=create/update/remove 命令；更新只发送用户实际更改的字段，新增用 officialName，展示名更新用 displayName。老师的完整目标列表使用 decision=manual/displayName，既有老师保留 advisorId，新老师省略 ID；省略未修改的学院可保留服务端快照。409 等到新响应返回后再启用提交，基线/草稿/最新版三方比较保留并发新增与未改字段，同名老师按 ID 区分。
 
+409 的回填绑定本次 refreshKey，旧列表响应不能解除等待；读取失败或记录离开筛选时保留输入并禁写，可重试读取。选择「载入最新值」也会更新比较基线，并保留更正原因。更正/撤销在同一事件内也只发送一个命令；切记录/关闭后的晚到结果不能关闭新弹窗。取消浏览器请求不撤销服务器已经完成的事务，失败后不自动重试写入。
+
 官方获奖导出在 BFF 转发前验证 MIME、规范 Content-Disposition 与起始签名（CSV UTF-8 BOM / XLSX ZIP local header）。仅预读签名所需前缀，原字节依序转发，失败或取消会取消上游；不读取整份文件，也不据此证明 ZIP 完整性或内容语义。
+
+官方名单和本人奖状成员的动态 UUID 段使用 Zod 的 RFC 9562 正则，与 API 的 `z.uuid()` 输入域一致（大小写、v1–8、nil/max）。路径和方法仍逐项白名单，业务接口仍要求 trusted；有效 UUID 不代表对象存在或已获授权。
 
 源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，配套 API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
 
@@ -195,6 +199,8 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 `coverImage` 必须是实际上传并经 API 对象归属/可读/解码校验的资源。PATCH 省略时保留既有有效封面，null/空串不能清空；上传进行中禁止按钮和键盘提交。可选时间用 ISO 字符串或 null，开始不得晚于结束；报名外链为 https。图集/正文中的图片也由 API 对合并后的内容校验。
 
 保存/发布顺序：POST 创建得到 ID/revision → 必要时 PATCH 得到新 revision → POST publish 携带该 revision。已发布内容 PATCH 保持公开；已下线内容保存仍私有，重新公开须显式 publish。发布失败保留已存草稿，原样重试可只重试 publish，避免重复创建。409 `VERSION_CONFLICT` 保留用户输入并要求重新读取核对；422 可带 `field=coverImage`。
+
+第五轮配对 API 收紧创建重放：同 commandId、同请求仅在原记录仍为 revision=1 的 draft 时返回原记录；后续编辑/发布后重放返回 409，Web 用 commandId（即内容 ID）读取最新版并核对，不自动换 ID 重建。创建/保存/状态命令返回本次事务快照，不能在 COMMIT 后补读他人版本。Web 409 读取 GET 的 `{data,canEdit}`，只在可编辑、版本有效且用户明确核对后更新本地 revision；重基保留未保存修改、吸收未编辑字段，之后 PATCH 只发送差异。读取失败保留全部输入，可再读；核对后又有并发仍须 409。字段、路径和 DTO 不变，创建重放条件收紧需要配对集成。
 
 旧 `/api/me/clubs/...` 仍有兼容读取/写路由，但 Web 新流程使用 admin 工作台。submit/withdraw 与旧治理 review 在鉴权后返回 410 `WORKFLOW_RETIRED`；旧社团管理员 POST/DELETE 绑定返回 410 `ASSIGNMENT_ENTRY_RETIRED`。`/api/me/clubs/[slug]/contents/[id]/publish` 虽在 API 存在，浏览器策略不开放；使用 admin publish。不要把 BFF 允许转发退役方法解读为功能仍可用。
 
