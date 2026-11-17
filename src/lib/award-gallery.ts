@@ -8,7 +8,9 @@ export function permittedAwardGalleryServerRead(pathname: string) {
   return /^\/api\/awards\/years(?:\/[1-9]\d{3}(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?)?$/.test(new URL(pathname, "http://web.invalid").pathname);
 }
 
-export function galleryHref(selection: { year?: number; competition?: string; cursor?: string }) {
+export const MAX_AWARD_PAGE_NUMBER = 10000;
+
+export function galleryHref(selection: { year?: number; competition?: string; cursor?: string; page?: number }) {
   if (selection.year === undefined) {
     if (selection.competition) throw new Error("A competition requires a year");
     return "/awards";
@@ -18,7 +20,15 @@ export function galleryHref(selection: { year?: number; competition?: string; cu
   if (!selection.competition) return `/awards/year/${year}`;
   const competitionId = parseAwardCompetitionId(selection.competition);
   if (!competitionId) throw new Error("Invalid award competition");
-  return `/awards/year/${year}/${competitionId}${selection.cursor ? `?cursor=${encodeURIComponent(selection.cursor)}` : ""}`;
+  if (selection.cursor && selection.page !== undefined) throw new Error("A page selection cannot include a cursor");
+  const base = `/awards/year/${year}/${competitionId}`;
+  if (selection.cursor) return `${base}?cursor=${encodeURIComponent(selection.cursor)}`;
+  if (selection.page !== undefined) {
+    if (!Number.isInteger(selection.page) || selection.page < 1 || selection.page > MAX_AWARD_PAGE_NUMBER) throw new Error("Invalid award page number");
+    // Page one keeps the canonical URL without a query string.
+    if (selection.page > 1) return `${base}?page=${selection.page}`;
+  }
+  return base;
 }
 
 // Unknown fields are stripped before public API responses cross the RSC/client boundary.
@@ -42,5 +52,6 @@ export const awardCompetitionCertificatesSchema = summary.extend({
     id: z.string().uuid(), userName: z.string(), memberNames: z.array(z.string()), competitionTitle: z.string(),
     awardLevel: z.string().nullable(), level: z.string(), imageUrl: z.string(),
   })).max(24),
-  page: z.object({ limit: z.number().int().min(1).max(24), nextCursor: cursor, previousCursor: cursor }),
+  page: z.object({ limit: z.number().int().min(1).max(24), nextCursor: cursor, previousCursor: cursor,
+    pageNumber: z.number().int().positive().nullable().optional(), pageCount: z.number().int().positive().nullable().optional() }),
 });

@@ -31,7 +31,7 @@ export interface AwardCompetitionCertificates extends AwardCompetitionSummary {
   year: number;
   levels: AwardLevelSummary[];
   awards: PublicGalleryCertificate[];
-  page: { limit: number; nextCursor: string | null; previousCursor: string | null };
+  page: { limit: number; nextCursor: string | null; previousCursor: string | null; pageNumber?: number | null; pageCount?: number | null };
 }
 
 export function parseAwardYear(value: string): number | null {

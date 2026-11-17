@@ -79,8 +79,10 @@ export async function listAwardCompetitionsByYear(year: number) {
   if (data.year !== year) throw new Error("Invalid award year response");
   return data;
 }
-export async function listAwardsByCompetition(year: number, competitionId: string, cursor?: string) {
-  const query = cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
+export async function listAwardsByCompetition(year: number, competitionId: string, options: { cursor?: string; page?: number } = {}) {
+  const query = options.cursor !== undefined
+    ? `?cursor=${encodeURIComponent(options.cursor)}`
+    : options.page !== undefined ? `?page=${options.page}` : "";
   const payload = await readOptionalAPI(`/api/awards/years/${year}/${id(competitionId)}${query}`);
   if (!payload) return null;
   const data = awardCompetitionCertificatesSchema.parse(payload);
