@@ -19,7 +19,9 @@
 
 官方名单和本人奖状成员的动态 UUID 段使用 Zod 的 RFC 9562 正则，与 API 的 `z.uuid()` 输入域一致（大小写、v1–8、nil/max）。路径和方法仍逐项白名单，业务接口仍要求 trusted；有效 UUID 不代表对象存在或已获授权。
 
-源码核对：2026-10-15；Web `0b0d594952897ea1d90c39b7afb5b7430571f078`，配套 API `d9a789baed9f45ce033f97da5c627eb4cbcc8dee`。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
+概览/入口核对：2026-11-18，Web main `099da0af7082808bc3b80604844ea27cd30f5ade`、API main `46933d828c3a58fbd12b2712e6ad5a60fde2452d`；历史执行记录保留原版本和日期。本文记录 Web 使用的请求、响应与传输限制；后端内部实现、数据库和运维操作由私有 API 文档维护。示例均为合成数据。
+
+名人堂新邀请/照片/三级展示的Web合同已实现，但API业务PR #205–#210仍开放。以下新字段/路径为配对要求，新增路径在末尾核对表标为“待API合入”；旧API main合同不因此自动升级，三级开关默认关闭。
 
 ## 先选择调用入口
 
@@ -35,9 +37,9 @@
 
 `[id]`、`[slug]` 等是路径占位符，实际请求须编码 ID。表中的 GET 对应 BFF 通常同时允许 HEAD；源站如何生成 HEAD 由对应 GET/框架处理，不代表新增业务操作。OPTIONS 虽由 catch-all 导出，当前策略没有允许项，返回 404。
 
-## 官方获奖正式名单与文件流（API #135 配套）
+## 官方获奖正式名单、更正/撤销与文件流
 
-trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competitions/{competitionId}` 与 `/export`。competitionId为UUID；HEAD/写方法、导入/消歧/确认/汇总等其它路径均未开放，public仍404。API逐请求验证当前用户及同比赛有效授权，菜单或服务Token不授予用户权限。页面/向导由Web #136后续实现，本次只承接正式读取与文件传输。
+trusted BFF当前开放单赛事名单GET、导出GET、单奖项更正PATCH和撤销POST四种精确路径/方法；competitionId与awardId为UUID。HEAD、导入/消歧/确认/汇总等其他路径未开放，public仍404。API逐请求复核当前身份和同比赛有效授权，服务Token不授予用户业务权限。已有单赛事页面，完整导入向导仍待交付。
 
 列表参数为year/level/subTrack/q/sort/cursor/limit；兼容awardYear/levelCode，但别名不能并用，重复/未知参数400。q是字面子串，`%/_/反斜线`不作为通配符。summary中的awardCount/memberCount/verifiedPersonCount/unverifiedMemberCount是当前筛选总量，rowCount是本页奖项数；items一奖一项，含明确学生与老师，老师不计学生人次。未知快照null、学号掩码，同名不推断人物身份。默认limit50、最多100；nextCursor/hasMore只支持按游标前进，换筛选从第一页重查，不提供任意页跳转。
 
@@ -45,7 +47,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 下载先检查状态、Content-Type和Content-Disposition，再消费Response.body/blob；JSON错误不能作为文件。CSV为`text/csv; charset=utf-8`、UTF-8 BOM；XLSX严格为`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`，不接受application/octet-stream。固定文件名`official-awards-{competitionId}-{view}.{format}`，Disposition同时含quoted filename与UTF-8 filename*，API中和所有表格公式文本。BFF在任何文件字节转发前检查协议，MIME/文件名/Disposition异常502；合法文件原样流转并强制private/no-store，保留X-Request-Id。授权/持久审计失败503不出文件；401/403/400/413/429按状态呈现，不自动重试。
 
-本次没有新增环境变量、依赖、页面或数据库访问；开发与后续生产的BFF策略均受影响，生产未部署。两仓PR记录精确配对SHA与真实文件流回归；本地HTTP不等于完整浏览器或线上验收。
+以上是当前Web消费合同；页面实现与文件传输均已进入主线，Web不访问数据库。实际部署版本与生产验收另行记录。两仓PR记录精确配对SHA与真实文件流回归；本地HTTP不等于完整浏览器或线上验收。
 
 ## 请求、会话与错误约定
 
@@ -82,7 +84,10 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | `/api/portal/competitions/[id]` | `{competition: PublicCompetitionDetail}`；不包含报名表与私有行 | 公开比赛详情 |
 | `/api/competitions/[id]/showcase` | `{posts, entries}` | 比赛经验文章与人物展示 |
 | `/api/notices/published` | `limit`；`{notices: PublishedNoticeRecord[]}` | 通知页、导航铃铛、弹窗；导航使用最多 20 条 SSR 记录 |
-| `/api/awards` | `{awards: AwardGalleryRow[]}` | 当前奖状长廊 |
+| `/api/awards` | `{awards: AwardGalleryRow[]}` | 旧兼容长廊读取；A/B/C不使用全量查询 |
+| `/api/awards/years` | `{totals,years}` | A：年度/赛事聚合，无证书图片 |
+| `/api/awards/years/[year]` | `{year,competitionCount,certificateCount,competitions}` | B：年度赛事与等级统计 |
+| `/api/awards/years/[year]/[competitionId]` | 默认/最多24条；`{year,competitionId,competitionTitle,certificateCount,levels,awards,page}` | C：服务端分页；page/兼容cursor互斥，levels/excludeLevels互斥 |
 | `/api/awards/[id]` | `{award: PublicAwardDetail}` | 单张奖状详情 |
 | `/api/hall-of-fame` | 默认返回 `{entries: PublicHallOfFameEntry[]}`；开启 `HALL_OF_FAME_HIERARCHY_ENABLED` 后总览消费 `?view=names`（`PublicHallOfFameNamesOverview`）、详情页消费 `?view=level&level=1|2|3`（`PublicHallOfFameLevelDetail`） | 公开名人堂总览与等级详情页（Web #206） |
 | `/api/profiles/[id]` | `{profile: PublicProfile}`（含正式展示快照 `level/memberStatus/portraitUrl/portraitThumbUrl`、稳定序 `milestones` 与 `experiencePosts`） | 公开人物资料、进阶履历与经验展示页（Web #207） |
@@ -97,7 +102,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 合同中的社团/经验 `Date` 是适配后的本地类型，JSON 时间仍为字符串或 null；`web-data.ts` 显式恢复其日期。其他 DTO 的字符串时间按各自定义消费，不能对整个响应盲目转 Date。
 
-比赛、问答的参数边界、排序、错误码与示例见[搜索协议](./搜索协议.md)。当前 `/awards` 仍读取长廊；年度 A/B/C 路由及聚合接口属于待办，不能据设计任务调用不存在的接口。
+比赛、问答的参数边界、排序、错误码与示例见[搜索协议](./搜索协议.md)。A/B/C已分别消费聚合与最多24条证书分页，旧详情/长廊接口保留；页码、游标、等级筛选及验收见[荣誉计划](./荣誉展示图片加载与分页计划.md)。
 
 ## 登录与注册
 
@@ -312,74 +317,86 @@ await submitQuestionCommand({
 
 ## 完整路径与方法核对表
 
-下表按配套 API 的 109 个 Route 文件核对 Web 策略。它用于查漏与判断可达性，具体参数和响应以上文各模块为准；`—` 表示相应策略不开放。public SSR GET 表示读取白名单匹配，响应格式仍须按合同处理，例如官网跳转不能用 readAPI 当 JSON 解析。HEAD 仅在 BFF 策略允许该 GET 路径时随 GET 透传。可信模式的服务端读取不受 public SSR 白名单限制，但仍受 API 权限与对应方法约束。
+下表核对API main的129个Route文件及Web已消费、API尚待合入的名人堂合同路径。API方法从源码导出核对，BFF能力按当前路径/方法策略读取；标为“待API合入”的行不计入129个主线Route。它用于查漏与判断可达性，具体参数和响应以上文各模块为准；`—` 表示相应策略不开放。public SSR GET 表示读取白名单匹配，响应格式仍须按合同处理，例如官网跳转不能用 readAPI 当 JSON 解析。HEAD 仅在 BFF 策略允许该 GET 路径时随 GET 透传。可信模式的服务端读取不受 public SSR 白名单限制，但仍受 API 权限与对应方法约束。
 
 Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all 视为任意认证路径开放。旧接口退役及服务内部路由在备注中单独标明。
 
 <!-- web-api-route-matrix:start -->
 | API 路径 | API 方法 | trusted 浏览器 BFF | public 浏览器 | public SSR GET | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| `/api/admin/analytics` | GET | GET | — | — |  |
-| `/api/admin/applications` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/applications/[id]` | GET | GET | — | — |  |
+| `/api/admin/analytics` | GET | GET/HEAD | — | — |  |
+| `/api/admin/applications` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/applications/[id]` | GET | GET/HEAD | — | — |  |
 | `/api/admin/applications/[id]/review` | POST | POST | — | — |  |
-| `/api/admin/applications/export` | GET | GET | — | — |  |
-| `/api/admin/award-certificates` | GET | GET | — | — |  |
-| `/api/admin/award-certificates/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
+| `/api/admin/applications/export` | GET | GET/HEAD | — | — |  |
+| `/api/admin/award-certificates` | GET | GET/HEAD | — | — |  |
+| `/api/admin/award-certificates/[id]` | PATCH/DELETE | PATCH/DELETE | — | — |  |
 | `/api/admin/award-certificates/[id]/review` | POST | POST | — | — |  |
-| `/api/admin/clubs` | GET | GET | — | — |  |
-| `/api/admin/clubs/[clubSlug]/admins` | GET/POST | GET/POST | — | — | 旧 POST/DELETE 绑定退役；GET 保留 |
+| `/api/admin/clubs` | GET | GET/HEAD | — | — |  |
+| `/api/admin/clubs/[clubSlug]/admins` | GET/POST | GET/POST/HEAD | — | — | 旧 POST/DELETE 绑定退役；GET 保留 |
 | `/api/admin/clubs/[clubSlug]/admins/[userId]` | DELETE | DELETE | — | — | 旧 POST/DELETE 绑定退役；GET 保留 |
-| `/api/admin/clubs/[clubSlug]/contacts` | GET/PUT | GET/PUT | — | — |  |
-| `/api/admin/clubs/[clubSlug]/contents` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/clubs/[clubSlug]/contents/[id]` | DELETE/GET/PATCH | DELETE/GET/PATCH | — | — |  |
+| `/api/admin/clubs/[clubSlug]/contacts` | GET/PUT | GET/PUT/HEAD | — | — |  |
+| `/api/admin/clubs/[clubSlug]/contents` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/clubs/[clubSlug]/contents/[id]` | GET/PATCH/DELETE | GET/PATCH/DELETE/HEAD | — | — |  |
 | `/api/admin/clubs/[clubSlug]/contents/[id]/archive` | POST | POST | — | — |  |
 | `/api/admin/clubs/[clubSlug]/contents/[id]/offline` | POST | POST | — | — |  |
 | `/api/admin/clubs/[clubSlug]/contents/[id]/publish` | POST | POST | — | — |  |
-| `/api/admin/clubs/contents` | GET | GET | — | — |  |
+| `/api/admin/clubs/contents` | GET | GET/HEAD | — | — |  |
 | `/api/admin/clubs/contents/[id]/archive` | POST | POST | — | — |  |
 | `/api/admin/clubs/contents/[id]/offline` | POST | POST | — | — |  |
 | `/api/admin/clubs/contents/[id]/review` | POST | POST | — | — | 鉴权后 410 WORKFLOW_RETIRED |
-| `/api/admin/competitions` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/competitions/[id]` | DELETE/GET/PATCH | DELETE/GET/PATCH | — | — |  |
-| `/api/admin/dashboard` | GET | GET | — | — |  |
-| `/api/admin/experience-posts` | GET | GET | — | — |  |
+| `/api/admin/competitions` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/competitions/[id]` | GET/PATCH/DELETE | GET/PATCH/DELETE/HEAD | — | — |  |
+| `/api/admin/dashboard` | GET | GET/HEAD | — | — |  |
+| `/api/admin/experience-posts` | GET | GET/HEAD | — | — |  |
 | `/api/admin/experience-posts/[id]/review` | POST | POST | — | — |  |
 | `/api/admin/experience-posts/invite` | POST | POST | — | — |  |
-| `/api/admin/hall-of-fame` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/hall-of-fame/candidates` | GET | GET/HEAD | — | — | 姓名搜索候选（Web #203） |
-| `/api/admin/hall-of-fame/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — | 排除 `candidates`/`photo-requests` 保留字 |
-| `/api/admin/hall-of-fame/[id]/milestones` | POST | POST | — | — | 原子定级与进阶履历（Web #205） |
-| `/api/admin/hall-of-fame/photo-requests` | GET | GET/HEAD | — | — | 待审照片申请分页列表（Web #209） |
-| `/api/admin/hall-of-fame/photo-requests/[id]/preview` | GET | GET/HEAD | — | — | UUID 路径；BFF 强制 `private, no-store` |
-| `/api/admin/hall-of-fame/photo-requests/[id]/review` | POST | POST | — | — | UUID 路径；照片审批通过/驳回（Web #209） |
-| `/api/admin/notices` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/notices/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
-| `/api/admin/search` | GET | GET | — | — |  |
-| `/api/admin/security/access-policy` | GET/PATCH | GET/PATCH | — | — |  |
-| `/api/admin/security/actions` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/security/actions/[id]` | GET | GET | — | — |  |
+| `/api/admin/hall-of-fame` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/hall-of-fame/[id]` | GET/PUT/DELETE | GET/PUT/DELETE/HEAD | — | — | 排除 `candidates`/`photo-requests` 保留字 |
+| `/api/admin/hall-of-fame/[id]/milestones` | POST | POST | — | — | 待API合入（名人堂业务PR #205–#210）；原子定级与进阶履历（Web #205） |
+| `/api/admin/hall-of-fame/candidates` | GET | GET/HEAD | — | — | 待API合入（名人堂业务PR #205–#210）；姓名搜索候选（Web #203） |
+| `/api/admin/hall-of-fame/photo-requests` | GET | GET/HEAD | — | — | 待API合入（名人堂业务PR #205–#210）；待审照片申请分页列表（Web #209） |
+| `/api/admin/hall-of-fame/photo-requests/[id]/preview` | GET | GET/HEAD | — | — | 待API合入（名人堂业务PR #205–#210）；UUID 路径；BFF 强制 `private, no-store` |
+| `/api/admin/hall-of-fame/photo-requests/[id]/review` | POST | POST | — | — | 待API合入（名人堂业务PR #205–#210）；UUID 路径；照片审批通过/驳回（Web #209） |
+| `/api/admin/notices` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/notices/[id]` | PATCH/DELETE | PATCH/DELETE | — | — |  |
+| `/api/admin/official-awards/[awardId]` | PATCH | PATCH | — | — |  |
+| `/api/admin/official-awards/[awardId]/void` | POST | POST | — | — |  |
+| `/api/admin/official-awards/competitions/[competitionId]` | GET | GET | — | — |  |
+| `/api/admin/official-awards/competitions/[competitionId]/export` | GET | GET | — | — |  |
+| `/api/admin/official-awards/imports` | POST | — | — | — |  |
+| `/api/admin/official-awards/imports/[batchId]` | GET | — | — | — |  |
+| `/api/admin/official-awards/imports/[batchId]/commit` | POST | — | — | — |  |
+| `/api/admin/official-awards/imports/[batchId]/rows/[rowId]` | PATCH | — | — | — |  |
+| `/api/admin/official-awards/imports/[batchId]/rows/[rowId]/candidates` | GET | — | — | — |  |
+| `/api/admin/official-awards/persons/[personId]` | GET | — | — | — |  |
+| `/api/admin/official-awards/summary` | GET | — | — | — |  |
+| `/api/admin/official-awards/summary/export` | GET | — | — | — |  |
+| `/api/admin/search` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/access-policy` | GET/PATCH | GET/PATCH/HEAD | — | — |  |
+| `/api/admin/security/actions` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/admin/security/actions/[id]` | GET | GET/HEAD | — | — |  |
 | `/api/admin/security/actions/[id]/execute` | POST | POST | — | — |  |
 | `/api/admin/security/actions/[id]/rollback` | POST | POST | — | — |  |
-| `/api/admin/security/alerts` | GET | GET | — | — |  |
-| `/api/admin/security/alerts/[id]` | GET | GET | — | — |  |
+| `/api/admin/security/alerts` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/alerts/[id]` | GET | GET/HEAD | — | — |  |
 | `/api/admin/security/alerts/[id]/ack` | POST | POST | — | — |  |
 | `/api/admin/security/alerts/[id]/ignore` | POST | POST | — | — |  |
 | `/api/admin/security/alerts/[id]/resolve` | POST | POST | — | — |  |
-| `/api/admin/security/events` | GET | GET | — | — |  |
-| `/api/admin/security/events/[id]` | GET | GET | — | — |  |
-| `/api/admin/security/ip-whitelist` | GET/POST | GET/POST | — | — |  |
+| `/api/admin/security/events` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/events/[id]` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/ip-whitelist` | GET/POST | GET/POST/HEAD | — | — |  |
 | `/api/admin/security/ip-whitelist/[id]` | DELETE | DELETE | — | — |  |
-| `/api/admin/security/situation/events` | GET | GET | — | — |  |
-| `/api/admin/security/situation/live` | GET | GET | — | — |  |
-| `/api/admin/security/situation/map` | GET | GET | — | — |  |
-| `/api/admin/security/situation/overview` | GET | GET | — | — |  |
-| `/api/admin/users` | GET | GET | — | — |  |
-| `/api/admin/users/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
+| `/api/admin/security/situation/events` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/situation/live` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/situation/map` | GET | GET/HEAD | — | — |  |
+| `/api/admin/security/situation/overview` | GET | GET/HEAD | — | — |  |
+| `/api/admin/users` | GET | GET/HEAD | — | — |  |
+| `/api/admin/users/[id]` | PATCH/DELETE | PATCH/DELETE | — | — |  |
 | `/api/applications` | POST | POST | — | — |  |
 | `/api/applications/[id]` | PUT | PUT | — | — |  |
 | `/api/applications/[id]/withdraw` | POST | POST | — | — |  |
-| `/api/auth/[...nextauth]` | GET/POST | 见认证节 | — | — | 按认证节具体子路径；动态 GET/POST 非任意路径放行 |
+| `/api/auth/[...nextauth]` | GET/POST | 见认证节 | — | — | 按认证节具体子路径/方法；动态 GET/POST 非任意路径放行 |
 | `/api/auth/forgot-password` | POST | POST | — | — |  |
 | `/api/auth/register` | POST | POST | — | — |  |
 | `/api/auth/register/send-code` | POST | POST | — | — |  |
@@ -387,53 +404,61 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/auth/reset-password` | POST | POST | — | — |  |
 | `/api/awards` | GET | — | — | 是 |  |
 | `/api/awards/[id]` | GET | — | — | 是 |  |
+| `/api/awards/years` | GET | — | — | 是 |  |
+| `/api/awards/years/[year]` | GET | — | — | 是 |  |
+| `/api/awards/years/[year]/[competitionId]` | GET | — | — | 是 |  |
 | `/api/clubs` | GET | — | — | — | 当前 Web 总览使用静态配置 |
 | `/api/clubs/[slug]` | GET | — | — | 是 |  |
 | `/api/clubs/[slug]/contents` | GET | — | — | 是 |  |
 | `/api/clubs/[slug]/contents/[id]` | GET | — | — | 是 |  |
 | `/api/competitions` | GET | — | — | 是 |  |
 | `/api/competitions/[id]` | GET | — | — | — | trusted SSR 报名配置，浏览器不开放 |
-| `/api/competitions/[id]/official-link` | GET | GET | GET/HEAD | 是 |  |
+| `/api/competitions/[id]/official-link` | GET | GET/HEAD | GET/HEAD | 是 |  |
 | `/api/competitions/[id]/showcase` | GET | — | — | 是 |  |
-| `/api/hall-of-fame` | GET | — | — | 是 | 支持 `?view=names` / `?view=level&level=1\|2\|3`（受 `HALL_OF_FAME_HIERARCHY_ENABLED` 渐进控制） |
+| `/api/hall-of-fame` | GET | — | — | 是 | 旧entries已在API main；names/level新合同待API #209合入，Web三级开关默认关闭 |
 | `/api/health` | GET | — | — | — | API 运维健康，不经 Web BFF |
 | `/api/homepage` | GET | — | — | 是 |  |
-| `/api/me/applications` | GET | GET | — | — |  |
-| `/api/me/applications/[id]` | DELETE/GET | DELETE/GET | — | — |  |
+| `/api/me/applications` | GET | GET/HEAD | — | — |  |
+| `/api/me/applications/[id]` | GET/DELETE | GET/DELETE/HEAD | — | — |  |
 | `/api/me/avatar` | POST | POST | — | — |  |
-| `/api/me/award-certificates` | GET/POST | GET/POST | — | — |  |
-| `/api/me/award-certificates/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
-| `/api/me/clubs` | GET | GET | — | — |  |
-| `/api/me/clubs/[clubSlug]/contents` | GET/POST | GET/POST | — | — |  |
-| `/api/me/clubs/[clubSlug]/contents/[id]` | DELETE/GET/PATCH | DELETE/GET/PATCH | — | — |  |
+| `/api/me/award-certificates` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/me/award-certificates/[id]` | PATCH/DELETE | PATCH/DELETE | — | — |  |
+| `/api/me/award-certificates/[id]/members` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/me/award-certificates/[id]/members/[memberId]` | DELETE | DELETE | — | — |  |
+| `/api/me/award-certificates/member-search` | GET | GET/HEAD | — | — |  |
+| `/api/me/clubs` | GET | GET/HEAD | — | — |  |
+| `/api/me/clubs/[clubSlug]/contents` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/me/clubs/[clubSlug]/contents/[id]` | GET/PATCH/DELETE | GET/PATCH/DELETE/HEAD | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents/[id]/offline` | POST | POST | — | — |  |
 | `/api/me/clubs/[clubSlug]/contents/[id]/publish` | POST | — | — | — | 使用 admin publish，BFF 不开放本路径 |
 | `/api/me/clubs/[clubSlug]/contents/[id]/submit` | POST | POST | — | — | 鉴权后 410 WORKFLOW_RETIRED |
 | `/api/me/clubs/[clubSlug]/contents/[id]/withdraw` | POST | POST | — | — | 鉴权后 410 WORKFLOW_RETIRED |
-| `/api/me/competition-options` | GET | GET | — | — |  |
-| `/api/me/experience-posts` | GET/POST | GET/POST | — | — | 自助 POST 403，已有邀请流程另处理 |
-| `/api/me/experience-posts/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — |  |
+| `/api/me/competition-options` | GET | GET/HEAD | — | — |  |
+| `/api/me/experience-posts` | GET/POST | GET/POST/HEAD | — | — | 自助 POST 403，已有邀请流程另处理 |
+| `/api/me/experience-posts/[id]` | GET/PUT/DELETE | GET/PUT/DELETE/HEAD | — | — |  |
 | `/api/me/experience-posts/[id]/offline` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/submit` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/withdraw` | POST | POST | — | — |  |
-| `/api/me/hall-of-fame` | DELETE/GET/POST/PUT | DELETE/GET/POST/PUT | — | — | 自助 POST 403；`invited`/`candidate`/`active` 分级契约（Web #204） |
-| `/api/me/hall-of-fame/photo-requests` | GET/POST | GET/HEAD/POST | — | — | 正式成员本人换照申请列表与发起（Web #208） |
-| `/api/me/hall-of-fame/photo-requests/[id]` | DELETE | DELETE | — | — | UUID 路径；撤回本人 pending 换照申请（Web #208） |
-| `/api/me/notices/read` | GET/POST | GET/POST | — | — |  |
-| `/api/me/profile` | GET/PUT | GET/PUT | — | — |  |
-| `/api/me/session` | GET | GET | — | — |  |
-| `/api/notices/[id]/open` | GET | GET | GET/HEAD | — |  |
-| `/api/notices/published` | GET | — | — | 是 |  |
-| `/api/portal/assets` | GET | GET | GET/HEAD | — |  |
+| `/api/me/hall-of-fame` | GET/POST/PUT/DELETE | GET/POST/PUT/DELETE/HEAD | — | — | 旧流程在API main；照片/同意/快照等新合同待API业务PR合入；自助POST403 |
+| `/api/me/hall-of-fame/photo-requests` | GET/POST | GET/POST/HEAD | — | — | 待API合入（名人堂业务PR #205–#210）；正式成员本人换照申请列表与发起（Web #208） |
+| `/api/me/hall-of-fame/photo-requests/[id]` | DELETE | DELETE | — | — | 待API合入（名人堂业务PR #205–#210）；UUID 路径；撤回本人 pending 换照申请（Web #208） |
+| `/api/me/notices/read` | GET/POST | GET/POST/HEAD | — | — |  |
+| `/api/me/official-awards` | GET | — | — | — |  |
+| `/api/me/official-awards/export` | GET | — | — | — |  |
+| `/api/me/profile` | GET/PUT | GET/PUT/HEAD | — | — |  |
+| `/api/me/session` | GET | GET/HEAD | — | — |  |
+| `/api/notices/[id]/open` | GET/POST | GET/POST/HEAD | GET/HEAD | — |  |
+| `/api/notices/published` | GET | GET/HEAD | GET/HEAD | 是 |  |
+| `/api/portal/assets` | GET | GET/HEAD | GET/HEAD | — |  |
 | `/api/portal/competitions/[id]` | GET | — | — | 是 |  |
-| `/api/profiles/[id]` | GET | — | — | 是 |  |
+| `/api/profiles/[id]` | GET | — | — | 是 | 旧人物DTO在API main；新等级/展示照/履历字段待API #209合入 |
 | `/api/profiles/[id]/experiences/[postId]` | GET | — | — | 是 |  |
 | `/api/questions` | GET/POST | — | — | 是 | POST 兼容接口不经 BFF；命令走 /commands |
 | `/api/questions/[id]` | GET | — | — | 是 |  |
 | `/api/questions/commands` | POST | POST | — | — |  |
 | `/api/security/events/client` | POST | POST | — | — |  |
 | `/api/security/events/server` | POST | — | — | — | 服务内部接口，Web 不开放 |
-| `/api/uploads` | GET/POST | GET/POST | GET/HEAD | — |  |
+| `/api/uploads` | GET/HEAD/POST/PUT/PATCH/DELETE/OPTIONS | GET/POST/HEAD | GET/HEAD | — | GET/HEAD读取、POST上传；PUT/PATCH/DELETE显式405，OPTIONS仅204传输应答，浏览器BFF不放行这些方法 |
 | `/api/web/access` | GET | — | — | — | Web proxy 内部调用 |
 <!-- web-api-route-matrix:end -->
 

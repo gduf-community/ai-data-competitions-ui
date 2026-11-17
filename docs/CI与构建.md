@@ -1,8 +1,8 @@
 # Web CI 与构建
 
-2026-10-21 现网已迁至ECS，精确版本、资源事故和更新边界见[部署记录](阿里云ECS部署.md)；源码整合不等于生产发布。
+2026-10-21 ECS部署与事故恢复的历史版本、资源记录和更新边界见[部署记录](阿里云ECS部署.md)；当前线上版本需独立核验。
 
-源码核对：2026-10-15，Web `0b0d594952897ea1d90c39b7afb5b7430571f078`。工作流事实源为 [ci.yml](../.github/workflows/ci.yml)、命令为 [package.json](../package.json)，产物规则为 [package-runtime](../scripts/package-runtime.mjs)。本文描述现行配置，未将历史绿色 run 当作本次重新执行。
+概览核对：2026-11-18，API main `46933d828c3a58fbd12b2712e6ad5a60fde2452d`、Web main `099da0af7082808bc3b80604844ea27cd30f5ade`。本文同步源码与任务入口；历史测试、远程 CI、浏览器和生产记录保留各自日期与版本。工作流事实源为 [ci.yml](../.github/workflows/ci.yml)、命令为 [package.json](../package.json)，产物规则为 [package-runtime](../scripts/package-runtime.mjs)。本文描述现行配置，未将历史绿色 run 当作本次重新执行。
 
 ## 触发与实际顺序
 
@@ -39,7 +39,7 @@ Actions 的 artifact ID/digest 与 manifest 的 payload/lock 摘要分别记录�
 
 ## API 配对与发布
 
-API CI 自动响应 PR/main push 并保留手动 workflow_dispatch，其模块、PostgreSQL 和固定 companion Web HTTP 检查由 API 仓库维护。Web CI 不启动完整 API 数据库测试；两仓结果分别陈述，手动 API run 与 PR Checks 列表也不是同一事实。
+API CI 响应获批准的pull_request_review或手动workflow_dispatch，核对review与当前live PR的精确head/base；不因普通PR/main push自动运行。模块、PostgreSQL和固定companion Web HTTP由API仓维护；当前固定companion见API工作流，不代表每个Web PR已与最新API配对。Web CI 不启动完整 API 数据库测试；两仓结果分别陈述，手动 API run 与 PR Checks 列表也不是同一事实。
 
 两仓均停止 GitHub CD：当前 Web workflow 无 deploy 输入、promote job、production ref 更新、迁移或平台部署步骤。上传 artifact 不发布服务，也不修改 Zeabur 自身自动部署设置。实际切换/回部署由维护者在平台完成，并记录精确版本、环境、入口/网络/存储与独立回滚结果。
 
@@ -58,7 +58,7 @@ Web 传输层的 `permittedBrowserRequest` 只有在 handler 顶层明确 `if (!
 
 本地复现：先冻结安装，再运行 `SECURITY_BASE_SHA=<完整基线SHA> pnpm security:check`（PowerShell 使用 `$env:SECURITY_BASE_SHA`）；`node scripts/check-security.mjs snapshot` 输出当前入口摘要。`pnpm audit --json > build/security/audit.json` 后运行 `pnpm security:audit`；CodeQL `security-extended` 输出目录交给 `pnpm security:sast`。依赖扫描覆盖生产和开发依赖；moderate/high/critical、CodeQL 高危或 error、分析失败/缺失、密钥发现均失败。依赖例外绑定 GHSA/包/精确版本，SAST 例外绑定 finding fingerprint，均须原因和不超过 91 天的到期日并经 Review；初始无例外。Gitleaks 扫描 base..head 的提交范围，手动同 SHA 扫描最新提交；既有历史另由 GitHub 原生 Secret Scanning 覆盖，不能从增量通过推断历史无泄露。
 
-Dependabot 每周检查 npm/pnpm 和 Actions，框架与认证依赖分别分组。为使门禁可用，本阶段将 Next/ESLint 升至 16.4.1、Auth.js beta.32、Zod 4.6.6、sanitize-html 2.18.x，修复锁文件中的已知漏洞；API 另升级 Drizzle/Sharp，SheetJS 使用官方 0.20.3 tarball（锁文件固定 integrity），并限定旧版工具传递依赖的安全修复版本。该环境变化影响开发、CI 和今后构建的运行产物；**本次不改变现有生产实例**。
+Dependabot 每周检查 npm/pnpm 和 Actions，框架与认证依赖分别分组。2026-10-31门禁阶段曾将Next/ESLint升至16.4.1、Auth.js beta.32、Zod 4.6.6和sanitize-html 2.18.x；当前Web Next/ESLint为16.4.6、React/DOM为19.3.1、Zod为4.6.7，以package.json及冻结锁为准。API 另升级 Drizzle/Sharp，SheetJS 使用官方 0.20.3 tarball（锁文件固定 integrity），并限定旧版工具传递依赖的安全修复版本。该环境变化影响开发、CI 和今后构建的运行产物；**本次不改变现有生产实例**。
 
 工作流汇总检查要求质量、构建/运行、安全继承/依赖/密钥与 SAST 全部成功；失败、取消、跳过均失败。按用户本轮范围，**不配置分支保护、Required Checks、CODEOWNERS 或独立受信任工作流**；这些仍是可由 PR 修改的自动检查，不宣称已建立不可绕过的合并门禁。测试文件/标题关联也仍是静态索引，本轮未加入测试实际执行及覆盖入口的动态证明。
 
