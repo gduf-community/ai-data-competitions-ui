@@ -6,8 +6,26 @@ import type { PublicCompetitionDetail, PublicCompetitionSummary } from "@/lib/co
 import type { ApplicationDetailForReview, ApplicationForEdit, ApplicationAuditLog } from "@/lib/contracts/applications";
 import type { PublishedNoticeRecord } from "@/lib/contracts/portal";
 import type { PublicClubContent, ClubContentSummaryRow, ClubContactRow } from "@/lib/contracts/clubs";
-import { awardGalleryRowSchema, awardShowcaseRowSchema, myAwardRowSchema, publicAwardDetailSchema } from "@/lib/contracts/profiles";
-import type { PublicHallOfFameEntry, PublicProfile, PublicExperiencePost, ExperiencePostRow, PublishedExperiencePostByCompetitionRow, MeProfileData, TitleInfo } from "@/lib/contracts/profiles";
+import {
+  awardGalleryRowSchema,
+  awardShowcaseRowSchema,
+  meHallOfFameEntrySchema,
+  myAwardRowSchema,
+  publicAwardDetailSchema,
+  publicHallOfFameLevelDetailSchema,
+  publicHallOfFameNamesOverviewSchema,
+  publicProfileSchema,
+} from "@/lib/contracts/profiles";
+import { awardYearSummariesSchema, awardYearCompetitionsSchema, awardCompetitionCertificatesSchema } from "@/lib/award-gallery";
+import type { HallOfFameLevel } from "@/lib/hall-of-fame";
+import type {
+  PublicHallOfFameEntry,
+  PublicExperiencePost,
+  ExperiencePostRow,
+  PublishedExperiencePostByCompetitionRow,
+  MeProfileData,
+  TitleInfo,
+} from "@/lib/contracts/profiles";
 const id = encodeURIComponent;
 export const getHomepagePortalData = cache(async () => {
   const payload = await readAPI<{ featuredCompetitions: PublicCompetitionSummary[]; awardShowcaseEntries: unknown[]; hallOfFameEntries: PublicHallOfFameEntry[] }>("/api/homepage");
@@ -28,11 +46,47 @@ type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date 
 function experience(row: Wire<ExperiencePostRow>): ExperiencePostRow { return {...row, createdAt: new Date(row.createdAt), updatedAt: new Date(row.updatedAt), publishedAt: row.publishedAt ? new Date(row.publishedAt) : null}; }
 export async function listMyExperiencePosts() { return (await readAPI<{data: Wire<ExperiencePostRow>[]}>("/api/me/experience-posts")).data.map(experience); }
 export async function getMyExperiencePost(postId: string) { const payload = await readOptionalAPI<{data: Wire<ExperiencePostRow>}>("/api/me/experience-posts/" + id(postId)); return payload ? experience(payload.data) : null; }
-export async function getForUser() { return (await readAPI<{entry: {tag: string; bio: string; status: string} | null}>("/api/me/hall-of-fame")).entry; }
+export async function getForUser() {
+  const payload = await readAPI<{ entry: unknown | null }>("/api/me/hall-of-fame");
+  return payload.entry ? meHallOfFameEntrySchema.parse(payload.entry) : null;
+}
 export async function getHallOfFameEntries() { return (await readAPI<{entries: PublicHallOfFameEntry[]}>("/api/hall-of-fame")).entries; }
-export async function getPublicProfile(userId: string) { return (await readOptionalAPI<{profile: PublicProfile}>("/api/profiles/" + id(userId)))?.profile ?? null; }
+export async function getHallOfFameNamesOverview() {
+  return publicHallOfFameNamesOverviewSchema.parse(
+    await readAPI("/api/hall-of-fame?view=names"),
+  );
+}
+export async function getHallOfFameLevelDetail(level: HallOfFameLevel) {
+  const payload = await readOptionalAPI(`/api/hall-of-fame?view=level&level=${level}`);
+  if (!payload) return null;
+  const data = publicHallOfFameLevelDetailSchema.parse(payload);
+  if (data.level !== level) throw new Error("Invalid hall-of-fame level response");
+  return data;
+}
+export async function getPublicProfile(userId: string) {
+  const payload = await readOptionalAPI<{ profile: unknown }>("/api/profiles/" + id(userId));
+  return payload?.profile ? publicProfileSchema.parse(payload.profile) : null;
+}
 export async function getPublishedExperiencePost(userId: string, postId: string) { return (await readOptionalAPI<{post: PublicExperiencePost}>("/api/profiles/" + id(userId) + "/experiences/" + id(postId)))?.post ?? null; }
 export async function listApprovedAwardsForGallery() { return (await readAPI<{awards: unknown[]}>("/api/awards")).awards.map((row) => awardGalleryRowSchema.parse(row)); }
+export async function listAwardYearSummaries() {
+  return awardYearSummariesSchema.parse(await readAPI("/api/awards/years"));
+}
+export async function listAwardCompetitionsByYear(year: number) {
+  const payload = await readOptionalAPI(`/api/awards/years/${year}`);
+  if (!payload) return null;
+  const data = awardYearCompetitionsSchema.parse(payload);
+  if (data.year !== year) throw new Error("Invalid award year response");
+  return data;
+}
+export async function listAwardsByCompetition(year: number, competitionId: string, cursor?: string) {
+  const query = cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
+  const payload = await readOptionalAPI(`/api/awards/years/${year}/${id(competitionId)}${query}`);
+  if (!payload) return null;
+  const data = awardCompetitionCertificatesSchema.parse(payload);
+  if (data.year !== year || data.competitionId !== competitionId) throw new Error("Invalid award competition response");
+  return data;
+}
 export async function getVisibleAwardById(awardId: string) { const payload = await readOptionalAPI<{award: unknown}>("/api/awards/" + id(awardId)); return payload ? publicAwardDetailSchema.parse(payload.award) : null; }
 export async function listPublishedNotices(limit: number) { return (await readAPI<{notices: PublishedNoticeRecord[]}>("/api/notices/published?limit=" + limit)).notices; }
 export const getCompetitionShowcase = cache((competitionId: string) => readAPI<{posts: PublishedExperiencePostByCompetitionRow[]; entries: PublicHallOfFameEntry[]}>("/api/competitions/" + id(competitionId) + "/showcase"));

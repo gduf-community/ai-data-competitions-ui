@@ -80,8 +80,8 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | `/api/notices/published` | `limit`；`{notices: PublishedNoticeRecord[]}` | 通知页、导航铃铛、弹窗；导航使用最多 20 条 SSR 记录 |
 | `/api/awards` | `{awards: AwardGalleryRow[]}` | 当前奖状长廊 |
 | `/api/awards/[id]` | `{award: PublicAwardDetail}` | 单张奖状详情 |
-| `/api/hall-of-fame` | `{entries: PublicHallOfFameEntry[]}` | 名人堂 |
-| `/api/profiles/[id]` | `{profile: PublicProfile}` | 公开人物资料与经验列表 |
+| `/api/hall-of-fame` | 默认返回 `{entries: PublicHallOfFameEntry[]}`；开启 `HALL_OF_FAME_HIERARCHY_ENABLED` 后总览消费 `?view=names`（`PublicHallOfFameNamesOverview`）、详情页消费 `?view=level&level=1|2|3`（`PublicHallOfFameLevelDetail`） | 公开名人堂总览与等级详情页（Web #206） |
+| `/api/profiles/[id]` | `{profile: PublicProfile}`（含正式展示快照 `level/memberStatus/portraitUrl/portraitThumbUrl`、稳定序 `milestones` 与 `experiencePosts`） | 公开人物资料、进阶履历与经验展示页（Web #207） |
 | `/api/profiles/[id]/experiences/[postId]` | `{post: PublicExperiencePost}` | 公开经验详情 |
 | `/api/clubs/[slug]` | `{data: {contacts}}`；公开联系人仅消费 `contactType/label/value` | 社团详情 |
 | `/api/clubs/[slug]/contents` | `type` 为四种社团内容之一，`limit`；`{data: ClubContentSummaryRow[]}` | 社团分类内容列表 |
@@ -170,7 +170,9 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | POST `/api/me/experience-posts` | 当前自助创建入口停用 | 403；管理员邀请草稿；`/me/experiences/new` 实际重定向到列表 |
 | GET / PUT / DELETE `/api/me/experience-posts/[id]` | PUT `{title?,content?,awardLevel?}` | GET/PUT `{data}`；DELETE `{success:true}` |
 | POST `/api/me/experience-posts/[id]/submit`、`/withdraw`、`/offline` | 对应文章动作 | 沿现有服务端状态校验，成功后刷新 |
-| GET / POST / PUT / DELETE `/api/me/hall-of-fame` | PUT `{tag,bio?}`；tag 1–120，bio 最长 500 | GET `{entry}` 可为 null；POST 403；PUT `{id,status}`；DELETE `{success:true}`；需已有邀请/有效记录 |
+| GET / POST / PUT / DELETE `/api/me/hall-of-fame` | 首次 `invited`/`candidate` PUT 传展示快照（`displayName/displayGrade/displayCollege/displayMajor`）、`tag/bio`、`photoKey/photoThumbKey`、`publicConsent: true` 与可选 `expectedRevision`；`active` 仅允许 `{tag, bio, expectedRevision?}` | GET `{entry}` 可为 null；POST 403；PUT 推进至 `candidate`（待审未公开）；DELETE `{success:true}` |
+| GET / POST `/api/me/hall-of-fame/photo-requests` | POST `{photoKey,photoThumbKey?,expectedRevision}` | GET `{requests,currentRevision?,permissions?}`（仅会话本人，不含审核人/私有 key）；POST 201 创建待审申请，待审存在或版本冲突 409 |
+| DELETE `/api/me/hall-of-fame/photo-requests/[id]` | 本人 `pending` 申请 ID（UUID） | 204/200 空或确认体；若与审批竞争返回 409 时重拉服务端终态并刷新页面 |
 | GET / POST `/api/me/notices/read` | POST `{noticeIds: UUID[]}`，1–100 个 | GET `{noticeIds}`；POST `{success:true}`；匿名已读在本地维护 |
 
 个人资料 PUT 可选字段：`name/studentNo/college/major/grade/phone/nickname/gender/birthday/schoolName/department/enrollmentYear/educationLevel/inSchoolStatus/publicBio/skillTags/publicShowAvatar/publicShowCollegeMajor/publicShowTitles`。`gender=male/female/other/null`，`inSchoolStatus=yes/no/graduated/null`；入学年份 1990–2100 或 null，简介最长 500，技能最多 10 个、每个最长 30。字段是否允许 null 按 DTO/现有编辑器逐项处理，不把空值泛化到所有字段。
@@ -216,8 +218,13 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | GET `/api/admin/experience-posts` | `status=draft/pending_review/published/offline` 可选 | `{data,permissions}` |
 | POST `/api/admin/experience-posts/invite` | `{userId,competitionId,awardLevel?,title?}`，前两个为 UUID | 201 `{data}`，为用户创建受邀草稿 |
 | POST `/api/admin/experience-posts/[id]/review` | `{action:approve/reject/offline,comment?}` | `{success:true}` |
-| GET / POST `/api/admin/hall-of-fame` | POST `{email,tag?,bio?,adminBio?,status?,displayOrder?}` | GET `{data,permissions}`；POST 201 `{data}`，默认 invited |
-| GET / PUT / DELETE `/api/admin/hall-of-fame/[id]` | PUT 可改 tag/bio/adminBio/status/displayOrder | GET/PUT `{data}`；DELETE `{success:true}`；非 invited 状态要求非空 tag |
+| GET / POST `/api/admin/hall-of-fame` | POST `{userId,level,memberStatus,achievementYear,eventYear,inductionReason,tag?}` | GET `{data,permissions}`；POST 201 `{data}`，默认 invited（API 过渡期兼容旧 email） |
+| GET `/api/admin/hall-of-fame/candidates` | `?q=` 非空姓名关键词 | `{users:[{id,name,grade,college,major,alreadyInvited,maskedHint?}]}`；空白不请求 |
+| GET / PUT / DELETE `/api/admin/hall-of-fame/[id]` | PUT 携带 `expectedRevision`、展示快照、memberStatus、status、tag、bio、adminBio、displayOrder（不可直接改 level） | GET/PUT `{data}`；409 冲突保留本地输入；DELETE 仅受控撤回未公开邀请，正式成员使用隐藏归档 |
+| POST `/api/admin/hall-of-fame/[id]/milestones` | `{eventType,fromLevel,toLevel,achievementYear,eventYear,reason,expectedRevision}` | 事务写入履历与等级并推进 revision；409 不静默覆盖 |
+| GET `/api/admin/hall-of-fame/photo-requests` | `status?,page?,pageSize?` | `{data,total?,page?,pageSize?,permissions:{canManage,canViewPreview}}` |
+| GET `/api/admin/hall-of-fame/photo-requests/[id]/preview` | 申请 ID | 授权私有待审新照二进制流，BFF 强制 `private, no-store` |
+| POST `/api/admin/hall-of-fame/photo-requests/[id]/review` | `{action:"approve"|"reject",expectedRevision,reason?}` | 驳回必填 reason；409 保留意见并刷新终态，不重放批准 |
 | GET `/api/admin/dashboard` | 当前管理身份 | `{stats,reviewTrend,statusDistribution}` |
 | GET `/api/admin/analytics` | 当前授权作用域 | `AdminAnalyticsPayload`；generatedAt/scope/assumptions/methodology/overview/competitions/funnel/users/notifications/risk |
 | GET `/api/admin/search` | `target,q/keyword,mode,page,pageSize` 与目标允许的筛选字段 | `{target,keywordType,data,pagination:{page,pageSize,total}}`；权限/敏感精确检索按目标决定，页长最多 200 |
@@ -228,7 +235,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 
 通用后台搜索 target 仅为 users/questions/notices/events。对应可筛选字段分别是 status；status/competition_id；status/priority/competition_id；event_type/user_id。敏感字段搜索/明文可见性仍由 API 当前权限控制，数据字段和允许筛选字段不是同一集合，不增加公共 URL 分享。
 
-通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂创建/更新支持的 status 为 invited/candidate/active，不因本地类型含 hidden 就自行发送 hidden。
+通知的创建标题 2–255 字符、正文非空，status 为 draft/published/withdrawn；priority/deliveryScope/allowPopup 是读取 DTO 字段，当前 CRUD 请求 Schema 未开放这些编辑字段。名人堂后台管理工作台（`Web #203/#205/#209`）支持姓名候选搜索、`expectedRevision` 并发版本控制、配置驱动进阶记录与私有待审照片对比审核；正式成员通过状态置 `hidden` 归档以保留履历，督导维持只读视图。
 
 当前奖状管理、经验审核、名人堂和社团治理的部分列表在对应关系未初始化时可能返回 200 `{data:[]}`；这类兼容返回不能证明数据库已初始化或实际不存在记录，完整联调仍须 API 环境/迁移证据。其他非 2xx 故障继续按错误处理，不能在 Web 主动吞错回退空数据。
 
@@ -263,7 +270,7 @@ trusted BFF 新增且仅新增两个 GET：`/api/admin/official-awards/competiti
 | --- | --- | --- |
 | GET/HEAD `/api/portal/assets` | `key`、64 位小写 hex `version`，可选 `check=1` | 默认文件字节；check 返回 `{version}`；当前资格/版本失效 404，格式不符 415；按源站 Cache-Control 重新验证 |
 | GET/HEAD `/api/uploads` | 单个 `key` | 历史/私有素材按 API 规则读取；public BFF 仅接受规范公开候选路径及唯一 key 参数 |
-| POST `/api/uploads` | multipart `scope,files`，按范围带 `competitionId` 或 `clubSlug`；旧 clubId 仅兼容且不得与 slug 冲突 | 201 `{files:[{publicUrl,...}]}`；scope 为 notice/competition/avatar/club，文件类型/数量/大小按当前 API 规则 |
+| POST `/api/uploads` | multipart `scope,files`，按范围带 `competitionId` 或 `clubSlug`；旧 clubId 仅兼容且不得与 slug 冲突 | 201 `{files:[{publicUrl,...}]}` 或 `{files:[{photoKey,photoThumbKey?,previewUrl?}]}`；scope 为 notice/competition/avatar/club/`hall_portrait`，其中 `hall_portrait`（PNG/JPEG/WebP，前端 5 MiB 预校验）仅存私有待审草稿，不替换公开图或 `users.image` |
 | GET/HEAD `/api/competitions/[id]/official-link` | 比赛 ID | 公开官网跳转，按响应 Location 导航，不解析 JSON |
 | GET/HEAD `/api/notices/[id]/open` | 通知 ID | 通知目标跳转，按 Location 导航 |
 
@@ -334,7 +341,12 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/admin/experience-posts/[id]/review` | POST | POST | — | — |  |
 | `/api/admin/experience-posts/invite` | POST | POST | — | — |  |
 | `/api/admin/hall-of-fame` | GET/POST | GET/POST | — | — |  |
-| `/api/admin/hall-of-fame/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — |  |
+| `/api/admin/hall-of-fame/candidates` | GET | GET/HEAD | — | — | 姓名搜索候选（Web #203） |
+| `/api/admin/hall-of-fame/[id]` | DELETE/GET/PUT | DELETE/GET/PUT | — | — | 排除 `candidates`/`photo-requests` 保留字 |
+| `/api/admin/hall-of-fame/[id]/milestones` | POST | POST | — | — | 原子定级与进阶履历（Web #205） |
+| `/api/admin/hall-of-fame/photo-requests` | GET | GET/HEAD | — | — | 待审照片申请分页列表（Web #209） |
+| `/api/admin/hall-of-fame/photo-requests/[id]/preview` | GET | GET/HEAD | — | — | UUID 路径；BFF 强制 `private, no-store` |
+| `/api/admin/hall-of-fame/photo-requests/[id]/review` | POST | POST | — | — | UUID 路径；照片审批通过/驳回（Web #209） |
 | `/api/admin/notices` | GET/POST | GET/POST | — | — |  |
 | `/api/admin/notices/[id]` | DELETE/PATCH | DELETE/PATCH | — | — |  |
 | `/api/admin/search` | GET | GET | — | — |  |
@@ -377,7 +389,7 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/competitions/[id]` | GET | — | — | — | trusted SSR 报名配置，浏览器不开放 |
 | `/api/competitions/[id]/official-link` | GET | GET | GET/HEAD | 是 |  |
 | `/api/competitions/[id]/showcase` | GET | — | — | 是 |  |
-| `/api/hall-of-fame` | GET | — | — | 是 |  |
+| `/api/hall-of-fame` | GET | — | — | 是 | 支持 `?view=names` / `?view=level&level=1\|2\|3`（受 `HALL_OF_FAME_HIERARCHY_ENABLED` 渐进控制） |
 | `/api/health` | GET | — | — | — | API 运维健康，不经 Web BFF |
 | `/api/homepage` | GET | — | — | 是 |  |
 | `/api/me/applications` | GET | GET | — | — |  |
@@ -398,7 +410,9 @@ Auth.js 动态路由需按前文具体子路径使用，不可以把 catch-all �
 | `/api/me/experience-posts/[id]/offline` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/submit` | POST | POST | — | — |  |
 | `/api/me/experience-posts/[id]/withdraw` | POST | POST | — | — |  |
-| `/api/me/hall-of-fame` | DELETE/GET/POST/PUT | DELETE/GET/POST/PUT | — | — | 自助 POST 403，已有邀请流程另处理 |
+| `/api/me/hall-of-fame` | DELETE/GET/POST/PUT | DELETE/GET/POST/PUT | — | — | 自助 POST 403；`invited`/`candidate`/`active` 分级契约（Web #204） |
+| `/api/me/hall-of-fame/photo-requests` | GET/POST | GET/HEAD/POST | — | — | 正式成员本人换照申请列表与发起（Web #208） |
+| `/api/me/hall-of-fame/photo-requests/[id]` | DELETE | DELETE | — | — | UUID 路径；撤回本人 pending 换照申请（Web #208） |
 | `/api/me/notices/read` | GET/POST | GET/POST | — | — |  |
 | `/api/me/profile` | GET/PUT | GET/PUT | — | — |  |
 | `/api/me/session` | GET | GET | — | — |  |

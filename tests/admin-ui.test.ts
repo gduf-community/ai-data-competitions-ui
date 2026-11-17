@@ -45,6 +45,64 @@ test("remote table renders the supplied page once and reports the server total",
   assert.doesNotMatch(html, /暂无记录/);
 });
 
+function assertPaginationButtons(html: string, previousDisabled: boolean, nextDisabled: boolean) {
+  const buttons = [...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)];
+  for (const [label, symbol, disabled] of [
+    ["上一页", "&lt;", previousDisabled],
+    ["首页", "&lt;&lt;", previousDisabled],
+    ["下一页", "&gt;", nextDisabled],
+    ["末页", "&gt;&gt;", nextDisabled],
+  ] as const) {
+    const matches = buttons.filter(button => button[1].includes(`aria-label="${label}"`));
+    assert.equal(matches.length, 1, `${label} has a unique accessible name`);
+    assert.equal(matches[0][2].replace(/<[^>]*>/g, ""), symbol, `${label} preserves its visible symbol`);
+    assert.equal(/\sdisabled(?:=|\s|$)/.test(matches[0][1]), disabled, `${label} disabled state`);
+  }
+}
+
+test("local pagination names survive empty, single-page, multi-page, loading and error states", () => {
+  for (const { count, loading, error } of [
+    { count: 0 }, { count: 1 }, { count: 31 },
+    { count: 31, loading: true }, { count: 31, error: "服务不可用" },
+  ]) {
+    const html = renderToStaticMarkup(createElement(AdminDataTable<{ id: string }>, {
+      data: Array.from({ length: count }, (_, index) => ({ id: `record-${index}` })),
+      columns: [{ accessorKey: "id", header: "记录" }], searchPlaceholder: "搜索",
+      loading, error,
+    }));
+    assertPaginationButtons(html, true, count <= 10 || Boolean(loading || error));
+  }
+});
+
+test("server pagination names preserve first, middle, last, empty, loading and error boundaries", () => {
+  for (const { pageIndex, rowCount, loading, error } of [
+    { pageIndex: 0, rowCount: 31 }, { pageIndex: 1, rowCount: 31 },
+    { pageIndex: 3, rowCount: 31 }, { pageIndex: 0, rowCount: 0 },
+    { pageIndex: 1, rowCount: 31, loading: true },
+    { pageIndex: 1, rowCount: 31, error: "服务不可用" },
+  ]) {
+    const html = renderToStaticMarkup(createElement(AdminDataTable<{ id: string }>, {
+      data: rowCount ? [{ id: "synthetic-record" }] : [],
+      columns: [{ accessorKey: "id", header: "记录" }], searchPlaceholder: "搜索",
+      pagination: { pageIndex, pageSize: 10 }, rowCount, onPaginationChange: () => undefined,
+      loading, error,
+    }));
+    const blocked = Boolean(loading || error);
+    assertPaginationButtons(html, blocked || pageIndex === 0, blocked || pageIndex >= Math.ceil(rowCount / 10) - 1);
+  }
+});
+
+test("cursor pagination keeps its text-only previous and next controls", () => {
+  const html = renderToStaticMarkup(createElement(AdminDataTable<{ id: string }>, {
+    data: [{ id: "synthetic-record" }], columns: [{ accessorKey: "id", header: "记录" }],
+    searchPlaceholder: "搜索",
+    cursorPaging: { pageNumber: 2, hasPrev: true, hasNext: true, onPrev: () => undefined, onNext: () => undefined },
+  }));
+  const buttons = [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)];
+  assert.deepEqual(buttons.map(button => button[1]), ["上一页", "下一页"]);
+  assert.doesNotMatch(html, /aria-label="(?:首页|末页)"/);
+});
+
 test("table loading and failure remain distinct from a successful empty result", () => {
   const props = { data: [], columns: [{ accessorKey: "id" }], searchPlaceholder: "搜索" };
   assert.match(renderToStaticMarkup(createElement(AdminDataTable, { ...props, loading: true })), /正在加载/);

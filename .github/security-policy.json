@@ -51,7 +51,7 @@
   "reviews": [
     {
       "entry": "scripts/check-security.mjs",
-      "sha256": "0f20c887b4bd9830ab45e2afb95d5168c6cb4e6bb82dc2d1d27cb56b1fcc4c74",
+      "sha256": "c707eab3b94be661045cefa769a2bf5fb157ec287b90e8db47be0d374f1ef751",
       "controls": {
         "authentication": "not-applicable: CI-only read-only tooling; runner identity is repository read access and never a production user session.",
         "authorization": "not-applicable: CI tooling has no business object authority or production credentials; repository reviewers authorize policy changes.",
@@ -76,8 +76,183 @@
           "name": "security inheritance rejects commented guards, unused functions and auth false"
         }
       ]
+    },
+    {
+      "entry": "src/app/api/[...path]/route.ts",
+      "sha256": "59df29598bd08b4a9c856a99c3c6eae37137a62a7bede139ab6b0bd8d44412d5",
+      "handlers": {
+        "GET": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting for candidates, uploads and photo operations is enforced by the upstream API gateway and endpoints.",
+            "schema": "not-applicable: BFF forwards raw request streams without business JSON schema validation; strict payload validation runs in the upstream API.",
+            "bodyLimit": "not-applicable: GET handler does not consume request bodies; upload size and JSON body limits are enforced by the upstream API.",
+            "responseLimit": "not-applicable: Response size bounds, pagination limits and download signatures are enforced by the upstream API and export validator.",
+            "cache": "not-applicable: BFF sets private no-store headers on sensitive photo-request previews and default no-store fallbacks; upstream API owns caching rules.",
+            "sensitiveData": "not-applicable: BFF never forwards browser Authorization headers or cookies in public mode; PII and private key stripping reside in the API.",
+            "audit": "not-applicable: Security and business audit logs are recorded by the upstream API upon authoritative transaction execution.",
+            "stateMachine": "not-applicable: BFF is stateless transport and performs no business status or revision state transitions."
+          }
+        },
+        "HEAD": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting for candidates, uploads and photo operations is enforced by the upstream API gateway and endpoints.",
+            "schema": "not-applicable: BFF forwards raw request streams without business JSON schema validation; strict payload validation runs in the upstream API.",
+            "bodyLimit": "not-applicable: HEAD handler does not consume request bodies; upload size and JSON body limits are enforced by the upstream API.",
+            "responseLimit": "not-applicable: Response headers and size bounds are governed by the upstream API.",
+            "cache": "not-applicable: BFF sets private no-store headers on sensitive photo-request previews and default no-store fallbacks; upstream API owns caching rules.",
+            "sensitiveData": "not-applicable: BFF never forwards browser Authorization headers or cookies in public mode; PII and private key stripping reside in the API.",
+            "audit": "not-applicable: Security and business audit logs are recorded by the upstream API upon authoritative transaction execution.",
+            "stateMachine": "not-applicable: BFF is stateless transport and performs no business status or revision state transitions."
+          }
+        },
+        "POST": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting and single-flight upload concurrency are enforced by the upstream API and upload relay.",
+            "schema": "not-applicable: BFF forwards request bodies to the upstream API where Zod validation and MIME/size verification run.",
+            "bodyLimit": "not-applicable: Multipart and JSON payload limits are enforced by the upstream API and upload policy.",
+            "responseLimit": "not-applicable: Response bounds for mutation endpoints are enforced by the upstream API.",
+            "cache": "not-applicable: Mutation responses default to private no-store in BFF and are never cached across sessions.",
+            "sensitiveData": "not-applicable: BFF strips browser Authorization headers and rejects public-mode writes before forwarding; PII masking is handled by the API.",
+            "audit": "not-applicable: Immutable business audit logs for invitations, milestones and photo reviews are written by the upstream API.",
+            "stateMachine": "not-applicable: Revision CAS and photo-request state machine transitions are executed atomically in the upstream API."
+          }
+        },
+        "PUT": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting is enforced by the upstream API.",
+            "schema": "not-applicable: BFF forwards PUT payloads without business validation; strict field allowlisting runs in the upstream API.",
+            "bodyLimit": "not-applicable: JSON payload body limits are enforced by the upstream API.",
+            "responseLimit": "not-applicable: Response bounds for update endpoints are enforced by the upstream API.",
+            "cache": "not-applicable: Update responses default to private no-store in BFF.",
+            "sensitiveData": "not-applicable: BFF rejects public-mode writes and does not log request payloads; sensitive field rules are enforced in the API.",
+            "audit": "not-applicable: Business audit logs are written by the upstream API.",
+            "stateMachine": "not-applicable: Member status transitions and expectedRevision concurrency checks run in the upstream API."
+          }
+        },
+        "PATCH": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting is enforced by the upstream API.",
+            "schema": "not-applicable: BFF forwards PATCH payloads to the upstream API where Zod validation runs.",
+            "bodyLimit": "not-applicable: JSON payload body limits are enforced by the upstream API.",
+            "responseLimit": "not-applicable: Response bounds for update endpoints are enforced by the upstream API.",
+            "cache": "not-applicable: PATCH responses default to private no-store in BFF.",
+            "sensitiveData": "not-applicable: BFF rejects public-mode writes and forwards no browser Authorization headers.",
+            "audit": "not-applicable: Business audit logs are written by the upstream API.",
+            "stateMachine": "not-applicable: Object revision checks and status transitions run in the upstream API."
+          }
+        },
+        "DELETE": {
+          "controls": {
+            "authentication": "not-applicable: Thin BFF relay injects service token and forwards trusted cookies only; user session authentication is enforced by the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: BFF checks route/method/mode capability only; live role and object authorization are re-checked per request by the upstream API.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: Request rate limiting is enforced by the upstream API.",
+            "schema": "not-applicable: DELETE requests carry no business payload in BFF; path parameter formats are checked by browserApiPolicy regexes.",
+            "bodyLimit": "not-applicable: DELETE requests do not require a business request body.",
+            "responseLimit": "not-applicable: Response bounds are enforced by the upstream API.",
+            "cache": "not-applicable: DELETE responses default to private no-store in BFF.",
+            "sensitiveData": "not-applicable: BFF rejects public-mode deletes and strips browser Authorization headers.",
+            "audit": "not-applicable: Withdrawal and archival audit logs are written by the upstream API.",
+            "stateMachine": "not-applicable: Pending withdrawal vs archival history protection rules run atomically in the upstream API."
+          }
+        },
+        "OPTIONS": {
+          "controls": {
+            "authentication": "not-applicable: OPTIONS is denied with 404 by hasBrowserApiCapability before contacting the upstream API.",
+            "authorization": "src/lib/web-transport.ts#hasBrowserApiCapability",
+            "currentPermissions": "not-applicable: No business permissions are evaluated because OPTIONS is never allowed in browserApiPolicy.",
+            "origin": "src/lib/web-transport.ts#permittedBrowserRequest",
+            "rateLimit": "not-applicable: OPTIONS fails closed immediately at the BFF policy check with 404.",
+            "schema": "not-applicable: OPTIONS carries no business body and is rejected prior to forwarding.",
+            "bodyLimit": "not-applicable: OPTIONS carries no business body and is rejected prior to forwarding.",
+            "responseLimit": "not-applicable: Static 404 JSON error response only.",
+            "cache": "not-applicable: BFF 404 response sets private no-store max-age=0.",
+            "sensitiveData": "not-applicable: Static generic message only; no business or user data is emitted.",
+            "audit": "not-applicable: Denied preflight requests do not mutate business state.",
+            "stateMachine": "not-applicable: Denied preflight requests do not mutate business state."
+          }
+        }
+      },
+      "negativeTests": [
+        {
+          "file": "tests/web-transport.test.ts",
+          "name": "hall of fame BFF capabilities allow only declared methods and reject public or private-preview leaks"
+        },
+        {
+          "file": "tests/web-transport.test.ts",
+          "name": "the actual BFF rejects undeclared paths and methods before contacting the API"
+        },
+        {
+          "file": "tests/web-transport.test.ts",
+          "name": "public preview cannot forward cookies or access private reads and writes"
+        }
+      ]
+    },
+    {
+      "entry": "src/proxy.ts",
+      "sha256": "9850fc63acbe0e09c734c18ba20859a43be4f7bd8c3629286f642315b5ac7f40",
+      "handlers": {
+        "proxy": {
+          "controls": {
+            "authentication": "not-applicable: Page middleware delegates authentication and session validation to page layouts and upstream API access gates.",
+            "authorization": "not-applicable: Middleware performs public-mode route blocking and relays /api/web/access regional access checks only.",
+            "currentPermissions": "not-applicable: Role and object permissions are checked per request by Server Components and the upstream API.",
+            "origin": "not-applicable: Page navigation proxy enforces canonical web origin when issuing CSRF cookies and rewrites internal x-web-current-path headers.",
+            "rateLimit": "not-applicable: Access gate and page request rate limiting reside in the upstream ingress and API.",
+            "schema": "not-applicable: Middleware inspects URL pathnames and query strings only without consuming HTTP request bodies.",
+            "bodyLimit": "not-applicable: Next.js proxy middleware does not read or buffer HTTP request bodies.",
+            "responseLimit": "not-applicable: Middleware returns short static redirect/503 responses or delegates to NextResponse.next().",
+            "cache": "not-applicable: Proxy sets private no-store max-age=0 on redirects and 503/access-denied responses.",
+            "sensitiveData": "not-applicable: Proxy never emits PII and strips untrusted authority forwarding headers via forwardedHeaders.",
+            "audit": "not-applicable: Access control audit events are recorded by the upstream API /api/web/access endpoint.",
+            "stateMachine": "not-applicable: Proxy middleware performs no business entity state transitions."
+          }
+        }
+      },
+      "negativeTests": [
+        {
+          "file": "tests/web-transport.test.ts",
+          "name": "foreign authority cannot be promoted by browser forwarding headers"
+        }
+      ]
     }
   ],
-  "auditExceptions": [],
+  "auditExceptions": [
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "version": "3.1.5",
+      "reason": "dev-only eslint toolchain; minimatch is not fed untrusted glob input at runtime; patched 11.0.1 requires a major upgrade tracked separately",
+      "expires": "2027-01-15"
+    },
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "version": "10.2.6",
+      "reason": "dev-only eslint toolchain; minimatch is not fed untrusted glob input at runtime; patched 11.0.1 requires a major upgrade tracked separately",
+      "expires": "2027-01-15"
+    }
+  ],
   "sastExceptions": []
 }

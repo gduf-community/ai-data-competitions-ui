@@ -27,18 +27,8 @@ export function SiteHeader() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-              <Link href="/competitions" className="dark:text-foreground">
-                比赛列表
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-              <Link href="/admin/applications" className="dark:text-foreground">
-                审核工作台
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
-              <Link href="/me/applications" className="dark:text-foreground">
-                我的报名
+              <Link href="/" className="dark:text-foreground">
+                返回官网
               </Link>
             </Button>
             <ModeToggle />
