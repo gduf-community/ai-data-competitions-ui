@@ -13,3 +13,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 | 规则 | 执行约束 |
 | --- | --- |
 | 通知中心公开正文只等待必需通知数据，身份/已读增强由客户端处理；严格受保护会话错误语义不变 | `notifications/page.tsx` 与 `NotificationsReadSync` 分离职责；`node --import tsx --test tests/public-ssr.test.mjs` 验证挂起/失败会话、正文保持、匿名/卸载不写和按用户已读，由 `pnpm test` 与 CI 执行 |
+| 通知已读状态仅追加；较旧服务器快照不能撤销当前用户的本地已读，也不能跨用户合并 | `mergeReadNoticeIdsFromServer` 是唯一快照入口；`tests/public-ssr.test.mjs` 的旧快照/去重/用户隔离/无额外 POST 用例由 `pnpm test` 与 CI 执行 |
