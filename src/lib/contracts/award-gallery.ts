@@ -2,6 +2,7 @@
 export interface AwardCompetitionSummary {
   competitionId: string;
   competitionTitle: string;
+  category: string;
   certificateCount: number;
 }
 export interface AwardLevelSummary { level: string; certificateCount: number }
