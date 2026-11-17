@@ -7,6 +7,7 @@ import { AwardCount } from "./motion";
 import { AwardYearToc } from "./year-toc";
 
 export function AwardOverview({ data }: { data: AwardYearSummaries }) {
+  const years = [...data.years].sort((a, b) => a.year - b.year);
   const counts = [
     { value: data.totals.certificateCount, unit: "份", label: "获奖证书" },
     { value: data.totals.competitionCount, unit: "项", label: "获奖比赛" },
@@ -35,13 +36,13 @@ export function AwardOverview({ data }: { data: AwardYearSummaries }) {
         </p>
       )}
       <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start lg:gap-6">
-        {data.years.length > 0 && (
+        {years.length > 0 && (
           <div className="mb-5 lg:sticky lg:top-24 lg:mb-0">
-            <AwardYearToc years={data.years.map(({ year, competitionCount }) => ({ year, competitionCount }))} />
+            <AwardYearToc years={years.map(({ year, competitionCount }) => ({ year, competitionCount }))} />
           </div>
         )}
         <div className="min-w-0 space-y-5">
-          {data.years.map(year => (
+          {years.map(year => (
             <section
               key={year.year}
               id={`award-year-${year.year}`}
