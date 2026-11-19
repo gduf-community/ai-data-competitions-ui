@@ -86,6 +86,19 @@ export function formatAdminMemberStatusLabel(
   return HALL_OF_FAME_MEMBER_STATUS_LABELS[memberStatus];
 }
 
+export function formatAdminDateTime(value?: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatAdminInviteStatusLabel(status: HallOfFameStatus): string {
   return HALL_OF_FAME_STATUS_LABELS[status];
 }
@@ -215,20 +228,22 @@ export function buildHallOfFameMilestonePayload(input: {
 }
 
 export function buildHallOfFamePhotoReviewPayload(input: {
-  action: "approve" | "reject";
+  action: "approve" | "reject" | "undo_approve";
   expectedRevision: number;
   reason?: string;
 }):
   | { ok: true; data: HallOfFamePhotoReviewRequest }
   | { ok: false; message: string } {
   const raw =
-    input.action === "approve"
-      ? { action: "approve" as const, expectedRevision: input.expectedRevision }
-      : {
-          action: "reject" as const,
-          expectedRevision: input.expectedRevision,
-          reason: input.reason ?? "",
-        };
+    input.action === "undo_approve"
+      ? { action: "undo_approve" as const }
+      : input.action === "approve"
+        ? { action: "approve" as const, expectedRevision: input.expectedRevision }
+        : {
+            action: "reject" as const,
+            expectedRevision: input.expectedRevision,
+            reason: input.reason ?? "",
+          };
 
   const parsed = hallOfFamePhotoReviewRequestSchema.safeParse(raw);
   if (!parsed.success) {

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const menuItems = [
   { href: "/me/profile", label: "我的信息", icon: User },
   { href: "/me/applications", label: "我的报名", icon: FileSpreadsheet },
-  { href: "/me/achievements", label: "我的成果", icon: Award },
+  { href: "/me/achievements", label: "我的证书", icon: Award },
   { href: "/me/experiences", label: "经验文章", icon: BookOpen },
   { href: "/me/hall-of-fame", label: "名人堂展示", icon: Trophy },
 ];

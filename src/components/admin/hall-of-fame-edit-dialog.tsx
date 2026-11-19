@@ -391,6 +391,50 @@ export function HallOfFameEditDialog({
                 </div>
               ) : null}
 
+              {entry.pendingPortraitUrl ? (
+                <div className="space-y-2 rounded-md border border-amber-300/70 bg-amber-50/70 p-3">
+                  <p className="text-xs font-medium text-amber-900">
+                    待审照片（仅管理员可见）
+                  </p>
+                  {/* 私有待审图必须带会话 Cookie 读取，不能交给 next/image 优化器。 */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={entry.pendingPortraitUrl}
+                    alt="名人堂待审照片"
+                    className="h-40 w-32 rounded-lg border border-amber-200 object-cover"
+                  />
+                  <p className="text-xs text-amber-900/80">
+                    确认照片清晰、为本人且成员已勾选公开同意后，将状态改为“展示中”并保存，
+                    或使用列表页的“发布”按钮。
+                  </p>
+                </div>
+              ) : entry.approvedPortraitUrl && entry.status !== "active" ? (
+                <div className="space-y-2 rounded-md border border-emerald-300/70 bg-emerald-50/70 p-3">
+                  <p className="text-xs font-medium text-emerald-900">
+                    照片申请已通过
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={entry.approvedPortraitUrl}
+                    alt="名人堂已通过照片"
+                    className="h-40 w-32 rounded-lg border border-emerald-200 object-cover"
+                  />
+                  <p className="text-xs text-emerald-900/80">
+                    确认成员资料无误后，将状态改为“展示中”并保存，或使用列表页的“通过并发布”。
+                  </p>
+                </div>
+              ) : entry.portraitUrl ? (
+                <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                  <p className="text-xs font-medium">当前公开照片</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={entry.portraitUrl}
+                    alt="名人堂公开照片"
+                    className="h-40 w-32 rounded-lg border border-border object-cover"
+                  />
+                </div>
+              ) : null}
+
               <AdminHallOfFameMilestoneHistory
                 milestones={(latestServerEntry ?? entry).milestones}
                 title="入选与进阶履历明细（只读）"
@@ -499,9 +543,10 @@ export function HallOfFameEditDialog({
                 </div>
               </div>
 
-              {entry.status !== "active" && status === "active" ? (
+              {entry.status !== "active" ? (
                 <p className="text-xs text-muted-foreground">
-                  首次发布为“展示中”时，服务端将核验成员是否已提交有效照片及公开授权。
+                  将“邀请 / 展示状态”改为“展示中”并保存，即完成首次发布；
+                  服务端会核验待审照片、公开同意与资料完整性。
                 </p>
               ) : null}
 

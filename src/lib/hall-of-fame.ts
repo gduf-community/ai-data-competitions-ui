@@ -117,6 +117,14 @@ export const HALL_OF_FAME_PHOTO_REQUEST_STATUS_LABELS = {
   withdrawn: "已撤回",
 } as const;
 
+/** 成员照片审核状态；与换照申请状态共用 approved/rejected 语义。 */
+export const HALL_OF_FAME_PHOTO_REVIEW_LABELS = {
+  unsubmitted: "未上传",
+  pending: "待审核",
+  approved: "已通过",
+  rejected: "已驳回",
+} as const;
+
 export const HALL_OF_FAME_MILESTONE_TYPE_LABELS = {
   inducted: "首次入选",
   promoted: "进阶晋级",
