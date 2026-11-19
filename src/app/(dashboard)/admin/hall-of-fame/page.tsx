@@ -104,26 +104,6 @@ export default function AdminHallOfFamePage() {
     return parsed.data;
   }, []);
 
-  const reloadEntries = useCallback(async () => {
-    setLoading(true);
-    setListError("");
-    try {
-      const payload = await fetchEntries();
-      setCanManage(payload.permissions?.canManage === true);
-      setEntries(payload.data);
-    } catch (error) {
-      if (isAbortError(error)) return;
-      const parsedError = parseAdminRequestError(error, "获取名人堂列表失败");
-      if (parsedError.isForbidden) {
-        setCanManage(false);
-      }
-      setListError(parsedError.message);
-      toast.error(parsedError.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchEntries]);
-
   const refreshPendingPhotoCount = useCallback(async () => {
     try {
       const raw = await requestJSON<unknown>(
@@ -139,9 +119,26 @@ export default function AdminHallOfFamePage() {
     }
   }, []);
 
-  useEffect(() => {
-    void refreshPendingPhotoCount();
-  }, [refreshPendingPhotoCount, entries]);
+  const reloadEntries = useCallback(async () => {
+    setLoading(true);
+    setListError("");
+    try {
+      const payload = await fetchEntries();
+      setCanManage(payload.permissions?.canManage === true);
+      setEntries(payload.data);
+      void refreshPendingPhotoCount();
+    } catch (error) {
+      if (isAbortError(error)) return;
+      const parsedError = parseAdminRequestError(error, "获取名人堂列表失败");
+      if (parsedError.isForbidden) {
+        setCanManage(false);
+      }
+      setListError(parsedError.message);
+      toast.error(parsedError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchEntries, refreshPendingPhotoCount]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,6 +151,7 @@ export default function AdminHallOfFamePage() {
         if (controller.signal.aborted) return;
         setCanManage(payload.permissions?.canManage === true);
         setEntries(payload.data);
+        void refreshPendingPhotoCount();
       } catch (error) {
         if (controller.signal.aborted || isAbortError(error)) return;
         const parsedError = parseAdminRequestError(error, "获取名人堂列表失败");
@@ -170,7 +168,7 @@ export default function AdminHallOfFamePage() {
 
     void run();
     return () => controller.abort();
-  }, [fetchEntries]);
+  }, [fetchEntries, refreshPendingPhotoCount]);
 
   const handleRefreshSingleEntry = useCallback(
     async (entryId: string): Promise<AdminHallOfFameEntry | null> => {
