@@ -15,7 +15,7 @@ export default async function HallOfFameAdminLayout({
   }
 
   if (!isSuperAdminRole(sessionUser) && !hasRole(sessionUser, "supervisor")) {
-    redirect("/admin");
+    redirect("/errors/forbidden");
   }
 
   return <>{children}</>;

@@ -232,9 +232,13 @@ export const adminHallOfFameEntrySchema = z.object({
   level: hallOfFameLevelSchema.nullable().optional(),
   memberStatus: hallOfFameMemberStatusSchema.nullable().optional(),
   photoStatus: hallOfFamePhotoStatusSchema.optional(),
+  photoReviewStatus: z
+    .enum(["unsubmitted", "pending", "approved", "rejected"])
+    .optional(),
   portraitUrl: z.string().nullable().optional(),
   portraitThumbUrl: z.string().nullable().optional(),
   pendingPortraitUrl: z.string().nullable().optional(),
+  approvedPortraitUrl: z.string().nullable().optional(),
   publicConsentAt: z.string().nullable().optional(),
   revision: hallOfFameRevisionSchema.optional(),
   displayOrder: z.number(),
@@ -307,6 +311,12 @@ export const meHallOfFameEntrySchema = z.object({
   tag: z.string(),
   bio: z.string(),
   photoStatus: hallOfFamePhotoStatusSchema.optional(),
+  photoReviewStatus: z
+    .enum(["unsubmitted", "pending", "approved", "rejected"])
+    .optional(),
+  photoReviewComment: z.string().max(300).nullable().optional(),
+  photoReviewedAt: z.string().nullable().optional(),
+  photoRequestKind: z.enum(["initial", "rephoto"]).optional(),
   portraitUrl: z.string().nullable().optional(),
   portraitThumbUrl: z.string().nullable().optional(),
   pendingPortraitPreviewUrl: z.string().nullable().optional(),
@@ -382,6 +392,8 @@ export const adminHallOfFamePhotoRequestSchema = z.object({
   memberName: z.string(),
   level: hallOfFameLevelSchema.nullable().optional(),
   memberStatus: hallOfFameMemberStatusSchema.nullable().optional(),
+  entryStatus: hallOfFameStatusSchema.optional(),
+  requestKind: z.enum(["initial", "rephoto"]).optional(),
   status: hallOfFamePhotoRequestStatusSchema,
   expectedRevision: hallOfFameRevisionSchema,
   currentPortraitUrl: z.string().nullable().optional(),
@@ -423,6 +435,9 @@ export const hallOfFamePhotoReviewRequestSchema = z.discriminatedUnion("action",
       .trim()
       .min(1, "请填写驳回原因")
       .max(300, "驳回原因最多 300 字"),
+  }),
+  z.object({
+    action: z.literal("undo_approve"),
   }),
 ]);
 export type HallOfFamePhotoReviewRequest = z.infer<
@@ -564,6 +579,7 @@ export const publicHallOfFameLevelMemberSchema = z.object({
   displayGrade: z.string().nullable().optional(),
   displayCollege: z.string().nullable().optional(),
   displayMajor: z.string().nullable().optional(),
+  inductionYear: z.number().int().nullable().optional(),
   portraitUrl: z.string().nullable().optional(),
   portraitThumbUrl: z.string().nullable().optional(),
   displayOrder: z.number().optional(),
@@ -602,6 +618,7 @@ export const publicHallOfFameDetailSchema = z.object({
   displayGrade: z.string().nullable().optional(),
   displayCollege: z.string().nullable().optional(),
   displayMajor: z.string().nullable().optional(),
+  inductionYear: z.number().int().nullable().optional(),
   portraitUrl: z.string().nullable().optional(),
   portraitThumbUrl: z.string().nullable().optional(),
   milestones: z.array(publicHallOfFameMilestoneSchema).optional(),

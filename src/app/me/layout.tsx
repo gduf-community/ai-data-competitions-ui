@@ -17,7 +17,8 @@ export default async function MeLayout({
 
   if (!sessionUser.id) {
     const path = (await headers()).get("x-web-current-path") ?? "/me";
-    redirect("/sign-in?callbackUrl=" + encodeURIComponent(path.startsWith("/me/clubs") ? path : "/me"));
+    const callbackUrl = path.startsWith("/me") ? path : "/me";
+    redirect("/sign-in?callbackUrl=" + encodeURIComponent(callbackUrl));
   }
 
   return (

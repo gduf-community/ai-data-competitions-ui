@@ -3,7 +3,8 @@ import { Bell, Megaphone } from "lucide-react";
 import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { PortalFooter } from "@/components/marketing/portal-footer";
 import { Section } from "@/components/marketing/section";
-import { NoticeCompetitionLink, NotificationsReadSync } from "@/components/notifications/notifications-read-sync";
+import { NoticeCompetitionLink } from "@/components/notifications/notifications-read-sync";
+import { NoticeReadState } from "@/components/notifications/notice-read-state";
 import { RichTextContent } from "@/components/shared/rich-text-content";
 import { Card, CardContent } from "@/components/ui/card";
 import { listPublishedNotices } from "@/lib/web-data";
@@ -14,9 +15,6 @@ export default async function NotificationsPage() {
   return (
     <div className="min-h-screen bg-background">
       <PortalNavbar />
-      <NotificationsReadSync
-        noticeIds={publishedNotices.map((notice) => notice.id)}
-      />
       <Section className="pb-16">
         <div className="mx-auto max-w-3xl space-y-8">
           <div className="space-y-3">
@@ -91,6 +89,7 @@ export default async function NotificationsPage() {
                           {notice.competitionId ? (
                             <NoticeCompetitionLink noticeId={notice.id} />
                           ) : null}
+                          <NoticeReadState noticeId={notice.id} />
                         </div>
                       </div>
                     </div>
