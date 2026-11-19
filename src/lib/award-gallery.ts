@@ -57,13 +57,28 @@ export const awardYearCompetitionsSchema = z.object({
   year, competitionCount: count, certificateCount: count,
   competitions: z.array(summary.extend({ levels: z.array(level) })),
 });
+const galleryCertificate = z.object({
+  id: z.string().uuid(), userName: z.string(), memberNames: z.array(z.string()), competitionTitle: z.string(),
+  awardLevel: z.string().nullable(), level: z.string(), imageUrl: z.string(),
+});
+const numberedPage = z.object({
+  limit: z.number().int().min(1).max(24),
+  pageNumber: z.number().int().positive(),
+  pageCount: z.number().int().positive(),
+});
 export const awardCompetitionCertificatesSchema = summary.extend({
   year,
   levels: z.array(level),
-  awards: z.array(z.object({
-    id: z.string().uuid(), userName: z.string(), memberNames: z.array(z.string()), competitionTitle: z.string(),
-    awardLevel: z.string().nullable(), level: z.string(), imageUrl: z.string(),
-  })).max(24),
+  awards: z.array(galleryCertificate).max(24),
   page: z.object({ limit: z.number().int().min(1).max(24), nextCursor: cursor, previousCursor: cursor,
     pageNumber: z.number().int().positive().nullable().optional(), pageCount: z.number().int().positive().nullable().optional() }),
+});
+export const awardUserCertificatesSchema = z.object({
+  userId: z.string().uuid(),
+  userName: z.string(),
+  certificateCount: count,
+  filteredCertificateCount: count,
+  levels: z.array(level),
+  awards: z.array(galleryCertificate).max(24),
+  page: numberedPage,
 });

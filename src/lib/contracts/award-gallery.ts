@@ -34,6 +34,17 @@ export interface AwardCompetitionCertificates extends AwardCompetitionSummary {
   page: { limit: number; nextCursor: string | null; previousCursor: string | null; pageNumber?: number | null; pageCount?: number | null };
 }
 
+/** Public per-user award gallery used by the hall-of-fame profile page. */
+export interface AwardUserCertificates {
+  userId: string;
+  userName: string;
+  certificateCount: number;
+  filteredCertificateCount: number;
+  levels: AwardLevelSummary[];
+  awards: PublicGalleryCertificate[];
+  page: { limit: number; pageNumber: number; pageCount: number };
+}
+
 export function parseAwardYear(value: string): number | null {
   return /^[1-9]\d{3}$/.test(value) ? Number(value) : null;
 }

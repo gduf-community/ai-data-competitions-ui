@@ -6,6 +6,7 @@ import { AlertTriangle, Check, RefreshCw, ShieldAlert, X } from "lucide-react";
 import {
   buildHallOfFamePhotoReviewPayload,
   canApprovePhotoPreview,
+  formatAdminDateTime,
   formatAdminHallOfFameLevelLabel,
   formatAdminMemberStatusLabel,
   parseAdminRequestError,
@@ -38,7 +39,7 @@ interface HallOfFamePhotoReviewDialogProps {
   request: AdminHallOfFamePhotoRequest | null;
   canManage: boolean;
   canViewPreview: boolean;
-  onReviewed: (action: "approve" | "reject") => Promise<void>;
+  onReviewed: (action: "approve" | "reject" | "undo_approve") => Promise<void>;
   onConflictRefresh: (
     requestId: string,
   ) => Promise<AdminHallOfFamePhotoRequest | null>;
@@ -52,7 +53,7 @@ interface HallOfFamePhotoReviewPanelProps {
   initialConflictState?: PhotoReviewConflictResult | null;
   initialDraftReason?: string;
   onClose: () => void;
-  onReviewed: (action: "approve" | "reject") => Promise<void>;
+  onReviewed: (action: "approve" | "reject" | "undo_approve") => Promise<void>;
   onConflictRefresh: (
     requestId: string,
   ) => Promise<AdminHallOfFamePhotoRequest | null>;
@@ -80,6 +81,7 @@ export function HallOfFamePhotoReviewPanel({
       ? conflictState.nextRequest
       : syncedRequest;
   const isPending = activeRequest.status === "pending";
+  const isInitialRequest = activeRequest.requestKind === "initial";
   const allowAuthorizedPreview =
     canViewPreview === true &&
     (isPending || Boolean(activeRequest.previewUrl));
@@ -154,12 +156,13 @@ export function HallOfFamePhotoReviewPanel({
     }
   }
 
-  async function handleReview(action: "approve" | "reject") {
+  async function handleReview(action: "approve" | "reject" | "undo_approve") {
+    const isUndo = action === "undo_approve";
     if (
       submitting ||
       syncingConflict ||
       !canManage ||
-      !isPending ||
+      (!isPending && !(isUndo && activeRequest.status === "approved")) ||
       lockedByConflict
     ) {
       return;
@@ -191,9 +194,15 @@ export function HallOfFamePhotoReviewPanel({
         },
       );
       toast.success(
-        action === "approve"
-          ? "已批准照片修改申请，正式展示照片已更新"
-          : "已驳回照片修改申请",
+        action === "undo_approve"
+          ? isInitialRequest
+            ? "已撤销照片通过，申请退回待审核"
+            : "已撤销换照通过，正式照片已恢复"
+          : action === "approve"
+            ? isInitialRequest
+              ? "已通过首次照片申请，成员管理页可继续通过并发布；如需撤销，可在“照片申请→已通过”中操作"
+              : "已批准照片修改申请，正式展示照片已更新；如需撤销，可在“照片申请→已通过”中操作"
+            : "已驳回照片申请",
       );
       onClose();
       await onReviewed(action);
@@ -250,10 +259,10 @@ export function HallOfFamePhotoReviewPanel({
             </Badge>
           </div>
           <span className="text-xs text-muted-foreground">
-            提交时间：{activeRequest.createdAt} · rev.
+            提交时间：{formatAdminDateTime(activeRequest.createdAt)} · 资料版本
             {activeRequest.expectedRevision}
             {activeRequest.reviewedAt
-              ? ` · 处理时间：${activeRequest.reviewedAt}`
+              ? ` · 处理时间：${formatAdminDateTime(activeRequest.reviewedAt)}`
               : ""}
             {activeRequest.reviewerName
               ? ` · 审核人：${activeRequest.reviewerName}`
@@ -324,32 +333,40 @@ export function HallOfFamePhotoReviewPanel({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2 rounded-lg border p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                当前正式照片
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                公开展示中
-              </span>
-            </div>
-            <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md bg-muted/40">
-              {currentPortraitSrc ? (
-                // 正式照片为动态签发地址，直接展示并与右侧授权预览并排核对。
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={currentPortraitSrc}
-                  alt={`${activeRequest.memberName} 当前正式照片`}
-                  className="size-full object-cover"
-                />
-              ) : (
-                <span className="px-4 text-center text-xs text-muted-foreground">
-                  暂无已发布的正式照片
+        <div
+          className={
+            isInitialRequest
+              ? "grid grid-cols-1 gap-4"
+              : "grid grid-cols-1 gap-4 sm:grid-cols-2"
+          }
+        >
+          {!isInitialRequest ? (
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  当前正式照片
                 </span>
-              )}
+                <span className="text-[11px] text-muted-foreground">
+                  公开展示中
+                </span>
+              </div>
+              <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md bg-muted/40">
+                {currentPortraitSrc ? (
+                  // 正式照片为动态签发地址，直接展示并与右侧授权预览并排核对。
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentPortraitSrc}
+                    alt={`${activeRequest.memberName} 当前正式照片`}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="px-4 text-center text-xs text-muted-foreground">
+                    暂无已发布的正式照片
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-2 rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2">
@@ -492,9 +509,20 @@ export function HallOfFamePhotoReviewPanel({
               onClick={() => void handleReview("approve")}
             >
               <Check className="mr-1 size-4" />
-              批准替换
+              {isInitialRequest ? "通过照片" : "批准替换"}
             </Button>
           </>
+        ) : null}
+        {canManage && activeRequest.status === "approved" ? (
+          <Button
+            type="button"
+            variant="outline"
+            loading={submitting}
+            disabled={submitting}
+            onClick={() => void handleReview("undo_approve")}
+          >
+            撤销通过
+          </Button>
         ) : null}
       </DialogFooter>
     </>
@@ -519,9 +547,15 @@ export function HallOfFamePhotoReviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>新旧照片对比审核</DialogTitle>
+          <DialogTitle>
+            {request.requestKind === "initial"
+              ? "首次照片审核"
+              : "新旧照片对比审核"}
+          </DialogTitle>
           <DialogDescription>
-            核对成员当前正式照片与待审新照片；仅在待审图清晰可辨并确认本人同意后批准替换。
+            {request.requestKind === "initial"
+              ? "核对成员首次上传的照片；通过后照片申请标记为已通过，成员管理页再执行“通过并发布”。"
+              : "核对成员当前正式照片与待审新照片；仅在待审图清晰可辨并确认本人同意后批准替换。"}
           </DialogDescription>
         </DialogHeader>
 
