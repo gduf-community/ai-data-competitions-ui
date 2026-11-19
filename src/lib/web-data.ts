@@ -16,7 +16,7 @@ import {
   publicHallOfFameNamesOverviewSchema,
   publicProfileSchema,
 } from "@/lib/contracts/profiles";
-import { awardYearSummariesSchema, awardYearCompetitionsSchema, awardCompetitionCertificatesSchema } from "@/lib/award-gallery";
+import { awardYearSummariesSchema, awardYearCompetitionsSchema, awardCompetitionCertificatesSchema, awardUserCertificatesSchema } from "@/lib/award-gallery";
 import type { HallOfFameLevel } from "@/lib/hall-of-fame";
 import type {
   PublicHallOfFameEntry,
@@ -89,6 +89,18 @@ export async function listAwardsByCompetition(year: number, competitionId: strin
   if (!payload) return null;
   const data = awardCompetitionCertificatesSchema.parse(payload);
   if (data.year !== year || data.competitionId !== competitionId) throw new Error("Invalid award competition response");
+  return data;
+}
+export async function listAwardsForUser(userId: string, options: { page?: number; limit?: number; levels?: string[]; excludeLevels?: string[] } = {}) {
+  const params = new URLSearchParams();
+  if (options.page !== undefined) params.set("page", String(options.page));
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  for (const level of options.levels ?? []) params.append("levels", level);
+  for (const level of options.excludeLevels ?? []) params.append("excludeLevels", level);
+  const payload = await readOptionalAPI(`/api/profiles/${id(userId)}/awards${params.size ? `?${params}` : ""}`);
+  if (!payload) return null;
+  const data = awardUserCertificatesSchema.parse(payload);
+  if (data.userId !== userId) throw new Error("Invalid user award response");
   return data;
 }
 export async function getVisibleAwardById(awardId: string) { const payload = await readOptionalAPI<{award: unknown}>("/api/awards/" + id(awardId)); return payload ? publicAwardDetailSchema.parse(payload.award) : null; }

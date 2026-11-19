@@ -8,7 +8,11 @@ import { PortalNavbar } from "@/components/marketing/portal-navbar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { isHallOfFameHierarchyEnabled } from "@/lib/hall-of-fame";
+import {
+  getHallOfFameLevelMeta,
+  HALL_OF_FAME_MEMBER_STATUS_LABELS,
+  isHallOfFameHierarchyEnabled,
+} from "@/lib/hall-of-fame";
 import {
   getHallOfFameEntries,
   getHallOfFameNamesOverview,
@@ -81,13 +85,35 @@ export default async function HallOfFamePage() {
                           <h3 className="text-base font-semibold text-slate-950">
                             {entry.userName}
                           </h3>
-                          <Badge
-                            variant="secondary"
-                            className="rounded-full bg-amber-50 text-amber-800 hover:bg-amber-50"
-                          >
-                            <Award className="mr-1 size-3" />
-                            {entry.tag}
-                          </Badge>
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {entry.level ? (
+                              <Badge className="rounded-full bg-slate-900 text-white hover:bg-slate-900">
+                                {getHallOfFameLevelMeta(entry.level).name}
+                              </Badge>
+                            ) : null}
+                            {entry.memberStatus ? (
+                              <Badge
+                                variant="outline"
+                                className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
+                              >
+                                {HALL_OF_FAME_MEMBER_STATUS_LABELS[entry.memberStatus]}
+                              </Badge>
+                            ) : null}
+                            {entry.inductionYear ? (
+                              <span className="text-xs text-slate-500">
+                                入选 {entry.inductionYear} 年
+                              </span>
+                            ) : null}
+                          </div>
+                          {entry.tag ? (
+                            <Badge
+                              variant="secondary"
+                              className="rounded-full bg-amber-50 text-amber-800 hover:bg-amber-50"
+                            >
+                              <Award className="mr-1 size-3" />
+                              {entry.tag}
+                            </Badge>
+                          ) : null}
                         </div>
                         <p className="text-sm leading-6 text-slate-600">
                           {entry.bio}

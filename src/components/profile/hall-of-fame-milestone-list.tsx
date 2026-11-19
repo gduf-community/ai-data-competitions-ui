@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft, Award, BookOpen, Calendar, History } from "lucide-react";
 
+import { userAwardsHref } from "@/components/marketing/award-gallery/user";
+import { CertificateCard } from "@/components/marketing/certificate-card";
 import { LazyFillImage } from "@/components/shared/lazy-fill-image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import type { AwardUserCertificates } from "@/lib/contracts/award-gallery";
 import type {
   PublicHallOfFameEntry,
   PublicHallOfFameMilestone,
@@ -135,7 +138,65 @@ export function HallOfFameMilestoneList({
   );
 }
 
-export function PublicProfileContent({ profile }: { profile: PublicProfile }) {
+function ProfileAwardsSection({
+  userId,
+  data,
+}: {
+  userId: string;
+  data: AwardUserCertificates | null;
+}) {
+  const awards = data?.awards ?? [];
+  const total = data?.certificateCount ?? 0;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Award className="size-5 text-slate-700" />
+          <h2 className="text-lg font-semibold text-slate-950">获奖证书</h2>
+          {total > 0 ? (
+            <span className="text-sm text-slate-500">共 {total} 份</span>
+          ) : null}
+        </div>
+        {total > 0 ? (
+          <Link
+            href={userAwardsHref(userId)}
+            prefetch={false}
+            className="inline-flex min-h-9 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition-colors hover:border-slate-400 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          >
+            详情
+          </Link>
+        ) : null}
+      </div>
+
+      {awards.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {awards.map((award) => (
+            <CertificateCard
+              key={award.id}
+              award={award}
+              level={award.level}
+              nearViewport={false}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed border-slate-300 bg-white/86">
+          <CardContent className="p-8 text-center">
+            <p className="text-sm text-slate-500">暂无公开获奖证书</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+export function PublicProfileContent({
+  profile,
+  awardsPreview,
+}: {
+  profile: PublicProfile;
+  awardsPreview?: AwardUserCertificates | null;
+}) {
   const legacyUnmigrated = isLegacyUnmigratedHallOfFameEntry(profile.hallOfFame);
   const displayName = legacyUnmigrated
     ? profile.hallOfFame.userName || profile.name
@@ -240,6 +301,8 @@ export function PublicProfileContent({ profile }: { profile: PublicProfile }) {
       </Card>
 
       <HallOfFameMilestoneList milestones={profile.hallOfFame.milestones} />
+
+      <ProfileAwardsSection userId={profile.id} data={awardsPreview ?? null} />
 
       <div className="space-y-6">
         <div className="flex items-center gap-2">

@@ -36,7 +36,7 @@ import {
 import {
   getHallOfFameLevelMeta,
   HALL_OF_FAME_MEMBER_STATUS_LABELS,
-  HALL_OF_FAME_PHOTO_STATUS_LABELS,
+  HALL_OF_FAME_PHOTO_REVIEW_LABELS,
   sanitizePublicPortraitSrc,
   type HallPortraitUploadRef,
 } from "@/lib/hall-of-fame";
@@ -64,6 +64,11 @@ interface HallOfFameStatusCardProps {
   displaySettings: DisplaySettings;
 }
 
+function zodMessage(error: { issues: Array<{ message: string }> }): string {
+  const messages = [...new Set(error.issues.map((issue) => issue.message).filter(Boolean))];
+  return messages.length ? messages.join("；") : "请完整核对所有必填信息";
+}
+
 function readPutErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof HttpRequestError) {
     if (error.status === 409) {
@@ -86,6 +91,55 @@ function readPutErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim()
     ? error.message
     : fallback;
+}
+
+function PhotoRejectionAlert({ entry }: { entry: MeHallOfFameEntry }) {
+  if (entry.photoReviewStatus !== "rejected") return null;
+  const preview = sanitizeOwnerPortraitPreviewSrc(
+    entry.pendingPortraitPreviewUrl ?? null,
+  );
+  const reviewedAt = entry.photoReviewedAt
+    ? new Date(entry.photoReviewedAt).toLocaleString("zh-CN")
+    : null;
+  return (
+    <div
+      role="alert"
+      className="rounded-xl border border-red-200/80 bg-red-50/80 p-4 text-left text-sm text-red-950 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100"
+    >
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="font-medium">
+            {entry.photoRequestKind === "rephoto"
+              ? "换照申请未通过"
+              : "名人堂照片审核未通过"}
+          </p>
+          <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+            驳回原因：{entry.photoReviewComment || "未附详细说明"}
+          </p>
+          {reviewedAt ? (
+            <p className="text-xs opacity-80">审核时间：{reviewedAt}</p>
+          ) : null}
+          <p className="text-xs leading-relaxed opacity-90">
+            {entry.photoRequestKind === "rephoto"
+              ? "原公开正式照片未受影响。你可以重新上传新照片并提交换照申请。"
+              : "请重新上传照片并提交资料；重新提交后会再次进入照片审核队列。"}
+          </p>
+        </div>
+        {preview ? (
+          <div className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden rounded-lg border border-red-200/80 bg-white/60">
+            {/* 本人被驳回照片预览，仅本人可见 */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview}
+              alt="被驳回的名人堂照片"
+              className="size-full object-cover"
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function AdminAssignedSummary({ entry }: { entry: MeHallOfFameEntry }) {
@@ -170,6 +224,7 @@ function HallOfFameFirstSubmissionForm({
 
   const hasExistingCandidatePortrait =
     mode === "candidate" &&
+    entry.photoReviewStatus !== "rejected" &&
     Boolean(
       entry.hasPortrait ||
         entry.photoStatus === "pending" ||
@@ -197,8 +252,7 @@ function HallOfFameFirstSubmissionForm({
       });
 
       if (!parsed.success) {
-        const message =
-          parsed.error.issues[0]?.message ?? "请完整核对所有必填信息";
+        const message = zodMessage(parsed.error);
         setSubmitError(message);
         toast.error(message);
         return;
@@ -251,8 +305,7 @@ function HallOfFameFirstSubmissionForm({
       });
 
     if (!textOnlyCheck.success) {
-      const message =
-        textOnlyCheck.error.issues[0]?.message ?? "请完整核对所有必填信息";
+      const message = zodMessage(textOnlyCheck.error);
       setSubmitError(message);
       toast.error(message);
       return;
@@ -293,9 +346,10 @@ function HallOfFameFirstSubmissionForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="hof-display-name">展示姓名</Label>
+              <Label htmlFor="hof-display-name">展示姓名 <span className="text-destructive">*</span></Label>
               <Input
                 id="hof-display-name"
+                aria-required="true"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="请输入公开展示姓名"
@@ -304,9 +358,10 @@ function HallOfFameFirstSubmissionForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="hof-display-grade">展示年级</Label>
+              <Label htmlFor="hof-display-grade">展示年级 <span className="text-destructive">*</span></Label>
               <Input
                 id="hof-display-grade"
+                aria-required="true"
                 value={displayGrade}
                 onChange={(e) => setDisplayGrade(e.target.value)}
                 placeholder="如：2023级"
@@ -315,9 +370,10 @@ function HallOfFameFirstSubmissionForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="hof-display-college">展示学院</Label>
+              <Label htmlFor="hof-display-college">展示学院 <span className="text-destructive">*</span></Label>
               <Input
                 id="hof-display-college"
+                aria-required="true"
                 value={displayCollege}
                 onChange={(e) => setDisplayCollege(e.target.value)}
                 placeholder="请输入所在学院"
@@ -326,9 +382,10 @@ function HallOfFameFirstSubmissionForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="hof-display-major">展示专业</Label>
+              <Label htmlFor="hof-display-major">展示专业 <span className="text-destructive">*</span></Label>
               <Input
                 id="hof-display-major"
+                aria-required="true"
                 value={displayMajor}
                 onChange={(e) => setDisplayMajor(e.target.value)}
                 placeholder="请输入所学专业"
@@ -339,9 +396,10 @@ function HallOfFameFirstSubmissionForm({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="hof-tag">竞赛标签</Label>
+            <Label htmlFor="hof-tag">竞赛标签 <span className="text-destructive">*</span></Label>
             <Input
               id="hof-tag"
+                aria-required="true"
               value={tag}
               onChange={(event) => setTag(event.target.value)}
               placeholder="如：数学建模国一、ACM 金牌"
@@ -351,7 +409,7 @@ function HallOfFameFirstSubmissionForm({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="hof-bio">个人简介</Label>
+            <Label htmlFor="hof-bio">个人简介（选填）</Label>
             <Textarea
               id="hof-bio"
               value={bio}
@@ -475,7 +533,7 @@ function HallOfFameActiveProfileForm({
     });
 
     if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message ?? "请填写有效的竞赛标签与简介";
+      const msg = zodMessage(parsed.error);
       setFormError(msg);
       toast.error(msg);
       return;
@@ -577,6 +635,11 @@ export function HallOfFameStatusCardView({
 
   async function handleWithdraw() {
     if (withdrawing) return;
+    const message =
+      entry?.status === "active"
+        ? "撤回后你的名人堂公开展示将立即下线，之后需要重新提交资料并等待审核。确定撤回吗？"
+        : "撤回后已填写的资料和待审照片将清空，之后需要重新提交并等待审核。确定撤回吗？";
+    if (!window.confirm(message)) return;
     setWithdrawing(true);
     try {
       const res = await fetchWithCsrf("/api/me/hall-of-fame", {
@@ -645,6 +708,7 @@ export function HallOfFameStatusCardView({
             </p>
           </CardContent>
         </Card>
+        <PhotoRejectionAlert entry={entry} />
         <HallOfFameFirstSubmissionForm
           entry={entry}
           userName={userName}
@@ -670,9 +734,10 @@ export function HallOfFameStatusCardView({
       );
     }
 
-    const photoStatusLabel = entry.photoStatus
-      ? HALL_OF_FAME_PHOTO_STATUS_LABELS[entry.photoStatus]
-      : "待审核";
+    const photoReviewLabel =
+      HALL_OF_FAME_PHOTO_REVIEW_LABELS[
+        entry.photoReviewStatus ?? "unsubmitted"
+      ];
     const candidatePreviewSrc = sanitizeOwnerPortraitPreviewSrc(
       entry.pendingPortraitPreviewUrl ??
         entry.portraitThumbUrl ??
@@ -699,7 +764,11 @@ export function HallOfFameStatusCardView({
                 <Award className="size-7 text-blue-500" />
               </div>
             )}
-            <h3 className="text-base font-semibold">资料审核中（尚未公开展示）</h3>
+            <h3 className="text-base font-semibold">
+              {entry.photoReviewStatus === "rejected"
+                ? "照片审核未通过（尚未公开展示）"
+                : "资料审核中（尚未公开展示）"}
+            </h3>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {entry.level ? (
                 <Badge variant="secondary">
@@ -711,13 +780,19 @@ export function HallOfFameStatusCardView({
                   {HALL_OF_FAME_MEMBER_STATUS_LABELS[entry.memberStatus]}
                 </Badge>
               ) : null}
-              <Badge variant="outline">照片状态：{photoStatusLabel}</Badge>
+              <Badge variant="outline">照片审核：{photoReviewLabel}</Badge>
               {entry.tag ? <Badge variant="secondary">{entry.tag}</Badge> : null}
             </div>
             <p className="max-w-lg text-sm text-muted-foreground">
-              你的名人堂资料与专用照片正在等待超级管理员审核，通过前不会在前台名人堂页面展示。
+              {entry.photoReviewStatus === "rejected"
+                ? "照片审核未通过，请重新上传照片并提交资料；重新提交后会再次进入照片审核队列。"
+                : entry.photoReviewStatus === "approved"
+                  ? "照片审核已通过，正在等待成员管理发布；发布前不会在前台名人堂页面展示。"
+                  : "你的名人堂资料与专用照片正在等待超级管理员审核，通过前不会在前台名人堂页面展示。"}
             </p>
           </div>
+
+          <PhotoRejectionAlert entry={entry} />
 
           <div className="grid gap-3 rounded-lg border border-blue-200/60 bg-background/70 p-4 text-sm sm:grid-cols-2">
             <div>

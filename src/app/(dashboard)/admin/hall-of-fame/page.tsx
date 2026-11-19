@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  Check,
   ExternalLink,
   EyeOff,
   Pencil,
@@ -19,10 +20,10 @@ import {
   buildHallOfFameUpdatePayload,
   defaultAdminHallOfFameFilters,
   filterAdminHallOfFameEntries,
+  formatAdminDateTime,
   formatAdminHallOfFameLevelLabel,
   formatAdminInviteStatusLabel,
   formatAdminMemberStatusLabel,
-  formatAdminPhotoStatusLabel,
   hasActiveAdminHallOfFameFilters,
   parseAdminRequestError,
   resolveAdminEntryDisplayName,
@@ -35,6 +36,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -46,6 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   adminHallOfFameEntrySchema,
   adminHallOfFameListResponseSchema,
+  adminHallOfFamePhotoRequestsResponseSchema,
   type AdminHallOfFameEntry,
   type HallOfFameStatus,
 } from "@/lib/contracts/profiles";
@@ -53,6 +56,7 @@ import {
   HALL_OF_FAME_LEVEL_CONFIG,
   HALL_OF_FAME_LEVEL_ORDER,
   HALL_OF_FAME_MEMBER_STATUS_LABELS,
+  HALL_OF_FAME_PHOTO_REVIEW_LABELS,
   HALL_OF_FAME_STATUS_LABELS,
 } from "@/lib/hall-of-fame";
 import { isAbortError, requestJSON } from "@/lib/http-client";
@@ -77,6 +81,10 @@ export default function AdminHallOfFamePage() {
     defaultAdminHallOfFameFilters,
   );
   const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
+  const [tab, setTab] = useState("members");
+  const [keyword, setKeyword] = useState("");
+  const [sortBy, setSortBy] = useState<"display" | "updated">("display");
+  const [pendingPhotoCount, setPendingPhotoCount] = useState(0);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminHallOfFameEntry | null>(null);
@@ -115,6 +123,25 @@ export default function AdminHallOfFamePage() {
       setLoading(false);
     }
   }, [fetchEntries]);
+
+  const refreshPendingPhotoCount = useCallback(async () => {
+    try {
+      const raw = await requestJSON<unknown>(
+        "/api/admin/hall-of-fame/photo-requests?status=pending&pageSize=1",
+        { cache: "no-store" },
+      );
+      const parsed = adminHallOfFamePhotoRequestsResponseSchema.safeParse(raw);
+      if (parsed.success) {
+        setPendingPhotoCount(parsed.data.total ?? parsed.data.data.length);
+      }
+    } catch {
+      // 角标只是增强信息，失败不阻断成员管理。
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPendingPhotoCount();
+  }, [refreshPendingPhotoCount, entries]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -210,6 +237,60 @@ export default function AdminHallOfFamePage() {
     }
   }
 
+  async function handlePublish(entry: AdminHallOfFameEntry) {
+    if (busyEntryId || canManage !== true) return;
+    const displayName = resolveAdminEntryDisplayName(entry);
+    if (
+      !confirm(
+        `确定发布「${displayName}」到名人堂公开展示吗？服务端会核验已通过照片、公开同意与资料完整性。`,
+      )
+    ) {
+      return;
+    }
+
+    const payloadResult = buildHallOfFameUpdatePayload({
+      expectedRevision: entry.revision ?? 0,
+      displayName,
+      displayGrade: entry.displayGrade ?? "",
+      displayCollege: entry.displayCollege ?? entry.college ?? "",
+      displayMajor: entry.displayMajor ?? "",
+      memberStatus: entry.memberStatus ?? "serving",
+      status: "active",
+      displayOrder: entry.displayOrder,
+      tag: entry.tag,
+      bio: entry.bio,
+      adminBio: entry.adminBio ?? "",
+    });
+    if (!payloadResult.ok) {
+      toast.error(payloadResult.message);
+      return;
+    }
+
+    setBusyEntryId(entry.id);
+    try {
+      await requestJSON(
+        `/api/admin/hall-of-fame/${encodeURIComponent(entry.id)}`,
+        {
+          method: "PUT",
+          json: payloadResult.data,
+        },
+      );
+      toast.success("已发布到名人堂公开展示");
+      await reloadEntries();
+    } catch (error) {
+      const parsedError = parseAdminRequestError(error, "发布名人堂成员失败");
+      if (parsedError.isForbidden) {
+        setCanManage(false);
+      }
+      toast.error(parsedError.message);
+      if (parsedError.isConflict) {
+        await reloadEntries();
+      }
+    } finally {
+      setBusyEntryId(null);
+    }
+  }
+
   async function handleArchiveFormalMember(entry: AdminHallOfFameEntry) {
     if (busyEntryId || canManage !== true) return;
     const displayName = resolveAdminEntryDisplayName(entry);
@@ -265,7 +346,29 @@ export default function AdminHallOfFamePage() {
   }
 
   const filteredEntries = filterAdminHallOfFameEntries(entries, filters);
-  const filtersActive = hasActiveAdminHallOfFameFilters(filters);
+  const visibleEntries = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    const searched = normalizedKeyword
+      ? filteredEntries.filter((entry) =>
+          [
+            resolveAdminEntryDisplayName(entry),
+            entry.userName,
+            entry.college,
+            entry.displayCollege,
+            entry.tag,
+          ]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(normalizedKeyword)),
+        )
+      : filteredEntries;
+    return [...searched].sort((left, right) =>
+      sortBy === "updated"
+        ? new Date(right.updatedAt ?? 0).getTime() - new Date(left.updatedAt ?? 0).getTime()
+        : left.displayOrder - right.displayOrder ||
+          resolveAdminEntryDisplayName(left).localeCompare(resolveAdminEntryDisplayName(right), "zh-Hans-CN"),
+    );
+  }, [filteredEntries, keyword, sortBy]);
+  const filtersActive = hasActiveAdminHallOfFameFilters(filters) || keyword.trim().length > 0;
 
   return (
     <div className="px-4 lg:px-6">
@@ -273,7 +376,7 @@ export default function AdminHallOfFamePage() {
         <PageHeader
           eyebrow="名人堂邀请与审核"
           title="名人堂管理"
-          description="管理三级成员名单、现役/荣誉身份、入选进阶履历，以及正式成员的照片修改申请审核。"
+          description="先在该成员的“照片申请”中通过首次照片或换照，再回“成员管理”执行通过并发布；发布后才会在前台名人堂展示。"
           actions={
             canManage === true ? (
               <Button
@@ -298,10 +401,17 @@ export default function AdminHallOfFamePage() {
           </Card>
         ) : null}
 
-        <Tabs defaultValue="members" className="space-y-4">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="members">成员管理</TabsTrigger>
-            <TabsTrigger value="photo-requests">照片申请</TabsTrigger>
+            <TabsTrigger value="photo-requests">
+              照片申请
+              {pendingPhotoCount > 0 ? (
+                <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  {pendingPhotoCount > 99 ? "99+" : pendingPhotoCount}
+                </span>
+              ) : null}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="members" className="space-y-4">
@@ -389,11 +499,38 @@ export default function AdminHallOfFamePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="min-w-[180px]">
+                  <Input
+                    value={keyword}
+                    onChange={(event) => setKeyword(event.target.value)}
+                    placeholder="搜索姓名 / 标签 / 学院"
+                    aria-label="搜索名人堂成员"
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="min-w-[140px]">
+                  <Select
+                    value={sortBy}
+                    onValueChange={(value) =>
+                      setSortBy(value === "updated" ? "updated" : "display")
+                    }
+                  >
+                    <SelectTrigger aria-label="成员排序" triggerSize="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="display">按展示顺序</SelectItem>
+                      <SelectItem value="updated">按最近更新</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span>
-                  显示 {filteredEntries.length} / {entries.length} 人
+                  显示 {visibleEntries.length} / {entries.length} 人
                 </span>
                 {filtersActive ? (
                   <Button
@@ -401,7 +538,11 @@ export default function AdminHallOfFamePage() {
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs"
-                    onClick={() => setFilters(defaultAdminHallOfFameFilters)}
+                    onClick={() => {
+                      setFilters(defaultAdminHallOfFameFilters);
+                      setKeyword("");
+                      setSortBy("display");
+                    }}
                   >
                     <RotateCcw className="mr-1 size-3" />
                     清空筛选
@@ -448,7 +589,7 @@ export default function AdminHallOfFamePage() {
                   暂无名人堂条目
                 </CardContent>
               </Card>
-            ) : filteredEntries.length === 0 ? (
+            ) : visibleEntries.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center gap-3 p-8 text-center text-sm text-muted-foreground">
                   <p>当前筛选条件下没有匹配的名人堂成员</p>
@@ -464,7 +605,7 @@ export default function AdminHallOfFamePage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {filteredEntries.map((entry) => {
+                {visibleEntries.map((entry) => {
                   const displayName = resolveAdminEntryDisplayName(entry);
                   const displayCollege =
                     entry.displayCollege ?? entry.college ?? "未填写学院";
@@ -490,8 +631,19 @@ export default function AdminHallOfFamePage() {
                             <Badge variant="secondary">
                               {formatAdminMemberStatusLabel(entry.memberStatus)}
                             </Badge>
-                            <Badge variant="outline">
-                              照片：{formatAdminPhotoStatusLabel(entry.photoStatus)}
+                            <Badge
+                              variant={
+                                entry.photoReviewStatus === "approved"
+                                  ? "default"
+                                  : entry.photoReviewStatus === "rejected"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                            >
+                              照片审核：
+                              {HALL_OF_FAME_PHOTO_REVIEW_LABELS[
+                                entry.photoReviewStatus ?? "unsubmitted"
+                              ]}
                             </Badge>
                             {entry.tag ? (
                               <Badge variant="outline">{entry.tag}</Badge>
@@ -506,10 +658,10 @@ export default function AdminHallOfFamePage() {
                             ]
                               .filter(Boolean)
                               .join(" · ")}{" "}
-                            | 排序：{entry.displayOrder} | 版本：rev.
+                            | 排序：{entry.displayOrder} | 资料版本：
                             {entry.revision ?? 0}
                             {entry.updatedAt
-                              ? ` | 最近更新：${entry.updatedAt}`
+                              ? ` | 最近更新：${formatAdminDateTime(entry.updatedAt)}`
                               : ""}
                           </p>
 
@@ -565,6 +717,45 @@ export default function AdminHallOfFamePage() {
 
                           {canManage === true ? (
                             <>
+                              {entry.status === "candidate" ? (
+                                <>
+                                  {entry.photoReviewStatus !== "approved" ? (
+                                    <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                                      <span>
+                                        照片
+                                        {HALL_OF_FAME_PHOTO_REVIEW_LABELS[
+                                          entry.photoReviewStatus ?? "unsubmitted"
+                                        ]}
+                                        ，需先通过
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="link"
+                                        className="h-auto p-0 text-xs text-amber-900 underline"
+                                        onClick={() => setTab("photo-requests")}
+                                      >
+                                        去审核照片
+                                      </Button>
+                                    </div>
+                                  ) : null}
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    loading={isBusy}
+                                    disabled={isBusy || entry.photoReviewStatus !== "approved"}
+                                    title={
+                                      entry.photoReviewStatus === "approved"
+                                        ? "通过成员资料并发布到名人堂"
+                                        : "请先在“照片申请”中通过成员照片"
+                                    }
+                                    onClick={() => void handlePublish(entry)}
+                                  >
+                                    <Check className="mr-1 size-3.5" />
+                                    通过并发布
+                                  </Button>
+                                </>
+                              ) : null}
                               <Button
                                 type="button"
                                 variant="outline"
@@ -638,7 +829,10 @@ export default function AdminHallOfFamePage() {
           <TabsContent value="photo-requests">
             <HallOfFamePhotoRequestsTab
               canManage={canManage === true}
-              onApproved={reloadEntries}
+              onApproved={async () => {
+                await reloadEntries();
+                await refreshPendingPhotoCount();
+              }}
               onPermissionRevoked={() => setCanManage(false)}
             />
           </TabsContent>

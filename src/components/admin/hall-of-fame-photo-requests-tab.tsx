@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { Eye, Image as ImageIcon, RefreshCw, Undo2 } from "lucide-react";
 
 import {
+  formatAdminDateTime,
   formatAdminHallOfFameLevelLabel,
   formatAdminMemberStatusLabel,
   parseAdminRequestError,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/contracts/profiles";
 import { HALL_OF_FAME_PHOTO_REQUEST_STATUS_LABELS } from "@/lib/hall-of-fame";
 import { isAbortError, requestJSON } from "@/lib/http-client";
+import { toast } from "@/lib/i18n/toast";
 
 interface HallOfFamePhotoRequestsTabProps {
   canManage: boolean;
@@ -68,6 +70,7 @@ export function HallOfFamePhotoRequestsTab({
   const [selectedRequest, setSelectedRequest] =
     useState<AdminHallOfFamePhotoRequest | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [undoingId, setUndoingId] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const seqRef = useRef(0);
@@ -162,6 +165,31 @@ export function HallOfFamePhotoRequestsTab({
       }
     }
   }, [fetchRequestsPage, onPermissionRevoked, page, statusFilter]);
+
+  async function handleUndoApprove(item: AdminHallOfFamePhotoRequest) {
+    if (!(canManage && serverCanManage) || undoingId) return;
+    if (
+      !window.confirm(
+        "撤销后该照片申请会回到待审核；active 换照会恢复上一张正式照片。确定撤销吗？",
+      )
+    ) {
+      return;
+    }
+    setUndoingId(item.id);
+    try {
+      await requestJSON(
+        `/api/admin/hall-of-fame/photo-requests/${encodeURIComponent(item.id)}/review`,
+        { method: "POST", json: { action: "undo_approve" } },
+      );
+      toast.success("已撤销通过，照片申请回到待审核");
+      await reloadCurrentPage();
+      await onApproved();
+    } catch (error) {
+      toast.error(parseAdminRequestError(error, "撤销照片通过失败").message);
+    } finally {
+      setUndoingId(null);
+    }
+  }
 
   const syncRequestOnConflict = useCallback(
     async (): Promise<AdminHallOfFamePhotoRequest | null> => {
@@ -325,7 +353,7 @@ export function HallOfFamePhotoRequestsTab({
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
             <ImageIcon className="size-8 text-muted-foreground/60" />
-            <p>当前筛选条件下暂无照片修改申请</p>
+            <p>当前筛选条件下暂无照片申请</p>
           </CardContent>
         </Card>
       ) : (
@@ -359,11 +387,20 @@ export function HallOfFamePhotoRequestsTab({
                       <Badge variant="secondary">
                         {formatAdminMemberStatusLabel(item.memberStatus)}
                       </Badge>
+                      <Badge variant="outline">
+                        {item.requestKind === "initial"
+                          ? "首次照片"
+                          : item.requestKind === "rephoto"
+                            ? "换照申请"
+                            : "照片申请"}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      申请时间：{item.createdAt} · 成员版本 rev.
+                      申请时间：{formatAdminDateTime(item.createdAt)} · 资料版本
                       {item.expectedRevision}
-                      {item.reviewedAt ? ` · 审核时间：${item.reviewedAt}` : ""}
+                      {item.reviewedAt
+                        ? ` · 审核时间：${formatAdminDateTime(item.reviewedAt)}`
+                        : ""}
                       {item.reviewerName ? ` · 审核人：${item.reviewerName}` : ""}
                     </p>
                     {item.rejectionReason ? (
@@ -401,6 +438,19 @@ export function HallOfFamePhotoRequestsTab({
                         只读（无预览权限）
                       </span>
                     )}
+                    {effectiveCanManage && item.status === "approved" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        loading={undoingId === item.id}
+                        disabled={Boolean(undoingId)}
+                        onClick={() => void handleUndoApprove(item)}
+                      >
+                        <Undo2 className="mr-1 size-3.5" />
+                        撤销通过
+                      </Button>
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
@@ -462,7 +512,7 @@ export function HallOfFamePhotoRequestsTab({
         canViewPreview={serverCanViewPreview}
         onReviewed={async (action) => {
           await reloadCurrentPage();
-          if (action === "approve") {
+          if (action !== "reject") {
             await onApproved();
           }
         }}
