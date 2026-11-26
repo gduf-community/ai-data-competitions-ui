@@ -240,3 +240,24 @@ test("application draft feedback confirms deletion only after storage succeeds",
     }
   }
 });
+
+test("removal reports failure when the entry survives removeItem", (t) => {
+  const store = new Map<string, string>([["application-draft:test", "{}"]]);
+  const old = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value); },
+        removeItem: () => {},
+      },
+    },
+  });
+  t.after(() => {
+    if (old) Object.defineProperty(globalThis, "window", old);
+    else Reflect.deleteProperty(globalThis, "window");
+  });
+  assert.equal(removeSafeStorageItem("application-draft:test"), false);
+  assert.equal(store.get("application-draft:test"), "{}");
+});
