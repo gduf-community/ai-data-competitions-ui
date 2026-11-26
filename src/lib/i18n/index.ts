@@ -331,6 +331,10 @@ const exactMessages: Record<string, MessageMap> = {
     "zh-CN": "本地草稿已清除",
     "en-US": "Local draft cleared.",
   },
+  "无法确认本地草稿清除结果": {
+    "zh-CN": "无法确认本地草稿清除结果",
+    "en-US": "Could not confirm that the local draft was cleared.",
+  },
   "没有可恢复的本地草稿": {
     "zh-CN": "没有可恢复的本地草稿",
     "en-US": "No local draft is available to restore.",
@@ -338,6 +342,10 @@ const exactMessages: Record<string, MessageMap> = {
   "草稿数据异常，已清除": {
     "zh-CN": "草稿数据异常，已清除",
     "en-US": "The draft data is corrupted and has been cleared.",
+  },
+  "草稿数据异常，无法确认是否清除": {
+    "zh-CN": "草稿数据异常，无法确认是否清除",
+    "en-US": "The draft data is corrupted and could not be confirmed as cleared.",
   },
   "团队报名必须填写团队名称": {
     "zh-CN": "团队报名必须填写团队名称",
