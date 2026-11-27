@@ -10,7 +10,7 @@ Web 对所有分支 push 和所有 PR 自动检查，也支持无发布参数的
 
 | 顺序 | 工作流执行 | 作用 |
 | --- | --- | --- |
-| 1 | 安装 pnpm 10.34.5，Node 读取 `.node-version`（22.23.3） | 固定工具链 |
+| 1 | 安装 pnpm 10.34.5，Node 读取 `.node-version`（22.23.5） | 固定工具链 |
 | 2 | `pnpm install --frozen-lockfile`，再 `git diff --exit-code -- package.json pnpm-lock.yaml` | 安装不能改写依赖基线 |
 | 3 | `pnpm run check:framework` | 核对实际 Next/ESLint、React/DOM 与类型版本 |
 | 4 | `pnpm run ci` | lint → typecheck → test → build |

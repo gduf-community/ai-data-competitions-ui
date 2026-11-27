@@ -22,7 +22,7 @@ competition-web.service enabled、DynamicUser=yes，共享competition-apps.slice
 
 ## 配对更新与验证边界
 
-Linux x64、Node22.23.3、pnpm10.34.5离线构建，双向manifest和payload摘要必须核验。只暂存不等于激活。main新增奖项页面须配套API0033/0034及独立密钥，不能先发Web；已开始新写入，不能回旧Zeabur/旧库。代码回滚需兼容当前数据，保留完整旧pair，维护/排空/备份后协调。
+Linux x64、Node22.23.5、pnpm10.34.5离线构建，双向manifest和payload摘要必须核验。只暂存不等于激活。main新增奖项页面须配套API0033/0034及独立密钥，不能先发Web；已开始新写入，不能回旧Zeabur/旧库。代码回滚需兼容当前数据，保留完整旧pair，维护/排空/备份后协调。
 
 Web push/PR自动CI但不部署、不晋级production；旧平台订阅仍是独立风险。全部配置、文档、PR准备完毕且故障收口后才推进更新，本轮仅本地整理。
 

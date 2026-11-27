@@ -24,7 +24,7 @@ test("ECS staging verifies exact bytes, preserves internal links, rejects overwr
     tar.c({ file: payload, cwd: source, gzip: true, sync: true }, ["."]);
     const digest = createHash("sha256").update(fs.readFileSync(payload)).digest("hex");
     const manifest = { version: 1, unit, sha, payloadSha256: digest, platform: process.platform, arch: process.arch,
-      node: "v22.23.3", repository: "gduf-community/" + (unit === "api" ? "competition-Q-A-website" : "ai-data-competitions-ui"), server };
+      node: "v22.23.5", repository: "gduf-community/" + (unit === "api" ? "competition-Q-A-website" : "ai-data-competitions-ui"), server };
     fs.writeFileSync(manifestFile, JSON.stringify(manifest));
     return digest;
   }
