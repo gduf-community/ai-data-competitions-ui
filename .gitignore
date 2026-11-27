@@ -52,3 +52,5 @@ run-dev.bat
 run-dev.ps1
 start-dev.bat
 !.env.example
+
+/.verification/
