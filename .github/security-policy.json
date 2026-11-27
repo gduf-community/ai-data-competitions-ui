@@ -264,6 +264,54 @@
           "name": "foreign authority cannot be promoted by browser forwarding headers"
         }
       ]
+    },
+    {
+      "entry": "scripts/release-ecs.mjs",
+      "sha256": "2322734864d12fe6156c0c0ff5ced2576bef3088f9b9fde119a6af090388c3a5",
+      "controls": {
+        "authentication": "not-applicable: Service identity and signed-in sessions are checked when the application handles requests.",
+        "authorization": "not-applicable: Object and field access decisions belong to the API handling each request.",
+        "currentPermissions": "not-applicable: The local CLI does not resolve accounts or read current membership or role data.",
+        "origin": "not-applicable: Browser Origin checks belong to request handlers. Launcher origin settings identify trusted backend endpoints.",
+        "rateLimit": "not-applicable: The CLI runs once per build or service start and has no network request intake.",
+        "schema": "not-applicable: Request schemas apply in HTTP handlers. This CLI validates its own toolchain settings.",
+        "bodyLimit": "not-applicable: The CLI accepts no network request body or multipart stream.",
+        "responseLimit": "not-applicable: The CLI produces no browser or service response body.",
+        "cache": "not-applicable: No HTTP response or shared application cache is produced by this entry.",
+        "sensitiveData": "not-applicable: The version guard reports a fixed version requirement without including environment values.",
+        "audit": "not-applicable: Application audit events belong to user and administrative mutations. A version mismatch terminates the local command.",
+        "stateMachine": "not-applicable: This CLI neither changes business records nor activates an ECS release."
+      },
+      "negativeTests": [
+        {
+          "file": "tests/ecs-node-version.test.mjs",
+          "name": "offline build rejects the previous Node before invoking build tools"
+        }
+      ]
+    },
+    {
+      "entry": "deploy/ecs/start-runtime.mjs",
+      "sha256": "d299d32929a5457f3d393426828978cabcabaab1fac4b113a0bd76277026e2db",
+      "controls": {
+        "authentication": "not-applicable: Service identity and signed-in sessions are checked when the application handles requests.",
+        "authorization": "not-applicable: Object and field access decisions belong to the API handling each request.",
+        "currentPermissions": "not-applicable: The local CLI does not resolve accounts or read current membership or role data.",
+        "origin": "not-applicable: Browser Origin checks belong to request handlers. Launcher origin settings identify trusted backend endpoints.",
+        "rateLimit": "not-applicable: The CLI runs once per build or service start and has no network request intake.",
+        "schema": "not-applicable: Request schemas apply in HTTP handlers. This CLI validates its own toolchain settings.",
+        "bodyLimit": "not-applicable: The CLI accepts no network request body or multipart stream.",
+        "responseLimit": "not-applicable: The CLI produces no browser or service response body.",
+        "cache": "not-applicable: No HTTP response or shared application cache is produced by this entry.",
+        "sensitiveData": "not-applicable: The version guard reports a fixed version requirement without including environment values.",
+        "audit": "not-applicable: Application audit events belong to user and administrative mutations. A version mismatch terminates the local command.",
+        "stateMachine": "not-applicable: This CLI neither changes business records nor activates an ECS release."
+      },
+      "negativeTests": [
+        {
+          "file": "tests/ecs-node-version.test.mjs",
+          "name": "Web launcher rejects the previous Node before starting the server"
+        }
+      ]
     }
   ],
   "auditExceptions": [
