@@ -266,6 +266,56 @@
       ]
     },
     {
+      "entry": "scripts/verify-feature.mjs",
+      "sha256": "72f267f0165a670b945c86de4f94abb4ec836c5a17a9434e384bca4def334bfc",
+      "scope": "2026-11-27 local source review: exact caller-owned verification or existing migration entry; no server-side execution or credential expansion, no production database operation. Negative checks below are executable; this metadata is not an independent GitHub approval. Platform requirements are now checked before command execution; unsupported systems produce incomplete environment evidence, not a passed or product-failed check.",
+      "controls": {
+        "authentication": "not-applicable: Caller-invoked local developer command, not an HTTP/service endpoint; it inherits the authorized shell identity and exposes no listener.",
+        "authorization": "not-applicable: Commands come from the explicitly invoked checkout's governance.json and run as that caller, with shell=false; the MCP never executes them or grants extra OS/GitHub permissions.",
+        "currentPermissions": "not-applicable: No reusable application authorization is accepted by this local runner. Actual API checks use the existing service/session guards and synthetic harness.",
+        "origin": "not-applicable: No HTTP ingress exists in this command; command argv and explicit repository workspaces are local caller inputs, not browser-origin data.",
+        "rateLimit": "not-applicable: There is no remote or paid execution interface; checks run serially with a declared finite timeout, under caller-owned local resources.",
+        "schema": "not-applicable: CLI accepts named options and manifest v1, validates feature/component identity, check argv and timeout; GitHub origin and exact Git revisions are captured.",
+        "bodyLimit": "not-applicable: No HTTP or upload body is consumed. The repository manifest is a local reviewed source file, not a public request allocation path.",
+        "responseLimit": "not-applicable: No API collection is returned. Per-check stdout/stderr is redirected to local logs and compact JSON evidence, with no automatic artifact publication.",
+        "cache": "not-applicable: No shared application cache or remote task store is used; before/after source checks prevent dirty or changed workspaces from obtaining completed evidence.",
+        "sensitiveData": "not-applicable: Only synthetic test inputs are authorized. Environment values are inherited for tests, not serialized by the runner; local command logs need review before publication.",
+        "audit": "not-applicable: No business command audit obligation is owned by this developer wrapper. It records actual commands, exit statuses, assertion references and incomplete/failure categories locally.",
+        "stateMachine": "not-applicable: This wrapper does not implement business transitions. Required checks cannot be skipped/neutral/zero tests and still pass; each project retains its own transactional state-machine tests."
+      },
+      "negativeTests": [
+        {
+          "file": "tests/feature-verification.test.mjs",
+          "name": "feature evidence rejects skipped commands missing environments and dirty revisions"
+        }
+      ]
+    },
+    {
+      "entry": "scripts/verify-club-browser.mjs",
+      "sha256": "163567f5357ad228ef0f204262bd79a8ec821283addf6272df50737d4d05d0e4",
+      "scope": "2026-11-27 local browser verification driver: requires explicit API checkout, loopback synthetic TEST_DATABASE_URL (validated by the existing API harness) and browser executable. It starts only the disposable paired harness, uses real login/current CSRF/BFF, asserts actual save/409/reconciliation/publication/revocation, closes Chrome and signals harness cleanup in finally. It introduces no production endpoint, credential sharing or deploy operation.",
+      "controls": {
+        "authentication": "not-applicable: Caller-invoked local developer command, not an HTTP/service endpoint; it inherits the authorized shell identity and exposes no listener.",
+        "authorization": "not-applicable: Commands come from the explicitly invoked checkout's governance.json and run as that caller, with shell=false; the MCP never executes them or grants extra OS/GitHub permissions.",
+        "currentPermissions": "not-applicable: No reusable application authorization is accepted by this local runner. Actual API checks use the existing service/session guards and synthetic harness.",
+        "origin": "not-applicable: No HTTP ingress exists in this command; command argv and explicit repository workspaces are local caller inputs, not browser-origin data.",
+        "rateLimit": "not-applicable: There is no remote or paid execution interface; checks run serially with a declared finite timeout, under caller-owned local resources.",
+        "schema": "not-applicable: CLI accepts named options and manifest v1, validates feature/component identity, check argv and timeout; GitHub origin and exact Git revisions are captured.",
+        "bodyLimit": "not-applicable: No HTTP or upload body is consumed. The repository manifest is a local reviewed source file, not a public request allocation path.",
+        "responseLimit": "not-applicable: No API collection is returned. Per-check stdout/stderr is redirected to local logs and compact JSON evidence, with no automatic artifact publication.",
+        "cache": "not-applicable: No shared application cache or remote task store is used; before/after source checks prevent dirty or changed workspaces from obtaining completed evidence.",
+        "sensitiveData": "not-applicable: Only synthetic test inputs are authorized. Environment values are inherited for tests, not serialized by the runner; local command logs need review before publication.",
+        "audit": "not-applicable: No business command audit obligation is owned by this developer wrapper. It records actual commands, exit statuses, assertion references and incomplete/failure categories locally.",
+        "stateMachine": "not-applicable: This wrapper does not implement business transitions. Required checks cannot be skipped/neutral/zero tests and still pass; each project retains its own transactional state-machine tests."
+      },
+      "negativeTests": [
+        {
+          "file": "tests/feature-verification.test.mjs",
+          "name": "club browser verification refuses missing explicit synthetic environment before launch"
+        }
+      ]
+    },
+    {
       "entry": "scripts/release-ecs.mjs",
       "sha256": "2322734864d12fe6156c0c0ff5ced2576bef3088f9b9fde119a6af090388c3a5",
       "controls": {

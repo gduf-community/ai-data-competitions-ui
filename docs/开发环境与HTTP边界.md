@@ -1,5 +1,7 @@
 # 开发环境与 HTTP 边界
 
+功能治理新增 `pnpm verify:feature`，复用现有 Node/pnpm 和 API 合成 HTTP harness；固定 `playwright-core` 仅为开发依赖，浏览器通过 `TEST_BROWSER_EXECUTABLE` 显式指定现有 Chrome/Chromium。需要 API checkout 的 `TEST_API_DIRECTORY`、本机合成 `TEST_DATABASE_URL`，工件保存在忽略的 `.verification`。这些变量只用于开发/CI 验收，不进入生产服务配置；步骤见[测试与验收](测试与验收.md#功能验收入口与社团操作图)。
+
 2026-10-21的ECS部署、事故恢复与配置交接见[历史记录](阿里云ECS部署.md)；当前线上版本需独立核验。
 
 概览/入口核对：2026-11-18，Web main `099da0af7082808bc3b80604844ea27cd30f5ade`、API main `46933d828c3a58fbd12b2712e6ad5a60fde2452d`；历史执行记录保留原版本和日期。变量来自 [.env.example](../.env.example)、[传输配置](../src/lib/web-transport.ts) 和 [proxy](../src/proxy.ts)。本文提供开发/联调方法，生产密钥与真实运行材料保存在受限环境。

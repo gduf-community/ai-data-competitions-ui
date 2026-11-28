@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "components": {
+    "api": {
+      "repository": "gduf-community/competition-Q-A-website",
+      "ref": "main"
+    }
+  },
+  "inputs": [
+    "database_schema",
+    "fixture"
+  ],
+  "features": [
+    {
+      "id": "clubs.publish",
+      "description": "社团真实编辑流程、失败保留输入、显式冲突核对、发布和撤权。",
+      "documentation": [
+        "docs/测试与验收.md",
+        "docs/开发环境与HTTP边界.md"
+      ],
+      "checks": [
+        "boundaries",
+        "clubs",
+        "build",
+        "club-browser"
+      ]
+    },
+    {
+      "id": "notifications.read",
+      "description": "通知正文不等待可选会话、已读状态单调且按用户隔离。",
+      "documentation": [
+        "docs/测试与验收.md"
+      ],
+      "checks": [
+        "boundaries",
+        "notifications"
+      ]
+    },
+    {
+      "id": "official_awards.contract",
+      "description": "官方获奖名单 Web 消费者回归：DTO 与更正命令、查询/合并、BFF、编辑及导出生命周期。跨仓 API 契约须另行核验。",
+      "documentation": [
+        "docs/测试与验收.md"
+      ],
+      "checks": [
+        "boundaries",
+        "official-awards-web"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "boundaries",
+      "kind": "command",
+      "command": [
+        "node",
+        "scripts/check-web-boundaries.mjs"
+      ],
+      "properties": [
+        "engineering.web_api_boundary"
+      ],
+      "requires": [],
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "clubs",
+      "kind": "command",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "tests/club-workflow.test.ts",
+        "tests/club-async.test.ts"
+      ],
+      "properties": [
+        "clubs.conflict_preserves_input",
+        "clubs.unmount_cancels_publish",
+        "clubs.response_identity"
+      ],
+      "requires": [],
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "notifications",
+      "kind": "command",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "tests/public-ssr.test.mjs"
+      ],
+      "properties": [
+        "notifications.public_body_independent",
+        "notifications.read_state_is_monotone",
+        "notifications.user_isolation"
+      ],
+      "requires": [],
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "official-awards-web",
+      "kind": "command",
+      "command": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "tests/official-awards.test.ts",
+        "tests/official-awards-flow.test.ts",
+        "tests/official-awards-bff.test.ts",
+        "tests/official-awards-lifecycle.test.mjs",
+        "tests/official-awards-export-lifecycle.test.ts"
+      ],
+      "properties": [
+        "official_awards.web_consumer_regressions"
+      ],
+      "requires": [],
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "build",
+      "kind": "command",
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "build"
+      ],
+      "properties": [
+        "engineering.web_build"
+      ],
+      "requires": [],
+      "timeoutSeconds": 900
+    },
+    {
+      "id": "club-browser",
+      "kind": "browser",
+      "command": [
+        "node",
+        "scripts/verify-club-browser.mjs"
+      ],
+      "properties": [
+        "clubs.browser_save_reopen",
+        "clubs.browser_conflict_reconcile",
+        "clubs.browser_publish",
+        "clubs.browser_revocation"
+      ],
+      "requires": [
+        "TEST_API_DIRECTORY",
+        "TEST_DATABASE_URL",
+        "TEST_BROWSER_EXECUTABLE"
+      ],
+      "timeoutSeconds": 240
+    }
+  ]
+}
