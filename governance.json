@@ -38,13 +38,13 @@
     },
     {
       "id": "official_awards.contract",
-      "description": "指定 API 的获奖契约与 Web 实际消费。",
+      "description": "官方获奖名单 Web 消费者回归：DTO 与更正命令、查询/合并、BFF、编辑及导出生命周期。跨仓 API 契约须另行核验。",
       "documentation": [
         "docs/测试与验收.md"
       ],
       "checks": [
         "boundaries",
-        "award"
+        "official-awards-web"
       ]
     }
   ],
@@ -100,17 +100,21 @@
       "timeoutSeconds": 600
     },
     {
-      "id": "award",
+      "id": "official-awards-web",
       "kind": "command",
       "command": [
         "node",
         "--import",
         "tsx",
         "--test",
-        "tests/award-contract.test.ts"
+        "tests/official-awards.test.ts",
+        "tests/official-awards-flow.test.ts",
+        "tests/official-awards-bff.test.ts",
+        "tests/official-awards-lifecycle.test.mjs",
+        "tests/official-awards-export-lifecycle.test.ts"
       ],
       "properties": [
-        "official_awards.consumer_contract"
+        "official_awards.web_consumer_regressions"
       ],
       "requires": [],
       "timeoutSeconds": 600

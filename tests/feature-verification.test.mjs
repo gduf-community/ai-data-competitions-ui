@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -38,4 +38,32 @@ test("feature evidence rejects skipped commands missing environments and dirty r
   assert.equal((await verifyProject([],root)).status,"passed");
   await writeFile(join(root,"uncommitted.txt"),"new source");
   assert.equal((await verifyProject([],root)).status,"incomplete");
+});
+
+test("official awards feature binds to shipped Web consumers, not personal certificates", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../governance.json", import.meta.url), "utf8"));
+  const feature = manifest.features.find(item => item.id === "official_awards.contract");
+  assert.ok(feature, "official awards must have a dedicated verification feature");
+  assert.deepEqual(feature.checks, ["boundaries", "official-awards-web"]);
+  const check = manifest.checks.find(item => item.id === "official-awards-web");
+  assert.ok(check, "official awards must resolve to a runnable check");
+  assert.equal(check.kind, "command");
+  assert.deepEqual(check.properties, ["official_awards.web_consumer_regressions"]);
+
+  // Bind the feature to actual official-awards Web source and lifecycle tests.
+  // Personal award-certificate tests are a different feature and cannot discharge this claim.
+  const sources = new Map([
+    ["tests/official-awards.test.ts", ["../src/lib/contracts/official-awards", "../src/lib/official-awards/members"]],
+    ["tests/official-awards-flow.test.ts", ["../src/lib/official-awards/query", "../src/lib/official-awards/members"]],
+    ["tests/official-awards-bff.test.ts", ["../src/lib/web-transport", "/api/admin/official-awards/"]],
+    ["tests/official-awards-lifecycle.test.mjs", ["src/components/admin/official-awards/", "src/hooks/use-official-award-list.ts"]],
+    ["tests/official-awards-export-lifecycle.test.ts", ["src/hooks/use-official-award-export.ts"]],
+  ]);
+  assert.deepEqual(check.command, ["node", "--import", "tsx", "--test", ...sources.keys()]);
+  for (const [path, requiredSources] of sources) {
+    const source = await readFile(new URL("../" + path, import.meta.url), "utf8");
+    for (const required of requiredSources) {
+      assert.ok(source.includes(required), `${path} must exercise ${required}`);
+    }
+  }
 });
