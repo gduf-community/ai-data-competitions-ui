@@ -8,7 +8,7 @@ function run(command, args, options = {}) {
   if (result.error || result.status !== 0) throw new Error("Release command failed: " + command);
   return result.stdout?.trim();
 }
-if (process.version !== "v22.23.3" || process.platform !== "linux") throw new Error("Build on Linux with Node.js 22.23.3, matching the target architecture.");
+if (process.version !== "v22.23.5" || process.platform !== "linux") throw new Error("Build on Linux with Node.js 22.23.5, matching the target architecture.");
 if (run("pnpm", ["--version"]) !== "10.34.5") throw new Error("pnpm 10.34.5 required.");
 if (run("git", ["status", "--porcelain"])) throw new Error("Commit the release candidate in a clean checkout first.");
 const sha = run("git", ["rev-parse", "HEAD"]);

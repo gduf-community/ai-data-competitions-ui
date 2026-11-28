@@ -6,7 +6,7 @@
 
 ## 工具链和两个运行进程
 
-使用 Node.js **22.23.3**、pnpm **10.34.5**；Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**。冻结安装并执行 `pnpm check:framework`；CI、manifest 与包管理版本检查见[CI 文档](./CI与构建.md)。不要为文档示例重生成锁文件。
+使用 Node.js **22.23.5**、pnpm **10.34.5**；Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**。冻结安装并执行 `pnpm check:framework`；CI、manifest 与包管理版本检查见[CI 文档](./CI与构建.md)。不要为文档示例重生成锁文件。
 
 1. 在 API 仓库按其[开发说明](https://github.com/gduf-community/competition-Q-A-website#readme)配置独立合成数据库、认证等后端变量，启动 `pnpm dev --port 3001`。数据库迁移/seed 由 API 的显式工具负责，Web 不执行。
 2. 在 Web 复制 `.env.example` 为 `.env.local`，两端注入同一随机服务凭据。可本地执行 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` 生成测试值；不要提交生成值或把它写成 NEXT_PUBLIC_ 变量。
