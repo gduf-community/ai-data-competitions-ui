@@ -228,12 +228,36 @@ test("application draft feedback confirms deletion only after storage succeeds",
       const [notice] = notifications;
       assert.equal(notice.kind, canRemove && action === "clearDraft" ? "success" : "error",
         `${action}: storage denial must not report deletion`);
-      if (canRemove) assert.match(notice.message, /已清除/);
-      else {
-        assert.match(notice.message, /无法确认.*清除/);
-        assert.doesNotMatch(notice.message, /已清除/);
-      }
-      if (action === "restoreDraft") assert.match(notice.message, /草稿数据异常/);
+      const expectedMessage =
+        action === "clearDraft"
+          ? canRemove
+            ? "本地草稿已清除"
+            : "无法确认本地草稿已清除，请检查浏览器存储权限后重试。"
+          : canRemove
+            ? "草稿数据异常，已清除"
+            : "草稿数据异常，且无法确认是否已清除，请检查浏览器存储权限。";
+      assert.equal(notice.message, expectedMessage);
     }
   }
+});
+
+test("removal reports failure when the entry survives removeItem", (t) => {
+  const store = new Map<string, string>([["application-draft:test", "{}"]]);
+  const old = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value); },
+        removeItem: () => {},
+      },
+    },
+  });
+  t.after(() => {
+    if (old) Object.defineProperty(globalThis, "window", old);
+    else Reflect.deleteProperty(globalThis, "window");
+  });
+  assert.equal(removeSafeStorageItem("application-draft:test"), false);
+  assert.equal(store.get("application-draft:test"), "{}");
 });

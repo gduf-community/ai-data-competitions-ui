@@ -47,7 +47,7 @@ export function removeSafeStorageItem(
   if (!storage) return false;
   try {
     storage.removeItem(key);
-    return true;
+    return storage.getItem(key) === null;
   } catch {
     return false;
   }

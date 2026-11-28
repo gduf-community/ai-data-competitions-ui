@@ -259,7 +259,7 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
     if (removeSafeStorageItem(draftStorageKey)) {
       toast.success("本地草稿已清除");
     } else {
-      toast.error("无法确认本地草稿清除结果");
+      toast.error("无法确认本地草稿已清除，请检查浏览器存储权限后重试。");
     }
   };
 
@@ -275,7 +275,7 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
       toast.success("已恢复本地草稿");
     } catch {
       const removed = removeSafeStorageItem(draftStorageKey);
-      toast.error(removed ? "草稿数据异常，已清除" : "草稿数据异常，无法确认是否清除");
+      toast.error(removed ? "草稿数据异常，已清除" : "草稿数据异常，且无法确认是否已清除，请检查浏览器存储权限。");
     }
   };
 
