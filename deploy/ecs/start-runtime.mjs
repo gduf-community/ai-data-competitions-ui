@@ -8,7 +8,7 @@ for (const name of ["API_ORIGIN", "WEB_TRUSTED_ORIGIN"]) {
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("Invalid " + name);
 }
 if (!["x-real-ip", "x-forwarded-for", "cf-connecting-ip"].includes(process.env.WEB_CLIENT_IP_HEADER)) throw new Error("Verified ingress IP header required.");
-if (process.version !== "v22.23.3") throw new Error("Runtime requires Node.js 22.23.3.");
+if (process.version !== "v22.23.5") throw new Error("Runtime requires Node.js 22.23.5.");
 const root = path.dirname(fileURLToPath(import.meta.url));
 // Loopback only. Reverse proxy / service isolation remains an explicit host-side operation.
 const child = spawn(process.execPath, [path.join(root, "server.js")], {

@@ -196,3 +196,44 @@ test("disabled storage returns the existing safe fallback without crashing", (t)
   assert.equal(setSafeStorageItem("application-draft:test", "{}"), false);
   assert.equal(removeSafeStorageItem("application-draft:test"), false);
 });
+
+test("application draft feedback confirms deletion only after storage succeeds", () => {
+  const draftKey = "application-draft:behavior-fixture";
+  for (const canRemove of [true, false]) {
+    for (const action of ["clearDraft", "restoreDraft"] as const) {
+      const notifications: { kind: "success" | "error"; message: string }[] = [];
+      let storageValue: string | null = "invalid-json";
+      let removals = 0;
+      const node = declaration(action) as ts.VariableDeclaration;
+      const handler = evaluate(node.initializer!.getText(source), {
+        draftStorageKey: draftKey,
+        getSafeStorageItem: (key: string) => { assert.equal(key, draftKey); return storageValue; },
+        removeSafeStorageItem: (key: string) => {
+          assert.equal(key, draftKey);
+          removals++;
+          if (canRemove) storageValue = null;
+          return canRemove;
+        },
+        toast: {
+          success: (message: string) => notifications.push({ kind: "success", message }),
+          error: (message: string) => notifications.push({ kind: "error", message }),
+        },
+      });
+
+      handler();
+
+      assert.equal(removals, 1, `${action} attempts removal exactly once`);
+      assert.equal(storageValue, canRemove ? null : "invalid-json");
+      assert.equal(notifications.length, 1);
+      const [notice] = notifications;
+      assert.equal(notice.kind, canRemove && action === "clearDraft" ? "success" : "error",
+        `${action}: storage denial must not report deletion`);
+      if (canRemove) assert.match(notice.message, /已清除/);
+      else {
+        assert.match(notice.message, /无法确认.*清除/);
+        assert.doesNotMatch(notice.message, /已清除/);
+      }
+      if (action === "restoreDraft") assert.match(notice.message, /草稿数据异常/);
+    }
+  }
+});

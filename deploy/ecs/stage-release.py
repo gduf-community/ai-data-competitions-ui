@@ -20,7 +20,7 @@ def stage(args):
     arch = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine())
     if any(manifest.get(key) != value for key, value in {
         "version": 1, "unit": args.unit, "repository": repo, "sha": args.sha,
-        "payloadSha256": args.digest, "platform": "linux", "arch": arch, "node": "v22.23.3",
+        "payloadSha256": args.digest, "platform": "linux", "arch": arch, "node": "v22.23.5",
         "server": "build/api/server.js" if args.unit == "api" else "server.js",
     }.items()) or arch is None or platform.system() != "Linux":
         raise ValueError("Runtime identity/platform mismatch")

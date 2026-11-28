@@ -8,7 +8,7 @@
 
 ## 本地启动
 
-固定 Node.js **22.23.3**、pnpm **10.34.5**；当前 Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**，以 [package.json](./package.json) 与唯一 [pnpm-lock.yaml](./pnpm-lock.yaml) 为准。
+固定 Node.js **22.23.5**、pnpm **10.34.5**；当前 Next.js/eslint-config-next **16.4.6**、React/react-dom **19.3.1**，以 [package.json](./package.json) 与唯一 [pnpm-lock.yaml](./pnpm-lock.yaml) 为准。
 
 ```bash
 pnpm install --frozen-lockfile
