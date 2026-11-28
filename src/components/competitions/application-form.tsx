@@ -256,8 +256,11 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
   };
 
   const clearDraft = () => {
-    removeSafeStorageItem(draftStorageKey);
-    toast.success("本地草稿已清除");
+    if (removeSafeStorageItem(draftStorageKey)) {
+      toast.success("本地草稿已清除");
+    } else {
+      toast.error("无法确认本地草稿清除结果");
+    }
   };
 
   const restoreDraft = () => {
@@ -271,8 +274,8 @@ export function ApplicationForm({ competition, registrationId, initialData }: Ap
       form.reset(draftValues(JSON.parse(raw) as SafeApplicationDraft, isTeamMode, competition.subTracks), { keepDefaultValues: true });
       toast.success("已恢复本地草稿");
     } catch {
-      removeSafeStorageItem(draftStorageKey);
-      toast.error("草稿数据异常，已清除");
+      const removed = removeSafeStorageItem(draftStorageKey);
+      toast.error(removed ? "草稿数据异常，已清除" : "草稿数据异常，无法确认是否清除");
     }
   };
 
