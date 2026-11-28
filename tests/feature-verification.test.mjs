@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -64,6 +64,41 @@ test("official awards feature binds to shipped Web consumers, not personal certi
     const source = await readFile(new URL("../" + path, import.meta.url), "utf8");
     for (const required of requiredSources) {
       assert.ok(source.includes(required), `${path} must exercise ${required}`);
+    }
+  }
+});
+
+
+test("feature preflight rejects wrong Node missing tests and unproven consumer coverage", async () => {
+  for (const scenario of ["valid", "wrong-node", "missing-test", "consumer-coverage"]) {
+    const root = await mkdtemp(join(tmpdir(),"feature-preflight-"));
+    const git = args => execFileSync("git",args,{cwd:root,stdio:["pipe","pipe","pipe"],
+      env:{...process.env,GIT_AUTHOR_NAME:"Synthetic fixture",GIT_AUTHOR_EMAIL:"fixture@example.invalid",GIT_COMMITTER_NAME:"Synthetic fixture",GIT_COMMITTER_EMAIL:"fixture@example.invalid"}});
+    git(["init"]); git(["remote","add","origin","https://github.com/example/project.git"]);
+    await writeFile(join(root,".gitignore"),".verification/\n");
+    await writeFile(join(root,".node-version"),scenario==="wrong-node" ? `${Number(process.versions.node.split(".")[0])+1}.0.0` : process.versions.node);
+    await writeFile(join(root,"check.mjs"),"import {writeFileSync} from 'node:fs'; writeFileSync('.verification/executed','yes');\n");
+    await writeFile(join(root,"present.test.mjs"),"import test from 'node:test'; import {writeFileSync} from 'node:fs'; test('observed execution',()=>writeFileSync('.verification/executed','yes'));\n");
+    await mkdir(join(root,"src"));
+    await writeFile(join(root,"src/consumer.mjs"),"export const consume = () => true;\n");
+    const check={id:"behavior",kind:"command",command:["node","check.mjs"],properties:["flow.assertion"],requires:[],timeoutSeconds:10};
+    if(scenario==="missing-test") check.command=["node","--test","present.test.mjs","missing.test.mjs"];
+    if(scenario==="consumer-coverage") check.coverage=[{property:"flow.assertion",targets:["src/consumer.mjs#consume"],tests:["present.test.mjs"]}];
+    await writeFile(join(root,"governance.json"),JSON.stringify({version:1,features:[{id:"flow",description:"Synthetic behavior",documentation:["README.md"],checks:["behavior"]}],checks:[check]}));
+    git(["add","."]); git(["commit","-m","synthetic preflight fixture"]);
+    const result=await verifyProject([],root), execution=result.report.execution.checks[0];
+    assert.equal(result.status,scenario==="valid"?"passed":"incomplete",scenario);
+    if(["wrong-node","missing-test"].includes(scenario)) {
+      assert.equal(execution.exitCode,null,scenario);
+      assert.equal(execution.failureType,"environment",scenario);
+      await assert.rejects(readFile(join(root,".verification/executed")),{code:"ENOENT"});
+    } else {
+      assert.equal(execution.exitCode,0,scenario);
+      assert.equal(await readFile(join(root,".verification/executed"),"utf8"),"yes");
+    }
+    if(scenario==="consumer-coverage") {
+      assert.equal(execution.assertions[0].status,"incomplete");
+      assert.equal(execution.failureType,"not_run");
     }
   }
 });
